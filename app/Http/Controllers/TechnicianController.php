@@ -59,9 +59,10 @@ class TechnicianController extends Controller
         if ($request->input('sort') === 'distance' && $request->filled(['lat', 'lng'])) {
             $query->orderBy('distance');
         } else {
-            $query->join('technician_profiles as tp_sort', 'tp_sort.user_id', '=', 'users.id')
-                ->orderByDesc('tp_sort.rating_avg');
-        }
+    $query->join('technician_profiles as tp_sort', 'tp_sort.user_id', '=', 'users.id')
+            ->select('users.*')
+            ->orderByDesc('tp_sort.rating_avg');
+    }
 
         $technicians = $query->paginate(12)->withQueryString();
 
