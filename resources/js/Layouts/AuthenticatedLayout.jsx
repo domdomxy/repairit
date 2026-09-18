@@ -30,6 +30,12 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     Dashboard
                                 </NavLink>
+                                <NavLink href={route('conversations.index')} active={route().current('conversations.index')}>
+                                    Messages
+                                </NavLink>
+                                <NavLink href={route('technicians.index')} active={route().current('technicians.index')}>
+                                    Find a Technician
+                                </NavLink>
                             </div>
                         </div>
 
@@ -133,6 +139,9 @@ export default function AuthenticatedLayout({ header, children }) {
                             active={route().current('dashboard')}
                         >
                             Dashboard
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink href={route('conversations.index')} active={route().current('conversations.index')}>
+                            Messages
                         </ResponsiveNavLink>
                     </div>
 
