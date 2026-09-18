@@ -2,6 +2,21 @@ import { useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
+// Small OpenStreetMap preview centred on the given point. The box grows with the
+// reported accuracy so a rough (Wi-Fi / IP based) fix still shows sensible context.
+function mapEmbedUrl(lat, lng, accuracy) {
+    const spanMeters = Math.max(accuracy ?? 0, 500) * 3;
+    const latDelta = spanMeters / 111320;
+    const lngDelta = latDelta / Math.max(Math.cos((lat * Math.PI) / 180), 0.01);
+    const bbox = [lng - lngDelta, lat - latDelta, lng + lngDelta, lat + latDelta].join(',');
+
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${encodeURIComponent(`${lat},${lng}`)}`;
+}
+
+function formatMeters(meters) {
+    return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${meters} m`;
+}
+
 export default function Index({ technicians, categories, filters }) {
     const [form, setForm] = useState({
         category: filters.category ?? '',
@@ -13,6 +28,7 @@ export default function Index({ technicians, categories, filters }) {
         sort: filters.sort ?? 'rating',
     });
     const [locating, setLocating] = useState(false);
+    const [accuracy, setAccuracy] = useState(null); // metres, only known right after "Use my location"
 
     function update(key, value) {
         setForm((current) => ({ ...current, [key]: value }));
@@ -47,6 +63,7 @@ export default function Index({ technicians, categories, filters }) {
                     lng: position.coords.longitude.toFixed(7),
                     sort: 'distance',
                 }));
+                setAccuracy(Math.round(position.coords.accuracy));
                 setLocating(false);
             },
             () => {
@@ -58,9 +75,19 @@ export default function Index({ technicians, categories, filters }) {
 
     function clearLocation() {
         setForm((current) => ({ ...current, lat: '', lng: '', sort: 'rating' }));
+        setAccuracy(null);
     }
 
     const hasLocation = form.lat !== '' && form.lng !== '';
+
+    const latNum = parseFloat(form.lat);
+    const lngNum = parseFloat(form.lng);
+    const showLocationPanel = hasLocation && Number.isFinite(latNum) && Number.isFinite(lngNum);
+
+    // The location was just detected but the results below still reflect the previous search
+    const searchPending =
+        showLocationPanel &&
+        (String(filters.lat ?? '') !== form.lat || String(filters.lng ?? '') !== form.lng);
 
     return (
         <AuthenticatedLayout header={<h2 className="text-xl font-semibold">Find a technician</h2>}>
@@ -168,6 +195,42 @@ export default function Index({ technicians, categories, filters }) {
                             Search
                         </button>
                     </div>
+
+                    {/* Detected location */}
+                    {showLocationPanel && (
+                        <div className="sm:col-span-2 lg:col-span-4 rounded-lg border dark:border-gray-700 overflow-hidden">
+                            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+                                <div>
+                                    <p className="font-medium">📍 Your location</p>
+                                    <p className="text-gray-500">
+                                        {latNum.toFixed(5)}, {lngNum.toFixed(5)}
+                                        {accuracy !== null && ` · accurate to about ${formatMeters(accuracy)}`}
+                                    </p>
+                                </div>
+                                <a
+                                    href={`https://www.openstreetmap.org/?mlat=${latNum}&mlon=${lngNum}#map=15/${latNum}/${lngNum}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-indigo-600 underline"
+                                >
+                                    Open larger map ↗
+                                </a>
+                            </div>
+
+                            <iframe
+                                title="Map showing your location"
+                                src={mapEmbedUrl(latNum, lngNum, accuracy)}
+                                loading="lazy"
+                                className="w-full h-56 border-0"
+                            />
+
+                            {searchPending && (
+                                <p className="px-4 py-2 text-xs text-gray-500 bg-gray-50 dark:bg-gray-900">
+                                    Press Search to see technicians near this location.
+                                </p>
+                            )}
+                        </div>
+                    )}
                 </form>
 
                 {/* Results */}
