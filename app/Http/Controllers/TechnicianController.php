@@ -24,6 +24,7 @@ class TechnicianController extends Controller
         $query = User::query()
             ->join('technician_profiles', 'technician_profiles.user_id', '=', 'users.id')
             ->where('users.role', 'technician')
+            ->whereNull('users.suspended_at')
             ->select('users.*')
             ->with(['technicianProfile.categories']);
 
@@ -140,7 +141,7 @@ class TechnicianController extends Controller
 
     public function show(Request $request, User $technician)
     {
-        abort_unless($technician->role === 'technician', 404);
+        abort_unless($technician->role === 'technician' && ! $technician->isSuspended(), 404);
 
         $technician->load([
             'technicianProfile.categories',

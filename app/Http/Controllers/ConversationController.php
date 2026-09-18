@@ -32,7 +32,7 @@ class ConversationController extends Controller
     // Start (or reopen) a conversation with a technician, then redirect into it
     public function startWith(User $technician)
     {
-        abort_unless($technician->role === 'technician', 404);
+        abort_unless($technician->role === 'technician' && ! $technician->isSuspended(), 404);
 
         $customer = Auth::user();
         abort_if($customer->id === $technician->id, 403);

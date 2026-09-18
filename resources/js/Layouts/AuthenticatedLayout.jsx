@@ -5,8 +5,17 @@ import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
+const adminLinks = [
+    { label: 'Users', routeName: 'admin.users.index' },
+    { label: 'Categories', routeName: 'admin.categories.index' },
+    { label: 'Reviews', routeName: 'admin.reviews.index' },
+    { label: 'Activity log', routeName: 'admin.logs.index' },
+];
+
 export default function AuthenticatedLayout({ header, children }) {
-    const user = usePage().props.auth.user;
+    const { auth, flash } = usePage().props;
+    const user = auth.user;
+    const isAdmin = user.role === 'admin';
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
@@ -30,12 +39,26 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     Dashboard
                                 </NavLink>
-                                <NavLink href={route('conversations.index')} active={route().current('conversations.index')}>
-                                    Messages
-                                </NavLink>
-                                <NavLink href={route('technicians.index')} active={route().current('technicians.index')}>
-                                    Find a Technician
-                                </NavLink>
+                                {isAdmin ? (
+                                    adminLinks.map((link) => (
+                                        <NavLink
+                                            key={link.routeName}
+                                            href={route(link.routeName)}
+                                            active={route().current(link.routeName)}
+                                        >
+                                            {link.label}
+                                        </NavLink>
+                                    ))
+                                ) : (
+                                    <>
+                                        <NavLink href={route('conversations.index')} active={route().current('conversations.index')}>
+                                            Messages
+                                        </NavLink>
+                                        <NavLink href={route('technicians.index')} active={route().current('technicians.index')}>
+                                            Find a Technician
+                                        </NavLink>
+                                    </>
+                                )}
                             </div>
                         </div>
 
@@ -140,9 +163,21 @@ export default function AuthenticatedLayout({ header, children }) {
                         >
                             Dashboard
                         </ResponsiveNavLink>
-                        <ResponsiveNavLink href={route('conversations.index')} active={route().current('conversations.index')}>
-                            Messages
-                        </ResponsiveNavLink>
+                        {isAdmin ? (
+                            adminLinks.map((link) => (
+                                <ResponsiveNavLink
+                                    key={link.routeName}
+                                    href={route(link.routeName)}
+                                    active={route().current(link.routeName)}
+                                >
+                                    {link.label}
+                                </ResponsiveNavLink>
+                            ))
+                        ) : (
+                            <ResponsiveNavLink href={route('conversations.index')} active={route().current('conversations.index')}>
+                                Messages
+                            </ResponsiveNavLink>
+                        )}
                     </div>
 
                     <div className="border-t border-gray-200 pb-1 pt-4 dark:border-gray-600">
@@ -177,6 +212,17 @@ export default function AuthenticatedLayout({ header, children }) {
                         {header}
                     </div>
                 </header>
+            )}
+
+            {flash?.success && (
+                <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
+                    <div
+                        role="status"
+                        className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                    >
+                        {flash.success}
+                    </div>
+                </div>
             )}
 
             <main>{children}</main>
