@@ -40,4 +40,19 @@ class TechnicianProfile extends Model
     {
         return $this->belongsToMany(Category::class, 'category_technician');
     }
+
+    /**
+     * Recompute the cached rating from this technician's reviews.
+     */
+    public function refreshRatings(): void
+    {
+        $stats = Review::where('technician_id', $this->user_id)
+            ->selectRaw('COUNT(*) as total, AVG(rating) as average')
+            ->first();
+
+        $this->update([
+            'rating_count' => (int) $stats->total,
+            'rating_avg' => round((float) $stats->average, 2),
+        ]);
+    }
 }

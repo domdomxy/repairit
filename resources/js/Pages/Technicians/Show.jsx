@@ -1,10 +1,12 @@
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
+import ReviewForm from '@/Components/ReviewForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
-export default function Show({ technician }) {
+export default function Show({ technician, canReview, myReview }) {
     const { auth } = usePage().props;
     const profile = technician.technician_profile;
     const isOwnProfile = auth.user.id === technician.id;
+    const isCustomer = auth.user.role === 'customer';
 
     function contact() {
         router.post(route('conversations.start', technician.id));
@@ -19,14 +21,21 @@ export default function Show({ technician }) {
                             <h3 className="text-lg font-semibold">{technician.name}</h3>
                             <p className="text-sm text-gray-500">{profile?.city}</p>
                             <p className="text-sm mt-1">
-                                Rating: {profile?.rating_avg ?? '—'} ({profile?.rating_count ?? 0} reviews)
+                                Rating: {profile?.rating_count ? profile.rating_avg : '—'} ({profile?.rating_count ?? 0} reviews)
                             </p>
                             <p className="text-sm mt-1 capitalize">
                                 Status: {profile?.availability_status}
                             </p>
                         </div>
 
-                        {!isOwnProfile && (
+                        {isOwnProfile ? (
+                            <Link
+                                href={route('technician.profile.edit')}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-md"
+                            >
+                                Edit profile
+                            </Link>
+                        ) : (
                             <button
                                 onClick={contact}
                                 className="px-4 py-2 bg-indigo-600 text-white rounded-md"
@@ -61,6 +70,26 @@ export default function Show({ technician }) {
 
                 <div>
                     <h4 className="font-semibold mb-2">Reviews</h4>
+
+                    {isCustomer &&
+                        (canReview ? (
+                            <div className="mb-4 rounded-md border p-4">
+                                <h5 className="mb-3 text-sm font-medium">
+                                    {myReview ? 'Your review' : 'Leave a review'}
+                                </h5>
+                                <ReviewForm
+                                    key={myReview ? 'edit' : 'new'}
+                                    technicianId={technician.id}
+                                    review={myReview}
+                                />
+                            </div>
+                        ) : (
+                            <p className="mb-4 text-sm text-gray-500">
+                                Once you and {technician.name} have exchanged messages, you can
+                                leave a review.
+                            </p>
+                        ))}
+
                     {technician.reviews_received?.length === 0 && (
                         <p className="text-sm text-gray-500">No reviews yet.</p>
                     )}

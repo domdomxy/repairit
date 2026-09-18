@@ -11,7 +11,9 @@ export default function Technician({ conversationCount }) {
                         <Link href={route('conversations.index')} className="text-indigo-600 underline">
                             View messages
                         </Link>
-                        {/* Profile-edit link goes here once that page exists */}
+                        <Link href={route('technician.profile.edit')} className="text-indigo-600 underline">
+                            Edit profile
+                        </Link>
                     </div>
                 </div>
             </div>

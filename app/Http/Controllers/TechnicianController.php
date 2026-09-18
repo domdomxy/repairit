@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Models\Review;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -137,7 +138,7 @@ class TechnicianController extends Controller
         return [$sql, [$lat, $lat, $lat, $lng, $lng]];
     }
 
-    public function show(User $technician)
+    public function show(Request $request, User $technician)
     {
         abort_unless($technician->role === 'technician', 404);
 
@@ -146,8 +147,19 @@ class TechnicianController extends Controller
             'reviewsReceived' => fn ($q) => $q->latest()->with('customer:id,name'),
         ]);
 
+        // Only customers review. `canReview` says whether they've earned the
+        // right to (see Review::conversationFor); `myReview` prefills the form.
+        $viewer = $request->user();
+        $isCustomer = $viewer->role === 'customer';
+
         return Inertia::render('Technicians/Show', [
             'technician' => $this->detail($technician),
+            'canReview' => $isCustomer && Review::conversationFor($viewer, $technician) !== null,
+            'myReview' => $isCustomer
+                ? Review::where('customer_id', $viewer->id)
+                    ->where('technician_id', $technician->id)
+                    ->first(['rating', 'comment'])
+                : null,
         ]);
     }
 
