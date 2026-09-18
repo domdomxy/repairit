@@ -17,6 +17,10 @@ class MessageController extends Controller
             403
         );
 
+        // A suspended account can't be written to (they can't read it either),
+        // and the sender shouldn't get a silent success.
+        abort_if($conversation->participantFor($user)->isSuspended(), 403, 'This account has been suspended.');
+
         $validated = $request->validate([
             'body' => ['required', 'string', 'max:5000'],
         ]);
