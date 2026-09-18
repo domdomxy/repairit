@@ -7,7 +7,9 @@ export default defineConfig({
         laravel({
             input: 'resources/js/app.jsx',
             refresh: true,
+            include: ['pusher-js', 'laravel-echo'],
         }),
         react(),
     ],
 });
+    
