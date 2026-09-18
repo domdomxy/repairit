@@ -14,7 +14,7 @@ export default function Show({ conversation, messages: initialMessages }) {
             : conversation.customer;
 
     // Live incoming messages
-    useEcho(`conversation.${conversation.id}`, 'message.sent', (event) => {
+    useEcho(`conversation.${conversation.id}`, '.message.sent', (event) => {
         setMessages((current) => [...current, event]);
     });
 
