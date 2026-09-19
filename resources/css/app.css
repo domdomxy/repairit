@@ -1,3 +1,10 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    /* Scrollbars, date pickers and other native controls follow the theme. */
+    .dark {
+        color-scheme: dark;
+    }
+}

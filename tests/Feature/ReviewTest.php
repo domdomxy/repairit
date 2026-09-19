@@ -126,12 +126,45 @@ test('the rating must be a whole number from 1 to 5', function (mixed $rating) {
     expect(Review::count())->toBe(0);
 })->with([0, 6, 'great', null]);
 
-test('only customers can post reviews', function () {
+test('any role can review a technician once they have exchanged messages', function () {
     $technician = reviewTestTechnician();
-    $otherTechnician = reviewTestTechnician();
-    reviewTestConversation($otherTechnician, $technician);
 
-    $this->actingAs($otherTechnician)
+    $reviewers = [
+        reviewTestTechnician(),
+        User::factory()->create(['role' => 'admin']),
+    ];
+
+    foreach ($reviewers as $reviewer) {
+        reviewTestConversation($reviewer, $technician);
+
+        $this->actingAs($reviewer)
+            ->post(route('reviews.store', $technician), ['rating' => 5])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('reviews', [
+            'customer_id' => $reviewer->id,
+            'technician_id' => $technician->id,
+            'rating' => 5,
+        ]);
+    }
+
+    expect(reviewTestRating($technician))->toBe([2, 5.0]);
+});
+
+test('a technician acting as a customer still needs a conversation to review', function () {
+    $technician = reviewTestTechnician();
+
+    $this->actingAs(reviewTestTechnician())
+        ->post(route('reviews.store', $technician), ['rating' => 5])
+        ->assertForbidden();
+
+    expect(Review::count())->toBe(0);
+});
+
+test('a technician cannot review themselves', function () {
+    $technician = reviewTestTechnician();
+
+    $this->actingAs($technician)
         ->post(route('reviews.store', $technician), ['rating' => 5])
         ->assertForbidden();
 
@@ -210,5 +243,19 @@ test('the technician page does not offer a review to a customer who has not mess
         ->get(route('technicians.show', $technician))
         ->assertInertia(fn (Assert $page) => $page
             ->where('canReview', false)
+            ->where('myReview', null));
+});
+
+test('the technician page offers a review to a technician who has messaged them', function () {
+    $this->withoutVite();
+
+    $technician = reviewTestTechnician();
+    $otherTechnician = reviewTestTechnician();
+    reviewTestConversation($otherTechnician, $technician);
+
+    $this->actingAs($otherTechnician)
+        ->get(route('technicians.show', $technician))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('canReview', true)
             ->where('myReview', null));
 });

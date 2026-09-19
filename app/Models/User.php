@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -18,6 +19,18 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    protected static function booted(): void
+    {
+        // The database cascade removes a deleted account's conversations and
+        // messages but knows nothing about the files on disk, so delete those.
+        static::deleting(function (User $user) {
+            Conversation::where('customer_id', $user->id)
+                ->orWhere('technician_id', $user->id)
+                ->pluck('id')
+                ->each(fn ($id) => Storage::disk(Message::ATTACHMENT_DISK)->deleteDirectory("message-attachments/{$id}"));
+        });
+    }
 
     /**
      * Get the attributes that should be cast.

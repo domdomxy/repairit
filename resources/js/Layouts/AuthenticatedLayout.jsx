@@ -2,20 +2,20 @@ import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
+import ThemeToggle from '@/Components/ThemeToggle';
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
-const adminLinks = [
-    { label: 'Users', routeName: 'admin.users.index' },
-    { label: 'Categories', routeName: 'admin.categories.index' },
-    { label: 'Reviews', routeName: 'admin.reviews.index' },
-    { label: 'Activity log', routeName: 'admin.logs.index' },
+// Any account can act as a customer (message technicians, review them), so these
+// are shown to everyone, whatever their role. Admin tools live on the admin dashboard.
+const navLinks = [
+    { label: 'Messages', routeName: 'conversations.index' },
+    { label: 'Find a Technician', routeName: 'technicians.index' },
 ];
 
 export default function AuthenticatedLayout({ header, children }) {
     const { auth, flash } = usePage().props;
     const user = auth.user;
-    const isAdmin = user.role === 'admin';
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
@@ -39,30 +39,20 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     Dashboard
                                 </NavLink>
-                                {isAdmin ? (
-                                    adminLinks.map((link) => (
-                                        <NavLink
-                                            key={link.routeName}
-                                            href={route(link.routeName)}
-                                            active={route().current(link.routeName)}
-                                        >
-                                            {link.label}
-                                        </NavLink>
-                                    ))
-                                ) : (
-                                    <>
-                                        <NavLink href={route('conversations.index')} active={route().current('conversations.index')}>
-                                            Messages
-                                        </NavLink>
-                                        <NavLink href={route('technicians.index')} active={route().current('technicians.index')}>
-                                            Find a Technician
-                                        </NavLink>
-                                    </>
-                                )}
+                                {navLinks.map((link) => (
+                                    <NavLink
+                                        key={link.routeName}
+                                        href={route(link.routeName)}
+                                        active={route().current(link.routeName)}
+                                    >
+                                        {link.label}
+                                    </NavLink>
+                                ))}
                             </div>
                         </div>
 
                         <div className="hidden sm:ms-6 sm:flex sm:items-center">
+                            <ThemeToggle />
                             <div className="relative ms-3">
                                 <Dropdown>
                                     <Dropdown.Trigger>
@@ -108,6 +98,7 @@ export default function AuthenticatedLayout({ header, children }) {
                         </div>
 
                         <div className="-me-2 flex items-center sm:hidden">
+                            <ThemeToggle className="me-1" />
                             <button
                                 onClick={() =>
                                     setShowingNavigationDropdown(
@@ -163,21 +154,15 @@ export default function AuthenticatedLayout({ header, children }) {
                         >
                             Dashboard
                         </ResponsiveNavLink>
-                        {isAdmin ? (
-                            adminLinks.map((link) => (
-                                <ResponsiveNavLink
-                                    key={link.routeName}
-                                    href={route(link.routeName)}
-                                    active={route().current(link.routeName)}
-                                >
-                                    {link.label}
-                                </ResponsiveNavLink>
-                            ))
-                        ) : (
-                            <ResponsiveNavLink href={route('conversations.index')} active={route().current('conversations.index')}>
-                                Messages
+                        {navLinks.map((link) => (
+                            <ResponsiveNavLink
+                                key={link.routeName}
+                                href={route(link.routeName)}
+                                active={route().current(link.routeName)}
+                            >
+                                {link.label}
                             </ResponsiveNavLink>
-                        )}
+                        ))}
                     </div>
 
                     <div className="border-t border-gray-200 pb-1 pt-4 dark:border-gray-600">

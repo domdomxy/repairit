@@ -6,7 +6,6 @@ export default function Show({ technician, canReview, myReview }) {
     const { auth } = usePage().props;
     const profile = technician.technician_profile;
     const isOwnProfile = auth.user.id === technician.id;
-    const isCustomer = auth.user.role === 'customer';
 
     function contact() {
         router.post(route('conversations.start', technician.id));
@@ -71,7 +70,7 @@ export default function Show({ technician, canReview, myReview }) {
                 <div>
                     <h4 className="font-semibold mb-2">Reviews</h4>
 
-                    {isCustomer &&
+                    {!isOwnProfile &&
                         (canReview ? (
                             <div className="mb-4 rounded-md border p-4">
                                 <h5 className="mb-3 text-sm font-medium">

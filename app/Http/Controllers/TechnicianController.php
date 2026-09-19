@@ -148,19 +148,18 @@ class TechnicianController extends Controller
             'reviewsReceived' => fn ($q) => $q->latest()->with('customer:id,name'),
         ]);
 
-        // Only customers review. `canReview` says whether they've earned the
-        // right to (see Review::conversationFor); `myReview` prefills the form.
+        // Any account can act as a customer, so anyone who has exchanged
+        // messages with this technician may review them. `canReview` says
+        // whether the viewer has earned that (see Review::conversationFor);
+        // `myReview` prefills the form.
         $viewer = $request->user();
-        $isCustomer = $viewer->role === 'customer';
 
         return Inertia::render('Technicians/Show', [
             'technician' => $this->detail($technician),
-            'canReview' => $isCustomer && Review::conversationFor($viewer, $technician) !== null,
-            'myReview' => $isCustomer
-                ? Review::where('customer_id', $viewer->id)
-                    ->where('technician_id', $technician->id)
-                    ->first(['rating', 'comment'])
-                : null,
+            'canReview' => Review::conversationFor($viewer, $technician) !== null,
+            'myReview' => Review::where('customer_id', $viewer->id)
+                ->where('technician_id', $technician->id)
+                ->first(['rating', 'comment']),
         ]);
     }
 

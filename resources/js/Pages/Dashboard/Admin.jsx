@@ -19,12 +19,31 @@ function Stat({ label, value, href, alert = false }) {
     );
 }
 
+const adminLinks = [
+    { label: 'Users', routeName: 'admin.users.index' },
+    { label: 'Categories', routeName: 'admin.categories.index' },
+    { label: 'Reviews', routeName: 'admin.reviews.index' },
+    { label: 'Activity log', routeName: 'admin.logs.index' },
+];
+
 export default function Admin({ stats, recentUsers, recentLogs }) {
     return (
         <AuthenticatedLayout header={<h2 className="text-xl font-semibold">Admin Dashboard</h2>}>
             <Head title="Admin Dashboard" />
 
             <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">
+                <div className="flex flex-wrap gap-3">
+                    {adminLinks.map((link) => (
+                        <Link
+                            key={link.routeName}
+                            href={route(link.routeName)}
+                            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+                        >
+                            {link.label}
+                        </Link>
+                    ))}
+                </div>
+
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                     <Stat label="Total users" value={stats.users} href={route('admin.users.index')} />
                     <Stat

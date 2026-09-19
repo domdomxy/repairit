@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Conversation;
+use App\Models\Message;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -69,6 +70,11 @@ class ConversationController extends Controller
         return Inertia::render('Messages/Show', [
             'conversation' => $conversation,
             'messages' => $messages,
+            // What the composer offers: the size cap and the extensions it lets through.
+            'attachments' => [
+                'max_kb' => Message::ATTACHMENT_MAX_KB,
+                'extensions' => Message::ATTACHMENT_EXTENSIONS,
+            ],
         ]);
     }
 }
