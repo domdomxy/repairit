@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Events\MessageSent;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Notifications\NewMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -68,6 +69,19 @@ class MessageController extends Controller
         $conversation->update(['last_message_at' => $message->created_at]);
 
         broadcast(new MessageSent($message))->toOthers();
+
+        // Tell the recipient once per unread stretch rather than for every line
+        // of a back-and-forth: if they already have an unread message from this
+        // sender, they have been told.
+        $alreadyNotified = $conversation->messages()
+            ->whereNull('read_at')
+            ->where('sender_id', $user->id)
+            ->where('id', '<', $message->id)
+            ->exists();
+
+        if (! $alreadyNotified) {
+            $conversation->participantFor($user)->notify(new NewMessage($message));
+        }
 
         return back();
     }

@@ -23,6 +23,7 @@ const adminLinks = [
     { label: 'Users', routeName: 'admin.users.index' },
     { label: 'Categories', routeName: 'admin.categories.index' },
     { label: 'Reviews', routeName: 'admin.reviews.index' },
+    { label: 'Support', routeName: 'admin.support.index' },
     { label: 'Activity log', routeName: 'admin.logs.index' },
 ];
 
@@ -65,6 +66,7 @@ export default function Admin({ stats, recentUsers, recentLogs }) {
                     <Stat label="Categories" value={stats.categories} href={route('admin.categories.index')} />
                     <Stat label="Conversations" value={stats.conversations} />
                     <Stat label="Reviews" value={stats.reviews} href={route('admin.reviews.index')} />
+                    <Stat label="Open tickets" value={stats.tickets_open} alert href={route('admin.support.index')} />
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-2">

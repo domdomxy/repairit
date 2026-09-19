@@ -13,3 +13,8 @@ Broadcast::channel('conversation.{conversationId}', function ($user, $conversati
     return $user->id === $conversation->customer_id
         || $user->id === $conversation->technician_id;
 });
+
+// Where a user's notifications are pushed live (Laravel's default naming).
+Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
+    return (int) $user->id === (int) $id;
+});

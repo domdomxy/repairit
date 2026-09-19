@@ -110,6 +110,20 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Support Address
+    |--------------------------------------------------------------------------
+    |
+    | Where people are told to write when they can't use the app, for example
+    | a suspended user who can no longer sign in to open a support ticket.
+    |
+    */
+
+    'support' => [
+        'address' => env('SUPPORT_EMAIL') ?: env('MAIL_FROM_ADDRESS', 'hello@example.com'),
+    ],
+
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),

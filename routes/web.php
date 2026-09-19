@@ -3,8 +3,11 @@
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\LogController as AdminLogController;
 use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
+use App\Http\Controllers\Admin\SupportController as AdminSupportController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SupportController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ConversationController;
@@ -37,6 +40,16 @@ Route::middleware('auth')->group(function () {
     Route::post('/technicians/{technician}/contact', [ConversationController::class, 'startWith'])->name('conversations.start');
     Route::post('/messages/{conversation}', [MessageController::class, 'store'])->name('messages.store');
     Route::get('/messages/{conversation}/attachments/{message}', [MessageController::class, 'attachment'])->name('messages.attachment');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
+    Route::get('/support', [SupportController::class, 'index'])->name('support.index');
+    // Must stay above /support/{ticket}, or "new" would be read as a ticket id.
+    Route::get('/support/new', [SupportController::class, 'create'])->name('support.create');
+    Route::post('/support', [SupportController::class, 'store'])->middleware('throttle:6,1')->name('support.store');
+    Route::get('/support/{ticket}', [SupportController::class, 'show'])->name('support.show');
+    Route::post('/support/{ticket}/reply', [SupportController::class, 'reply'])->middleware('throttle:20,1')->name('support.reply');
+    Route::post('/support/{ticket}/close', [SupportController::class, 'close'])->name('support.close');
     Route::get('/technicians', [TechnicianController::class, 'index'])->name('technicians.index');
     Route::get('/technicians/{technician}', [TechnicianController::class, 'show'])->name('technicians.show');
     Route::post('/technicians/{technician}/review', [ReviewController::class, 'store'])->name('reviews.store');
@@ -61,6 +74,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
     Route::get('/reviews', [AdminReviewController::class, 'index'])->name('reviews.index');
     Route::delete('/reviews/{review}', [AdminReviewController::class, 'destroy'])->name('reviews.destroy');
+
+    Route::get('/support', [AdminSupportController::class, 'index'])->name('support.index');
+    Route::get('/support/{ticket}', [AdminSupportController::class, 'show'])->name('support.show');
+    Route::post('/support/{ticket}/reply', [AdminSupportController::class, 'reply'])->name('support.reply');
+    Route::post('/support/{ticket}/status', [AdminSupportController::class, 'status'])->name('support.status');
 
     Route::get('/logs', [AdminLogController::class, 'index'])->name('logs.index');
 });

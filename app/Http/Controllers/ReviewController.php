@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Review;
 use App\Models\User;
+use App\Notifications\NewReview;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -28,7 +29,7 @@ class ReviewController extends Controller
             'comment' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        Review::updateOrCreate(
+        $review = Review::updateOrCreate(
             ['customer_id' => $customer->id, 'technician_id' => $technician->id],
             [
                 'conversation_id' => $conversation->id,
@@ -36,6 +37,11 @@ class ReviewController extends Controller
                 'comment' => $validated['comment'] ?? null,
             ]
         );
+
+        // Editing a review shouldn't ping the technician again.
+        if ($review->wasRecentlyCreated) {
+            $technician->notify(new NewReview($review));
+        }
 
         return back();
     }

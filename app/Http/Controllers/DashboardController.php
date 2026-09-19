@@ -6,6 +6,7 @@ use App\Models\AdminLog;
 use App\Models\Category;
 use App\Models\Conversation;
 use App\Models\Review;
+use App\Models\SupportTicket;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -44,6 +45,7 @@ class DashboardController extends Controller
                 'categories' => Category::count(),
                 'conversations' => Conversation::count(),
                 'reviews' => Review::count(),
+                'tickets_open' => SupportTicket::whereIn('status', SupportTicket::ACTIVE_STATUSES)->count(),
             ],
             'recentUsers' => User::latest()->orderByDesc('id')->limit(5)
                 ->get(['id', 'name', 'email', 'role', 'created_at']),

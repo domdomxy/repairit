@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\AdminLog;
 use App\Models\Review;
 use App\Models\User;
+use App\Notifications\AccountRestored;
+use App\Notifications\AccountSuspended;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -69,6 +71,8 @@ class UserController extends Controller
                 "Suspended {$user->name} ({$user->email}, {$user->role})",
                 $user,
             );
+
+            $user->notify(new AccountSuspended);
         }
 
         return back()->with('success', "{$user->name} has been suspended.");
@@ -88,6 +92,8 @@ class UserController extends Controller
                 "Restored {$user->name} ({$user->email}, {$user->role})",
                 $user,
             );
+
+            $user->notify(new AccountRestored);
         }
 
         return back()->with('success', "{$user->name} has been restored.");

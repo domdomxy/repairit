@@ -1,6 +1,7 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
+import NotificationBell from '@/Components/NotificationBell';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import ThemeToggle from '@/Components/ThemeToggle';
 import { Link, usePage } from '@inertiajs/react';
@@ -14,7 +15,7 @@ const navLinks = [
 ];
 
 export default function AuthenticatedLayout({ header, children }) {
-    const { auth, flash } = usePage().props;
+    const { auth, flash, notifications } = usePage().props;
     const user = auth.user;
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
@@ -52,6 +53,7 @@ export default function AuthenticatedLayout({ header, children }) {
                         </div>
 
                         <div className="hidden sm:ms-6 sm:flex sm:items-center">
+                            <NotificationBell />
                             <ThemeToggle />
                             <div className="relative ms-3">
                                 <Dropdown>
@@ -84,6 +86,11 @@ export default function AuthenticatedLayout({ header, children }) {
                                             href={route('profile.edit')}
                                         >
                                             Profile
+                                        </Dropdown.Link>
+                                        <Dropdown.Link
+                                            href={route('support.index')}
+                                        >
+                                            Support
                                         </Dropdown.Link>
                                         <Dropdown.Link
                                             href={route('logout')}
@@ -163,6 +170,17 @@ export default function AuthenticatedLayout({ header, children }) {
                                 {link.label}
                             </ResponsiveNavLink>
                         ))}
+                        <ResponsiveNavLink
+                            href={route('notifications.index')}
+                            active={route().current('notifications.index')}
+                        >
+                            Notifications
+                            {notifications?.unread > 0 && (
+                                <span className="ms-2 rounded-full bg-red-600 px-2 text-xs font-semibold text-white">
+                                    {notifications.unread}
+                                </span>
+                            )}
+                        </ResponsiveNavLink>
                     </div>
 
                     <div className="border-t border-gray-200 pb-1 pt-4 dark:border-gray-600">
@@ -176,6 +194,9 @@ export default function AuthenticatedLayout({ header, children }) {
                         </div>
 
                         <div className="mt-3 space-y-1">
+                            <ResponsiveNavLink href={route('support.index')}>
+                                Support
+                            </ResponsiveNavLink>
                             <ResponsiveNavLink href={route('profile.edit')}>
                                 Profile
                             </ResponsiveNavLink>

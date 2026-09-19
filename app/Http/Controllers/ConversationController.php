@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\User;
+use App\Notifications\NewMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -66,6 +67,12 @@ class ConversationController extends Controller
             ->whereNull('read_at')
             ->where('sender_id', '!=', $user->id)
             ->update(['read_at' => now()]);
+
+        $user->unreadNotifications()
+            ->where('type', NewMessage::class)
+            ->get()
+            ->filter(fn ($notification) => ($notification->data['conversation_id'] ?? null) === $conversation->id)
+            ->each->markAsRead();
 
         return Inertia::render('Messages/Show', [
             'conversation' => $conversation,

@@ -1,3 +1,4 @@
+import Checkbox from '@/Components/Checkbox';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -16,6 +17,7 @@ export default function UpdateProfileInformation({
         useForm({
             name: user.name,
             email: user.email,
+            email_notifications: user.email_notifications,
         });
 
     const submit = (e) => {
@@ -67,6 +69,20 @@ export default function UpdateProfileInformation({
                     />
 
                     <InputError className="mt-2" message={errors.email} />
+                </div>
+
+                <div>
+                    <label className="flex items-center gap-2">
+                        <Checkbox
+                            checked={data.email_notifications}
+                            onChange={(e) => setData('email_notifications', e.target.checked)}
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                            Email me about new messages, reviews and support replies
+                        </span>
+                    </label>
+
+                    <InputError className="mt-2" message={errors.email_notifications} />
                 </div>
 
                 {mustVerifyEmail && user.email_verified_at === null && (

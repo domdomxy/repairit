@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['name', 'email', 'password', 'role'])]
+#[Fillable(['name', 'email', 'password', 'role', 'email_notifications'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -32,6 +32,12 @@ class User extends Authenticatable
         });
     }
 
+    // Matches the column default, so a freshly created model behaves like a
+    // reloaded one.
+    protected $attributes = [
+        'email_notifications' => true,
+    ];
+
     /**
      * Get the attributes that should be cast.
      *
@@ -42,6 +48,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'suspended_at' => 'datetime',
+            'email_notifications' => 'boolean',
             'password' => 'hashed',
         ];
     }
@@ -54,6 +61,11 @@ class User extends Authenticatable
     public function isSuspended(): bool
     {
         return $this->suspended_at !== null;
+    }
+
+    public function supportTickets(): HasMany
+    {
+        return $this->hasMany(SupportTicket::class);
     }
 
     public function customerConversations(): HasMany
