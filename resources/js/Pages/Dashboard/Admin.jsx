@@ -1,24 +1,9 @@
 import { Head, Link } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
+import { BarChart, CHART_COLORS, ChartCard, DonutChart, HBarChart, LineChart } from '@/Components/Charts';
+import StatCard from '@/Components/StatCard';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { formatDate, formatDateTime } from '@/lib/dates';
-
-function Stat({ label, value, href, alert = false }) {
-    const body = (
-        <div className="rounded-lg bg-white p-5 shadow dark:bg-gray-800">
-            <p className="text-sm text-gray-500">{label}</p>
-            <p className={`text-2xl font-semibold ${alert && value > 0 ? 'text-red-600' : ''}`}>{value}</p>
-        </div>
-    );
-
-    return href ? (
-        <Link href={href} className="block transition hover:opacity-80">
-            {body}
-        </Link>
-    ) : (
-        body
-    );
-}
+import { formatDate, formatDateTime, formatShortDate } from '@/lib/dates';
 
 const adminLinks = [
     { label: 'Users', routeName: 'admin.users.index' },
@@ -28,7 +13,34 @@ const adminLinks = [
     { label: 'Activity log', routeName: 'admin.logs.index' },
 ];
 
-export default function Admin({ stats, recentUsers, recentLogs }) {
+// Stored value => label and colour, so a chart keeps the same order and colours.
+const ROLE_SLICES = [
+    { key: 'customer', label: 'Customers', color: CHART_COLORS.indigo },
+    { key: 'technician', label: 'Technicians', color: CHART_COLORS.emerald },
+    { key: 'admin', label: 'Admins', color: CHART_COLORS.purple },
+];
+
+const AVAILABILITY_SLICES = [
+    { key: 'available', label: 'Available', color: CHART_COLORS.emerald },
+    { key: 'busy', label: 'Busy', color: CHART_COLORS.amber },
+    { key: 'offline', label: 'Offline', color: CHART_COLORS.gray },
+];
+
+const TICKET_SLICES = [
+    { key: 'open', label: 'Open', color: CHART_COLORS.rose },
+    { key: 'in_progress', label: 'In progress', color: CHART_COLORS.amber },
+    { key: 'resolved', label: 'Resolved', color: CHART_COLORS.emerald },
+    { key: 'closed', label: 'Closed', color: CHART_COLORS.gray },
+];
+
+function slices(config, counts) {
+    return config.map(({ key, label, color }) => ({ label, color, value: counts[key] ?? 0 }));
+}
+
+export default function Admin({ stats, trends, charts, recentUsers, recentLogs }) {
+    const dayLabels = charts.signups.map((day) => formatShortDate(day.date));
+    const ratingsTotal = charts.ratings.reduce((sum, r) => sum + r.count, 0);
+
     return (
         <AuthenticatedLayout header={<h2 className="text-xl font-semibold">Admin Dashboard</h2>}>
             <Head title="Admin Dashboard" />
@@ -47,27 +59,105 @@ export default function Admin({ stats, recentUsers, recentLogs }) {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                    <Stat label="Total users" value={stats.users} href={route('admin.users.index')} />
-                    <Stat
+                    <StatCard label="Total users" value={stats.users} href={route('admin.users.index')} />
+                    <StatCard
                         label="Customers"
                         value={stats.customers}
                         href={route('admin.users.index', { role: 'customer' })}
                     />
-                    <Stat
+                    <StatCard
                         label="Technicians"
                         value={stats.technicians}
                         href={route('admin.users.index', { role: 'technician' })}
                     />
-                    <Stat
+                    <StatCard
                         label="Suspended"
                         value={stats.suspended}
                         alert
                         href={route('admin.users.index', { status: 'suspended' })}
                     />
-                    <Stat label="Categories" value={stats.categories} href={route('admin.categories.index')} />
-                    <Stat label="Conversations" value={stats.conversations} />
-                    <Stat label="Reviews" value={stats.reviews} href={route('admin.reviews.index')} />
-                    <Stat label="Open tickets" value={stats.tickets_open} alert href={route('admin.support.index')} />
+                    <StatCard label="Categories" value={stats.categories} href={route('admin.categories.index')} />
+                    <StatCard label="Conversations" value={stats.conversations} />
+                    <StatCard label="Reviews" value={stats.reviews} href={route('admin.reviews.index')} />
+                    <StatCard label="Open tickets" value={stats.tickets_open} alert href={route('admin.support.index')} />
+                </div>
+
+                <div>
+                    <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Last 30 days</h3>
+                    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                        <StatCard label="New users" value={trends.users.current} trend={trends.users} />
+                        <StatCard label="New conversations" value={trends.conversations.current} trend={trends.conversations} />
+                        <StatCard label="Messages sent" value={trends.messages.current} trend={trends.messages} />
+                        <StatCard label="New reviews" value={trends.reviews.current} trend={trends.reviews} />
+                    </div>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2">
+                    <ChartCard title="Sign-ups" description="New accounts per day, last 30 days">
+                        <LineChart
+                            labels={dayLabels}
+                            series={[{ name: 'Sign-ups', color: CHART_COLORS.indigo, values: charts.signups.map((day) => day.count) }]}
+                            emptyMessage="No one has signed up in the last 30 days."
+                        />
+                    </ChartCard>
+
+                    <ChartCard title="Messages" description="Messages sent per day, last 30 days">
+                        <BarChart
+                            data={charts.messages.map((day) => ({ label: formatShortDate(day.date), value: day.count }))}
+                            color={CHART_COLORS.sky}
+                            unit="messages"
+                            emptyMessage="No messages have been sent in the last 30 days."
+                        />
+                    </ChartCard>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <ChartCard title="Users by role">
+                        <DonutChart data={slices(ROLE_SLICES, charts.roles)} centerLabel="users" />
+                    </ChartCard>
+
+                    <ChartCard title="Technician availability" description="Status technicians have set on their profile">
+                        <DonutChart
+                            data={slices(AVAILABILITY_SLICES, charts.availability)}
+                            centerLabel="technicians"
+                            emptyMessage="No technician profiles yet."
+                        />
+                    </ChartCard>
+
+                    <ChartCard title="Support tickets" description="All tickets by status" className="md:col-span-2 lg:col-span-1">
+                        <DonutChart
+                            data={slices(TICKET_SLICES, charts.tickets)}
+                            centerLabel="tickets"
+                            emptyMessage="No support tickets yet."
+                        />
+                    </ChartCard>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2">
+                    <ChartCard
+                        title="Review ratings"
+                        description={
+                            stats.average_rating === null
+                                ? 'How customers rate technicians'
+                                : `Average ${stats.average_rating} out of 5 from ${ratingsTotal} review${ratingsTotal === 1 ? '' : 's'}`
+                        }
+                    >
+                        <BarChart
+                            data={charts.ratings.map((r) => ({ label: `${r.rating} ★`, value: r.count }))}
+                            color={CHART_COLORS.amber}
+                            unit="reviews"
+                            showValues
+                            emptyMessage="No reviews yet."
+                        />
+                    </ChartCard>
+
+                    <ChartCard title="Technicians by category" description="Most popular categories, by technicians offering them">
+                        <HBarChart
+                            data={charts.categories.map((c) => ({ label: c.name, value: c.count }))}
+                            color={CHART_COLORS.emerald}
+                            emptyMessage="No technician has picked a category yet."
+                        />
+                    </ChartCard>
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-2">
