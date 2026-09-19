@@ -1,4 +1,5 @@
 import { Head, router } from '@inertiajs/react';
+import Avatar from '@/Components/Avatar';
 import { useState } from 'react';
 import Pagination from '@/Components/Pagination';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -95,9 +96,11 @@ export default function Index({ reviews, filters }) {
                                 <div className="text-amber-500" aria-label={`${review.rating} out of 5`}>
                                     {stars(review.rating)}
                                 </div>
-                                <p className="mt-1 text-sm">
+                                <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm">
+                                    <Avatar user={review.customer} size="xs" className="me-1" />
                                     <span className="font-medium">{review.customer.name}</span>
                                     <span className="text-gray-500"> reviewed </span>
+                                    <Avatar user={review.technician} size="xs" className="mx-1" />
                                     <span className="font-medium">{review.technician.name}</span>
                                     <span className="text-gray-500"> · {formatDate(review.created_at)}</span>
                                 </p>

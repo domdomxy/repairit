@@ -101,18 +101,24 @@ class SupportTicket extends Model
     public function threadFor(User $viewer): Collection
     {
         return $this->messages()
-            ->with('author:id,name')
+            ->with('author:id,name,avatar_path')
             ->orderBy('id')
             ->get()
-            ->map(fn (SupportMessage $message) => [
-                'id' => $message->id,
-                'body' => $message->body,
-                'from_staff' => $message->from_staff,
-                'author' => $message->from_staff && ! $viewer->isAdmin()
-                    ? 'Support team'
-                    : ($message->author?->name ?? 'Deleted user'),
-                'created_at' => $message->created_at->toIso8601String(),
-            ]);
+            ->map(function (SupportMessage $message) use ($viewer) {
+                $anonymous = $message->from_staff && ! $viewer->isAdmin();
+
+                return [
+                    'id' => $message->id,
+                    'body' => $message->body,
+                    'from_staff' => $message->from_staff,
+                    'author' => $anonymous
+                        ? 'Support team'
+                        : ($message->author?->name ?? 'Deleted user'),
+                    // The picture goes the same way as the name: hidden when staff are anonymous.
+                    'avatar_url' => $anonymous ? null : $message->author?->avatar_url,
+                    'created_at' => $message->created_at->toIso8601String(),
+                ];
+            });
     }
 
     /** Opening a ticket is what "reads" its notifications, so the bell stays honest. */

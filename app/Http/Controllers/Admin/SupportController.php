@@ -25,7 +25,7 @@ class SupportController extends Controller
         $category = $request->input('category');
 
         $tickets = SupportTicket::query()
-            ->with('user:id,name,email')
+            ->with('user:id,name,email,avatar_path')
             ->when($term !== '', fn ($query) => $query->where(
                 fn ($query) => $query
                     ->where('tracking_id', 'like', "%{$term}%")
@@ -49,7 +49,11 @@ class SupportController extends Controller
                 'category_label' => $ticket->categoryLabel(),
                 'status' => $ticket->status,
                 'last_activity_at' => $ticket->last_activity_at->toIso8601String(),
-                'user' => ['name' => $ticket->user->name, 'email' => $ticket->user->email],
+                'user' => [
+                    'name' => $ticket->user->name,
+                    'email' => $ticket->user->email,
+                    'avatar_url' => $ticket->user->avatar_url,
+                ],
             ]);
 
         return Inertia::render('Admin/Support/Index', [
@@ -65,7 +69,7 @@ class SupportController extends Controller
 
     public function show(Request $request, SupportTicket $ticket): Response
     {
-        $ticket->load('user:id,name,email,role,suspended_at');
+        $ticket->load('user:id,name,email,role,suspended_at,avatar_path');
         $ticket->markNotificationsReadFor($request->user());
 
         return Inertia::render('Admin/Support/Show', [
@@ -80,6 +84,7 @@ class SupportController extends Controller
                 'user' => [
                     'name' => $ticket->user->name,
                     'email' => $ticket->user->email,
+                    'avatar_url' => $ticket->user->avatar_url,
                     'role' => $ticket->user->role,
                     'suspended' => $ticket->user->isSuspended(),
                 ],

@@ -71,7 +71,7 @@ class NewMessage extends Notification implements ShouldQueue
             ->line('You can turn these emails off in your profile settings.');
     }
 
-    /** A short line for the in-app list; attachment-only messages have no text. */
+    /** A short line for the in-app list; messages with only files have no text. */
     private function preview(): ?string
     {
         $text = trim((string) $this->message->body);
@@ -80,6 +80,12 @@ class NewMessage extends Notification implements ShouldQueue
             return Str::limit(preg_replace('/\s+/u', ' ', $text), 120);
         }
 
-        return $this->message->attachment ? 'Sent an attachment' : null;
+        $count = $this->message->attachments()->count();
+
+        return match (true) {
+            $count === 0 => null,
+            $count === 1 => 'Sent an attachment',
+            default => "Sent {$count} attachments",
+        };
     }
 }

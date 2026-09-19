@@ -48,7 +48,7 @@ class DashboardController extends Controller
                 'tickets_open' => SupportTicket::whereIn('status', SupportTicket::ACTIVE_STATUSES)->count(),
             ],
             'recentUsers' => User::latest()->orderByDesc('id')->limit(5)
-                ->get(['id', 'name', 'email', 'role', 'created_at']),
+                ->get(['id', 'name', 'email', 'role', 'created_at', 'avatar_path']),
             'recentLogs' => AdminLog::with('admin:id,name')->latest()->orderByDesc('id')->limit(5)
                 ->get()
                 ->map(fn (AdminLog $log) => [

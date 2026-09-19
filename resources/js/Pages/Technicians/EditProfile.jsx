@@ -1,3 +1,4 @@
+import Avatar from '@/Components/Avatar';
 import Checkbox from '@/Components/Checkbox';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
@@ -72,6 +73,16 @@ export default function EditProfile({ profile, categories }) {
                                     This is what customers see on your public profile.
                                 </p>
                             </header>
+
+                            <div className="mt-6 flex items-center gap-4">
+                                <Avatar user={user} size="lg" />
+                                <Link
+                                    href={route('profile.edit')}
+                                    className="text-sm text-indigo-600 underline hover:text-indigo-500 dark:text-indigo-400"
+                                >
+                                    {user.avatar_url ? 'Change your profile picture' : 'Add a profile picture'}
+                                </Link>
+                            </div>
 
                             <div className="mt-6 space-y-6">
                                 <div>

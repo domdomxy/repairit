@@ -1,4 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
+import Avatar from '@/Components/Avatar';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
 export default function Index({ conversations }) {
@@ -24,7 +25,10 @@ export default function Index({ conversations }) {
                                     href={route('conversations.show', conversation.id)}
                                     className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800"
                                 >
-                                    <span className="font-medium">{otherParty.name}</span>
+                                    <span className="flex items-center gap-3">
+                                        <Avatar user={otherParty} size="md" />
+                                        <span className="font-medium">{otherParty.name}</span>
+                                    </span>
 
                                     {conversation.unread_count > 0 && (
                                         <span className="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-2 text-xs font-semibold text-white bg-indigo-600 rounded-full">

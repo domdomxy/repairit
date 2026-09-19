@@ -1,4 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import Avatar from '@/Components/Avatar';
 import InputError from '@/Components/InputError';
 import SupportStatusBadge from '@/Components/SupportStatusBadge';
 import SupportThread from '@/Components/SupportThread';
@@ -99,8 +100,13 @@ export default function Show({ ticket, thread }) {
                 <aside className="space-y-4">
                     <section className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
                         <h3 className="text-xs font-semibold uppercase text-gray-500">Requester</h3>
-                        <p className="mt-2 font-medium">{ticket.user.name}</p>
-                        <p className="text-sm text-gray-500">{ticket.user.email}</p>
+                        <div className="mt-2 flex items-center gap-3">
+                            <Avatar user={ticket.user} size="md" />
+                            <div className="min-w-0">
+                                <p className="font-medium">{ticket.user.name}</p>
+                                <p className="truncate text-sm text-gray-500">{ticket.user.email}</p>
+                            </div>
+                        </div>
                         <p className="mt-1 text-xs capitalize text-gray-500">
                             {ticket.user.role}
                             {ticket.user.suspended && <span className="ms-2 text-red-600">Suspended</span>}

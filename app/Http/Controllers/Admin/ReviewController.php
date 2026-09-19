@@ -18,7 +18,7 @@ class ReviewController extends Controller
         $rating = $request->input('rating');
 
         $reviews = Review::query()
-            ->with(['technician:id,name', 'customer:id,name'])
+            ->with(['technician:id,name,avatar_path', 'customer:id,name,avatar_path'])
             ->when($term !== '', fn ($query) => $query->where(
                 fn ($query) => $query
                     ->where('comment', 'like', "%{$term}%")
@@ -36,8 +36,16 @@ class ReviewController extends Controller
                 'rating' => $review->rating,
                 'comment' => $review->comment,
                 'created_at' => $review->created_at->toIso8601String(),
-                'technician' => ['id' => $review->technician->id, 'name' => $review->technician->name],
-                'customer' => ['id' => $review->customer->id, 'name' => $review->customer->name],
+                'technician' => [
+                    'id' => $review->technician->id,
+                    'name' => $review->technician->name,
+                    'avatar_url' => $review->technician->avatar_url,
+                ],
+                'customer' => [
+                    'id' => $review->customer->id,
+                    'name' => $review->customer->name,
+                    'avatar_url' => $review->customer->avatar_url,
+                ],
             ]);
 
         return Inertia::render('Admin/Reviews/Index', [

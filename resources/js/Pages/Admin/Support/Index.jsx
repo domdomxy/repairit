@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import Avatar from '@/Components/Avatar';
 import { useState } from 'react';
 import Pagination from '@/Components/Pagination';
 import SupportStatusBadge from '@/Components/SupportStatusBadge';
@@ -121,8 +122,13 @@ export default function Index({ tickets, filters, categories, counts }) {
                                         <div className="text-xs text-gray-500">{ticket.tracking_id}</div>
                                     </td>
                                     <td className="px-4 py-3">
-                                        <div>{ticket.user.name}</div>
-                                        <div className="text-xs text-gray-500">{ticket.user.email}</div>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar user={ticket.user} size="sm" />
+                                            <div>
+                                                <div>{ticket.user.name}</div>
+                                                <div className="text-xs text-gray-500">{ticket.user.email}</div>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td className="px-4 py-3">{ticket.category_label}</td>
                                     <td className="px-4 py-3">

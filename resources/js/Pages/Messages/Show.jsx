@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useForm, usePage } from '@inertiajs/react';
 import { useEcho } from '@laravel/echo-react';
+import Avatar from '@/Components/Avatar';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
 function formatSize(bytes) {
@@ -9,35 +10,99 @@ function formatSize(bytes) {
     return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-// A file inside a message bubble: pictures are shown inline, everything else is
-// a download link. Both go through the authorised attachment route.
-function Attachment({ attachment, onImageLoad }) {
-    if (attachment.is_image) {
-        return (
-            <a href={attachment.url} target="_blank" rel="noopener noreferrer">
-                <img
-                    src={attachment.url}
-                    alt={attachment.name ?? 'Image'}
-                    onLoad={onImageLoad}
-                    className="max-h-60 rounded-md"
-                />
-            </a>
-        );
-    }
+// Same list the server shows inline; anything else is a plain file chip.
+const PREVIEWABLE = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+// The files of a message bubble: pictures are shown inline (side by side when
+// there are several), everything else is a download link. Both go through the
+// authorised attachment route.
+function Attachments({ attachments, onImageLoad }) {
+    const images = attachments.filter((attachment) => attachment.is_image);
+    const files = attachments.filter((attachment) => !attachment.is_image);
 
     return (
-        <a href={attachment.url} download={attachment.name ?? true} className="flex items-center gap-2 text-sm">
-            <span aria-hidden="true">📎</span>
-            <span className="break-all underline">{attachment.name}</span>
-            <span className="shrink-0 text-xs opacity-75">{formatSize(attachment.size)}</span>
-        </a>
+        <div className="space-y-2">
+            {images.length > 0 && (
+                <div className={images.length > 1 ? 'grid grid-cols-2 gap-1' : ''}>
+                    {images.map((image) => (
+                        <a key={image.id} href={image.url} target="_blank" rel="noopener noreferrer">
+                            <img
+                                src={image.url}
+                                alt={image.name ?? 'Image'}
+                                onLoad={onImageLoad}
+                                className={
+                                    images.length > 1
+                                        ? 'h-28 w-full rounded-md object-cover'
+                                        : 'max-h-60 rounded-md'
+                                }
+                            />
+                        </a>
+                    ))}
+                </div>
+            )}
+
+            {files.map((file) => (
+                <a
+                    key={file.id}
+                    href={file.url}
+                    download={file.name ?? true}
+                    className="flex items-center gap-2 text-sm"
+                >
+                    <span aria-hidden="true">📎</span>
+                    <span className="break-all underline">{file.name}</span>
+                    <span className="shrink-0 text-xs opacity-75">{formatSize(file.size)}</span>
+                </a>
+            ))}
+        </div>
     );
 }
 
-export default function Show({ conversation, messages: initialMessages, attachments }) {
+// One chosen file in the composer, with a thumbnail when it is a picture.
+function PendingFile({ file, error, onRemove }) {
+    const [previewUrl, setPreviewUrl] = useState(null);
+
+    // The preview is a temporary browser URL: made when the file appears and
+    // let go of when it is removed.
+    useEffect(() => {
+        if (!PREVIEWABLE.includes(file.type)) return undefined;
+
+        const url = URL.createObjectURL(file);
+        setPreviewUrl(url);
+
+        return () => URL.revokeObjectURL(url);
+    }, [file]);
+
+    return (
+        <li
+            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm ${
+                error ? 'bg-red-50 dark:bg-red-950' : 'bg-gray-100 dark:bg-gray-800'
+            }`}
+        >
+            {previewUrl ? (
+                <img src={previewUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
+            ) : (
+                <span aria-hidden="true">📎</span>
+            )}
+            <span className="min-w-0 flex-1">
+                <span className="block truncate">{file.name}</span>
+                <span className="text-xs text-gray-500">{formatSize(file.size)}</span>
+            </span>
+            <button
+                type="button"
+                onClick={onRemove}
+                aria-label={`Remove ${file.name}`}
+                className="text-gray-500 hover:text-gray-700"
+            >
+                ✕
+            </button>
+        </li>
+    );
+}
+
+export default function Show({ conversation, messages: initialMessages, attachments: limits }) {
     const { auth } = usePage().props;
     const [messages, setMessages] = useState(initialMessages);
-    const [fileError, setFileError] = useState(null);
+    const [fileProblems, setFileProblems] = useState([]);
     const bottomRef = useRef(null);
     const fileInput = useRef(null);
 
@@ -45,6 +110,12 @@ export default function Show({ conversation, messages: initialMessages, attachme
         auth.user.id === conversation.customer_id
             ? conversation.technician
             : conversation.customer;
+
+    // Who wrote a message: only two people are in a conversation.
+    const people = {
+        [conversation.customer_id]: conversation.customer,
+        [conversation.technician_id]: conversation.technician,
+    };
 
     // Live incoming messages
     useEcho(`conversation.${conversation.id}`, '.message.sent', (event) => {
@@ -57,34 +128,68 @@ export default function Show({ conversation, messages: initialMessages, attachme
 
     useEffect(scrollToBottom, [messages]);
 
-    const { data, setData, post, processing, reset, errors, clearErrors } = useForm({
+    const { data, setData, post, processing, progress, reset, errors, clearErrors } = useForm({
         body: '',
-        attachment: null,
+        attachments: [],
     });
 
-    function clearFile() {
-        setData('attachment', null);
-        if (fileInput.current) fileInput.current.value = '';
+    function removeFile(index) {
+        clearErrors();
+        setFileProblems([]);
+        setData(
+            'attachments',
+            data.attachments.filter((_, position) => position !== index),
+        );
     }
 
-    function pickFile(e) {
-        const file = e.target.files?.[0] ?? null;
+    // Add to what is already chosen, so files can be picked in several rounds.
+    function pickFiles(e) {
+        const picked = Array.from(e.target.files ?? []);
+        // Clear the input so choosing the same file again still fires onChange.
+        e.target.value = '';
+        if (picked.length === 0) return;
 
         clearErrors();
-        setFileError(null);
 
-        if (file && file.size > attachments.max_kb * 1024) {
-            setFileError(`The file may not be larger than ${attachments.max_kb / 1024} MB.`);
-            clearFile();
-            return;
+        const next = [...data.attachments];
+        const problems = [];
+        let total = next.reduce((sum, file) => sum + file.size, 0);
+
+        for (const file of picked) {
+            const extension = file.name.split('.').pop()?.toLowerCase();
+            const duplicate = next.some(
+                (existing) =>
+                    existing.name === file.name &&
+                    existing.size === file.size &&
+                    existing.lastModified === file.lastModified,
+            );
+
+            if (duplicate) continue;
+
+            if (!limits.extensions.includes(extension)) {
+                problems.push(`${file.name}: that file type is not allowed.`);
+            } else if (file.size > limits.max_kb * 1024) {
+                problems.push(`${file.name}: larger than ${limits.max_kb / 1024} MB.`);
+            } else if (next.length >= limits.max_files) {
+                problems.push(`You can attach up to ${limits.max_files} files to one message.`);
+                break;
+            } else if (total + file.size > limits.max_total_kb * 1024) {
+                problems.push(
+                    `${file.name}: the files together may not be larger than ${limits.max_total_kb / 1024} MB.`,
+                );
+            } else {
+                next.push(file);
+                total += file.size;
+            }
         }
 
-        setData('attachment', file);
+        setFileProblems(problems);
+        setData('attachments', next);
     }
 
     function submit(e) {
         e.preventDefault();
-        if (!data.body.trim() && !data.attachment) return;
+        if (!data.body.trim() && data.attachments.length === 0) return;
 
         post(route('messages.store', conversation.id), {
             forceFormData: true,
@@ -94,25 +199,50 @@ export default function Show({ conversation, messages: initialMessages, attachme
                 // and attachment URLs. Other people's messages arrive via Echo.
                 setMessages(page.props.messages);
                 reset();
-                setFileError(null);
-                if (fileInput.current) fileInput.current.value = '';
+                setFileProblems([]);
             },
         });
     }
 
-    const error = fileError ?? errors.attachment ?? errors.body;
+    // Server complaints about one file come back as `attachments.<position>`;
+    // name the file so it is clear which one to remove.
+    const serverProblems = Object.entries(errors).flatMap(([key, message]) => {
+        const match = key.match(/^attachments\.(\d+)$/);
+
+        if (match) return [`${data.attachments[Number(match[1])]?.name ?? 'A file'}: ${message}`];
+        if (key === 'attachments' || key === 'body') return [message];
+
+        return [];
+    });
+    const problems = [...new Set([...fileProblems, ...serverProblems])];
+    const rejected = new Set(
+        Object.keys(errors)
+            .map((key) => key.match(/^attachments\.(\d+)$/)?.[1])
+            .filter((position) => position !== undefined)
+            .map(Number),
+    );
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold">{otherParty.name}</h2>}>
+        <AuthenticatedLayout
+            header={
+                <div className="flex items-center gap-3">
+                    <Avatar user={otherParty} size="md" />
+                    <h2 className="text-xl font-semibold">{otherParty.name}</h2>
+                </div>
+            }
+        >
             <div className="max-w-3xl mx-auto py-8 px-4 flex flex-col h-[70vh]">
                 <div className="flex-1 overflow-y-auto space-y-3 pr-2">
                     {messages.map((message) => {
                         const isMine = message.sender_id === auth.user.id;
+                        const files = message.attachments ?? [];
+
                         return (
                             <div
                                 key={message.id}
-                                className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
+                                className={`flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}
                             >
+                                {!isMine && <Avatar user={people[message.sender_id]} size="sm" />}
                                 <div
                                     className={`max-w-xs px-4 py-2 rounded-lg space-y-2 break-words ${
                                         isMine
@@ -121,11 +251,8 @@ export default function Show({ conversation, messages: initialMessages, attachme
                                     }`}
                                 >
                                     {message.body && <p className="text-sm">{message.body}</p>}
-                                    {message.attachment && (
-                                        <Attachment
-                                            attachment={message.attachment}
-                                            onImageLoad={scrollToBottom}
-                                        />
+                                    {files.length > 0 && (
+                                        <Attachments attachments={files} onImageLoad={scrollToBottom} />
                                     )}
                                 </div>
                             </div>
@@ -135,38 +262,41 @@ export default function Show({ conversation, messages: initialMessages, attachme
                 </div>
 
                 <form onSubmit={submit} className="mt-4">
-                    {data.attachment && (
-                        <div className="mb-2 flex items-center justify-between rounded-md bg-gray-100 px-3 py-2 text-sm dark:bg-gray-800">
-                            <span className="truncate">
-                                📎 {data.attachment.name}{' '}
-                                <span className="text-gray-500">({formatSize(data.attachment.size)})</span>
-                            </span>
-                            <button
-                                type="button"
-                                onClick={clearFile}
-                                aria-label="Remove attachment"
-                                className="ml-3 text-gray-500 hover:text-gray-700"
-                            >
-                                ✕
-                            </button>
-                        </div>
+                    {data.attachments.length > 0 && (
+                        <ul className="mb-2 space-y-1">
+                            {data.attachments.map((file, index) => (
+                                <PendingFile
+                                    key={`${file.name}-${file.size}-${file.lastModified}`}
+                                    file={file}
+                                    error={rejected.has(index)}
+                                    onRemove={() => removeFile(index)}
+                                />
+                            ))}
+                        </ul>
                     )}
 
-                    {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+                    {problems.length > 0 && (
+                        <div className="mb-2 space-y-1 text-sm text-red-600">
+                            {problems.map((problem) => (
+                                <p key={problem}>{problem}</p>
+                            ))}
+                        </div>
+                    )}
 
                     <div className="flex gap-2">
                         <input
                             ref={fileInput}
                             type="file"
-                            accept={attachments.extensions.map((extension) => `.${extension}`).join(',')}
-                            onChange={pickFile}
+                            multiple
+                            accept={limits.extensions.map((extension) => `.${extension}`).join(',')}
+                            onChange={pickFiles}
                             className="hidden"
                         />
                         <button
                             type="button"
                             onClick={() => fileInput.current?.click()}
-                            title="Attach a file"
-                            aria-label="Attach a file"
+                            title="Attach files"
+                            aria-label="Attach files"
                             className="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-md"
                         >
                             📎
@@ -183,7 +313,9 @@ export default function Show({ conversation, messages: initialMessages, attachme
                             disabled={processing}
                             className="px-4 py-2 bg-indigo-600 text-white rounded-md disabled:opacity-50"
                         >
-                            Send
+                            {processing && data.attachments.length > 0 && progress
+                                ? `${progress.percentage}%`
+                                : 'Send'}
                         </button>
                     </div>
                 </form>

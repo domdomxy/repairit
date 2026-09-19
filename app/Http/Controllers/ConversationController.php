@@ -19,7 +19,7 @@ class ConversationController extends Controller
 
         $conversations = Conversation::where('customer_id', $user->id)
             ->orWhere('technician_id', $user->id)
-            ->with(['customer:id,name', 'technician:id,name'])
+            ->with(['customer:id,name,avatar_path', 'technician:id,name,avatar_path'])
             ->withCount(['messages as unread_count' => function ($query) use ($user) {
                 $query->whereNull('read_at')->where('sender_id', '!=', $user->id);
             }])
@@ -55,10 +55,10 @@ class ConversationController extends Controller
             403
         );
 
-        $conversation->load(['customer:id,name', 'technician:id,name']);
+        $conversation->load(['customer:id,name,avatar_path', 'technician:id,name,avatar_path']);
 
         $messages = $conversation->messages()
-            ->with('sender:id,name')
+            ->with(['sender:id,name', 'attachments'])
             ->orderBy('created_at')
             ->get();
 
@@ -77,9 +77,11 @@ class ConversationController extends Controller
         return Inertia::render('Messages/Show', [
             'conversation' => $conversation,
             'messages' => $messages,
-            // What the composer offers: the size cap and the extensions it lets through.
+            // What the composer offers: the limits and the extensions it lets through.
             'attachments' => [
                 'max_kb' => Message::ATTACHMENT_MAX_KB,
+                'max_files' => Message::ATTACHMENT_MAX_FILES,
+                'max_total_kb' => Message::ATTACHMENT_MAX_TOTAL_KB,
                 'extensions' => Message::ATTACHMENT_EXTENSIONS,
             ],
         ]);

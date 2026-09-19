@@ -145,7 +145,7 @@ class TechnicianController extends Controller
 
         $technician->load([
             'technicianProfile.categories',
-            'reviewsReceived' => fn ($q) => $q->latest()->with('customer:id,name'),
+            'reviewsReceived' => fn ($q) => $q->latest()->with('customer:id,name,avatar_path'),
         ]);
 
         // Any account can act as a customer, so anyone who has exchanged
@@ -181,6 +181,7 @@ class TechnicianController extends Controller
         $data = [
             'id' => $technician->id,
             'name' => $technician->name,
+            'avatar_url' => $technician->avatar_url,
             'technician_profile' => $profile ? [
                 'city' => $profile->city,
                 'availability_status' => $profile->availability_status,
@@ -234,6 +235,7 @@ class TechnicianController extends Controller
                 'customer' => [
                     'id' => $review->customer->id,
                     'name' => $review->customer->name,
+                    'avatar_url' => $review->customer->avatar_url,
                 ],
             ])
             ->values()

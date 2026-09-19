@@ -5,11 +5,16 @@ namespace App\Http\Controllers;
 use App\Events\MessageSent;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\MessageAttachment;
 use App\Notifications\NewMessage;
+use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class MessageController extends Controller
 {
@@ -26,10 +31,24 @@ class MessageController extends Controller
         abort_if($conversation->participantFor($user)->isSuspended(), 403, 'This account has been suspended.');
 
         $validated = $request->validate([
-            // Text is optional when a file is attached, and the other way round.
-            'body' => ['nullable', 'string', 'max:5000', 'required_without:attachment'],
-            'attachment' => [
+            // Text is optional when files are attached, and the other way round.
+            'body' => ['nullable', 'string', 'max:5000', 'required_without:attachments'],
+            'attachments' => [
                 'nullable',
+                'array',
+                'max:'.Message::ATTACHMENT_MAX_FILES,
+                // Keeps one message from carrying an enormous upload.
+                function (string $attribute, mixed $value, Closure $fail) {
+                    $bytes = collect($value)
+                        ->filter(fn ($file) => $file instanceof UploadedFile)
+                        ->sum(fn (UploadedFile $file) => $file->getSize());
+
+                    if ($bytes > Message::ATTACHMENT_MAX_TOTAL_KB * 1024) {
+                        $fail('The files together may not be larger than '.(Message::ATTACHMENT_MAX_TOTAL_KB / 1024).' MB.');
+                    }
+                },
+            ],
+            'attachments.*' => [
                 'file',
                 'max:'.Message::ATTACHMENT_MAX_KB,
                 // Checked against the file's real content type, not just its name.
@@ -37,34 +56,50 @@ class MessageController extends Controller
             ],
         ], [
             'body.required_without' => 'Write a message or attach a file.',
-            'attachment.uploaded' => 'The file could not be uploaded. It may be too large.',
-            'attachment.max' => 'The file may not be larger than '.(Message::ATTACHMENT_MAX_KB / 1024).' MB.',
-            'attachment.mimes' => 'That file type is not allowed.',
+            'attachments.max' => 'You can attach up to '.Message::ATTACHMENT_MAX_FILES.' files to one message.',
+            'attachments.*.uploaded' => 'A file could not be uploaded. It may be too large.',
+            'attachments.*.max' => 'Each file may not be larger than '.(Message::ATTACHMENT_MAX_KB / 1024).' MB.',
+            'attachments.*.mimes' => 'That file type is not allowed.',
         ]);
 
-        $attachment = [];
+        // Everything is stored before the rows are written, and removed again
+        // if writing fails, so a failed send never leaves files behind.
+        $stored = [];
 
-        if ($file = $request->file('attachment')) {
-            $path = $file->store("message-attachments/{$conversation->id}", Message::ATTACHMENT_DISK);
+        try {
+            $message = DB::transaction(function () use ($request, $conversation, $user, $validated, &$stored) {
+                $message = $conversation->messages()->create([
+                    'sender_id' => $user->id,
+                    'body' => $validated['body'] ?? null,
+                ]);
 
-            abort_if($path === false, 500, 'The file could not be saved.');
+                foreach ($request->file('attachments', []) as $file) {
+                    $path = $file->store("message-attachments/{$conversation->id}", Message::ATTACHMENT_DISK);
 
-            $name = $file->getClientOriginalName();
+                    abort_if($path === false, 500, 'A file could not be saved.');
 
-            $attachment = [
-                'attachment_path' => $path,
-                // Keep the end of an over-long name so the extension survives.
-                'attachment_name' => mb_strlen($name) > 200 ? mb_substr($name, -200) : $name,
-                'attachment_mime' => $file->getMimeType() ?: 'application/octet-stream',
-                'attachment_size' => $file->getSize(),
-            ];
+                    $stored[] = $path;
+
+                    $name = $file->getClientOriginalName();
+
+                    $message->attachments()->create([
+                        'path' => $path,
+                        // Keep the end of an over-long name so the extension survives.
+                        'name' => mb_strlen($name) > 200 ? mb_substr($name, -200) : $name,
+                        'mime' => $file->getMimeType() ?: 'application/octet-stream',
+                        'size' => $file->getSize(),
+                    ]);
+                }
+
+                return $message;
+            });
+        } catch (Throwable $e) {
+            Storage::disk(Message::ATTACHMENT_DISK)->delete($stored);
+
+            throw $e;
         }
 
-        $message = $conversation->messages()->create([
-            'sender_id' => $user->id,
-            'body' => $validated['body'] ?? null,
-            ...$attachment,
-        ]);
+        $message->load('attachments');
 
         $conversation->update(['last_message_at' => $message->created_at]);
 
@@ -87,32 +122,32 @@ class MessageController extends Controller
     }
 
     /**
-     * Stream an attachment to the two people in the conversation.
+     * Stream an attachment to the two people in its conversation.
      *
      * Files live on the private disk, so this is the only way to reach them.
      * Plain images are shown inline; every other type is forced to download
      * so an uploaded page or script can never run in the site's origin.
      */
-    public function attachment(Conversation $conversation, Message $message): StreamedResponse
+    public function attachment(MessageAttachment $attachment): StreamedResponse
     {
         $user = Auth::user();
+        $conversation = $attachment->message->conversation;
+
         abort_unless(
             $user->id === $conversation->customer_id || $user->id === $conversation->technician_id,
             403
         );
 
-        abort_unless($message->conversation_id === $conversation->id && $message->attachment_path, 404);
-
         $disk = Storage::disk(Message::ATTACHMENT_DISK);
-        abort_unless($disk->exists($message->attachment_path), 404);
+        abort_unless($disk->exists($attachment->path), 404);
 
-        $inline = $message->isInlineImage();
+        $inline = $attachment->isInlineImage();
 
         return $disk->response(
-            $message->attachment_path,
-            $message->attachment_name,
+            $attachment->path,
+            $attachment->name,
             array_filter([
-                'Content-Type' => $inline ? $message->attachment_mime : null,
+                'Content-Type' => $inline ? $attachment->mime : null,
                 'X-Content-Type-Options' => 'nosniff',
                 'Cache-Control' => 'private, max-age=86400',
             ]),

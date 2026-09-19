@@ -1,4 +1,5 @@
 import { Head, router } from '@inertiajs/react';
+import Avatar from '@/Components/Avatar';
 import { useState } from 'react';
 import Pagination from '@/Components/Pagination';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -127,8 +128,13 @@ export default function Index({ users, filters }) {
                             {users.data.map((user) => (
                                 <tr key={user.id}>
                                     <td className="px-4 py-3">
-                                        <div className="font-medium">{user.name}</div>
-                                        <div className="text-xs text-gray-500">{user.email}</div>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar user={user} size="sm" />
+                                            <div>
+                                                <div className="font-medium">{user.name}</div>
+                                                <div className="text-xs text-gray-500">{user.email}</div>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td className="px-4 py-3">
                                         <span

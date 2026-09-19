@@ -123,13 +123,30 @@ test('an attachment-only message still notifies, with a placeholder instead of t
     $conversation = notifConversation($customer, $technician);
 
     $this->actingAs($customer)
-        ->post(route('messages.store', $conversation), ['attachment' => UploadedFile::fake()->create('leak.pdf', 20, 'application/pdf')])
+        ->post(route('messages.store', $conversation), ['attachments' => [UploadedFile::fake()->create('leak.pdf', 20, 'application/pdf')]])
         ->assertSessionHasNoErrors();
 
     $data = $technician->notifications()->first()->data;
 
     expect($data['title'])->toBe('New message from Amira');
     expect($data['body'])->toBe('Sent an attachment');
+});
+
+test('a message with several files says how many in its placeholder', function () {
+    Storage::fake('local');
+    $customer = notifCustomer(['name' => 'Amira']);
+    $technician = notifTechnician();
+    $conversation = notifConversation($customer, $technician);
+
+    $this->actingAs($customer)
+        ->post(route('messages.store', $conversation), ['attachments' => [
+            UploadedFile::fake()->create('one.pdf', 20, 'application/pdf'),
+            UploadedFile::fake()->create('two.pdf', 20, 'application/pdf'),
+            UploadedFile::fake()->create('three.pdf', 20, 'application/pdf'),
+        ]])
+        ->assertSessionHasNoErrors();
+
+    expect($technician->notifications()->first()->data['body'])->toBe('Sent 3 attachments');
 });
 
 test('an admin can be messaged and notified like anyone else', function () {

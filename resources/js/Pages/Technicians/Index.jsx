@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
+import Avatar from '@/Components/Avatar';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
 // Small OpenStreetMap preview centred on the given point. The box grows with the
@@ -247,10 +248,13 @@ export default function Index({ technicians, categories, filters }) {
                                 href={route('technicians.show', technician.id)}
                                 className="block bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-md transition"
                             >
-                                <div className="flex items-start justify-between">
-                                    <div>
-                                        <h3 className="font-semibold">{technician.name}</h3>
-                                        <p className="text-sm text-gray-500">{profile?.city}</p>
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex min-w-0 items-center gap-3">
+                                        <Avatar user={technician} size="md" />
+                                        <div className="min-w-0">
+                                            <h3 className="truncate font-semibold">{technician.name}</h3>
+                                            <p className="text-sm text-gray-500">{profile?.city}</p>
+                                        </div>
                                     </div>
                                     <span
                                         className={`text-xs px-2 py-1 rounded-full capitalize ${

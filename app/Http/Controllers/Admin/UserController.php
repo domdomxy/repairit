@@ -40,6 +40,7 @@ class UserController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'avatar_url' => $user->avatar_url,
                 'role' => $user->role,
                 'suspended_at' => $user->suspended_at?->toIso8601String(),
                 'created_at' => $user->created_at->toIso8601String(),

@@ -1,4 +1,5 @@
 import { Link, router, usePage } from '@inertiajs/react';
+import Avatar from '@/Components/Avatar';
 import ReviewForm from '@/Components/ReviewForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
@@ -15,16 +16,19 @@ export default function Show({ technician, canReview, myReview }) {
         <AuthenticatedLayout header={<h2 className="text-xl font-semibold">{technician.name}</h2>}>
             <div className="max-w-2xl mx-auto py-8 px-4 space-y-6">
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <h3 className="text-lg font-semibold">{technician.name}</h3>
-                            <p className="text-sm text-gray-500">{profile?.city}</p>
-                            <p className="text-sm mt-1">
-                                Rating: {profile?.rating_count ? profile.rating_avg : '—'} ({profile?.rating_count ?? 0} reviews)
-                            </p>
-                            <p className="text-sm mt-1 capitalize">
-                                Status: {profile?.availability_status}
-                            </p>
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                            <Avatar user={technician} size="lg" />
+                            <div>
+                                <h3 className="text-lg font-semibold">{technician.name}</h3>
+                                <p className="text-sm text-gray-500">{profile?.city}</p>
+                                <p className="text-sm mt-1">
+                                    Rating: {profile?.rating_count ? profile.rating_avg : '—'} ({profile?.rating_count ?? 0} reviews)
+                                </p>
+                                <p className="text-sm mt-1 capitalize">
+                                    Status: {profile?.availability_status}
+                                </p>
+                            </div>
                         </div>
 
                         {isOwnProfile ? (
@@ -95,12 +99,17 @@ export default function Show({ technician, canReview, myReview }) {
                     <ul className="space-y-3">
                         {technician.reviews_received?.map((review) => (
                             <li key={review.id} className="border rounded-md p-3">
-                                <p className="text-sm font-medium">
-                                    {review.customer.name} — {review.rating}/5
-                                </p>
-                                {review.comment && (
-                                    <p className="text-sm text-gray-600 mt-1">{review.comment}</p>
-                                )}
+                                <div className="flex items-start gap-3">
+                                    <Avatar user={review.customer} size="sm" />
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium">
+                                            {review.customer.name} — {review.rating}/5
+                                        </p>
+                                        {review.comment && (
+                                            <p className="text-sm text-gray-600 mt-1">{review.comment}</p>
+                                        )}
+                                    </div>
+                                </div>
                             </li>
                         ))}
                     </ul>

@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import Avatar from '@/Components/Avatar';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { formatDate, formatDateTime } from '@/lib/dates';
 
@@ -80,9 +81,12 @@ export default function Admin({ stats, recentUsers, recentLogs }) {
                         <ul className="mt-3 divide-y divide-gray-100 text-sm dark:divide-gray-700">
                             {recentUsers.map((user) => (
                                 <li key={user.id} className="flex items-center justify-between py-2">
-                                    <div>
-                                        <div className="font-medium">{user.name}</div>
-                                        <div className="text-xs capitalize text-gray-500">{user.role}</div>
+                                    <div className="flex items-center gap-3">
+                                        <Avatar user={user} size="sm" />
+                                        <div>
+                                            <div className="font-medium">{user.name}</div>
+                                            <div className="text-xs capitalize text-gray-500">{user.role}</div>
+                                        </div>
                                     </div>
                                     <span className="text-xs text-gray-500">{formatDate(user.created_at)}</span>
                                 </li>

@@ -14,17 +14,30 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable(['name', 'email', 'password', 'role', 'email_notifications'])]
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password', 'remember_token', 'avatar_path'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    /** Private disk (storage/app/private): pictures are only reachable through the authorised route. */
+    public const AVATAR_DISK = 'local';
+
+    /** Largest profile picture, in kilobytes. The browser shrinks pictures before upload, so this is generous. */
+    public const AVATAR_MAX_KB = 2048;
+
+    /** Picture types users may upload. Animated and vector formats are left out on purpose. */
+    public const AVATAR_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
 
     protected static function booted(): void
     {
         // The database cascade removes a deleted account's conversations and
         // messages but knows nothing about the files on disk, so delete those.
         static::deleting(function (User $user) {
+            if ($user->avatar_path) {
+                Storage::disk(self::AVATAR_DISK)->delete($user->avatar_path);
+            }
+
             Conversation::where('customer_id', $user->id)
                 ->orWhere('technician_id', $user->id)
                 ->pluck('id')
@@ -37,6 +50,11 @@ class User extends Authenticatable
     protected $attributes = [
         'email_notifications' => true,
     ];
+
+    // The stored path stays on the server; the browser gets `avatar_url`.
+    // Anywhere a user is loaded with a column list, include `avatar_path`
+    // or the picture is treated as missing.
+    protected $appends = ['avatar_url'];
 
     /**
      * Get the attributes that should be cast.
@@ -51,6 +69,21 @@ class User extends Authenticatable
             'email_notifications' => 'boolean',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Where the browser can load this person's picture, or null if they have none.
+     *
+     * The `v` value changes with every new upload, so browsers that cached the
+     * old picture fetch the new one straight away.
+     */
+    protected function getAvatarUrlAttribute(): ?string
+    {
+        if (! $this->avatar_path) {
+            return null;
+        }
+
+        return route('avatars.show', ['user' => $this->id, 'v' => substr(md5($this->avatar_path), 0, 8)], absolute: false);
     }
 
     public function isAdmin(): bool
