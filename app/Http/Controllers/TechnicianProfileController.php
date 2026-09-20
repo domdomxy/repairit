@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Models\TechnicianProfile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
@@ -29,9 +30,13 @@ class TechnicianProfileController extends Controller
                 'availability_status' => $profile->availability_status,
                 'show_phone_publicly' => (bool) $profile->show_phone_publicly,
                 'show_email_publicly' => (bool) $profile->show_email_publicly,
+                'auto_reply_enabled' => (bool) $profile->auto_reply_enabled,
+                'auto_reply_message' => $profile->auto_reply_message,
                 'categories' => $profile->categories()->pluck('categories.id')->all(),
             ],
             'categories' => Category::orderBy('name')->get(['id', 'name']),
+            'autoReplyDefault' => TechnicianProfile::DEFAULT_AUTO_REPLY,
+            'autoReplyMaxLength' => TechnicianProfile::AUTO_REPLY_MAX_LENGTH,
         ]);
     }
 
@@ -53,6 +58,9 @@ class TechnicianProfileController extends Controller
             'availability_status' => ['required', Rule::in(['available', 'busy', 'offline'])],
             'show_phone_publicly' => ['boolean'],
             'show_email_publicly' => ['boolean'],
+            'auto_reply_enabled' => ['boolean'],
+            // Empty means "use the default message".
+            'auto_reply_message' => ['nullable', 'string', 'max:'.TechnicianProfile::AUTO_REPLY_MAX_LENGTH],
             'categories' => ['required', 'array', 'min:1'],
             'categories.*' => ['integer', 'distinct', 'exists:categories,id'],
         ], [
@@ -64,6 +72,11 @@ class TechnicianProfileController extends Controller
 
         $categories = $validated['categories'];
         unset($validated['categories']);
+
+        // A blank custom message means the default one.
+        $validated['auto_reply_message'] = filled($validated['auto_reply_message'] ?? null)
+            ? trim($validated['auto_reply_message'])
+            : null;
 
         $profile = $request->user()
             ->technicianProfile()

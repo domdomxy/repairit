@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\InboxUpdated;
 use App\Events\MessageDeleted;
 use App\Events\MessageSent;
 use App\Events\MessageUpdated;
@@ -68,6 +69,14 @@ class MessageController extends Controller
             'attachments.*.max' => 'Each file may not be larger than '.(Message::ATTACHMENT_MAX_KB / 1024).' MB.',
             'attachments.*.mimes' => 'That file type is not allowed.',
         ]);
+
+        // Is this the customer's first message, in a conversation nobody has
+        // written in yet? Checked before anything is stored, and against every
+        // row (deleted ones included), so deleting a message or the whole
+        // conversation can't earn a second auto-reply, and a technician who
+        // wrote first doesn't answer themselves with a canned message.
+        $isCustomersFirstMessage = $user->id === $conversation->customer_id
+            && ! $conversation->messages()->exists();
 
         // Everything is stored before the rows are written, and removed again
         // if writing fails, so a failed send never leaves files behind. Text
@@ -138,6 +147,9 @@ class MessageController extends Controller
             broadcast(new MessageSent($message))->toOthers();
         }
 
+        // Their messages panel, wherever they are on the site.
+        broadcast(new InboxUpdated($conversation->participantFor($user)->id));
+
         // Tell the recipient once per unread stretch rather than for every line
         // of a back-and-forth: if they already have an unread message from this
         // sender, they have been told.
@@ -151,7 +163,47 @@ class MessageController extends Controller
             $conversation->participantFor($user)->notify(new NewMessage($lastMessage));
         }
 
+        if ($isCustomersFirstMessage) {
+            $this->sendAutoReply($conversation);
+        }
+
         return back();
+    }
+
+    /**
+     * The technician's automatic answer to a customer's first message, if they
+     * turned it on. It is written as the technician, marked as automated (so it
+     * doesn't count as a real reply: the chat stays a request, and it doesn't
+     * unlock reviews or raise their reply rate), and doesn't notify the customer,
+     * who is looking at the conversation they just wrote in.
+     */
+    private function sendAutoReply(Conversation $conversation): void
+    {
+        $technician = $conversation->technician;
+        $profile = $technician?->technicianProfile;
+
+        if (! $profile?->auto_reply_enabled) {
+            return;
+        }
+
+        $body = $profile->autoReplyFor($conversation->customer);
+
+        if ($body === '') {
+            return;
+        }
+
+        $reply = $conversation->messages()->create([
+            'sender_id' => $technician->id,
+            'body' => $body,
+            'is_automated' => true,
+        ]);
+
+        $conversation->update(['last_message_at' => $reply->created_at]);
+
+        // The customer's own page already gets this in the response to their
+        // message; everyone else in the conversation (the technician, if they
+        // have it open) gets it live.
+        broadcast(new MessageSent($reply))->toOthers();
     }
 
     /**
@@ -192,6 +244,7 @@ class MessageController extends Controller
         });
 
         broadcast(new MessageUpdated($message))->toOthers();
+        broadcast(new InboxUpdated($conversation->participantFor($user)->id));
 
         return back();
     }
@@ -233,27 +286,10 @@ class MessageController extends Controller
 
         $message->forceFill(['deleted_for_everyone_at' => now()])->save();
 
-        $this->redactNotifications($message, $conversation->participantFor($user));
-
         broadcast(new MessageDeleted($message))->toOthers();
+        broadcast(new InboxUpdated($conversation->participantFor($user)->id));
 
         return back();
-    }
-
-    /**
-     * The recipient's notification for this message carries a preview of its
-     * text. Once the message is deleted for everyone the preview goes too.
-     */
-    private function redactNotifications(Message $message, User $recipient): void
-    {
-        $recipient->notifications()
-            ->where('type', NewMessage::class)
-            ->where('created_at', '>=', $message->created_at)
-            ->get()
-            ->filter(fn ($notification) => ($notification->data['message_id'] ?? null) === $message->id)
-            ->each(fn ($notification) => $notification->update([
-                'data' => [...$notification->data, 'body' => 'This message was deleted.'],
-            ]));
     }
 
     /**

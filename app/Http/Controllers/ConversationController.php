@@ -7,12 +7,10 @@ use App\Models\ConversationState;
 use App\Models\Message;
 use App\Models\Report;
 use App\Models\User;
-use App\Notifications\NewMessage;
+use App\Support\ConversationList;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class ConversationController extends Controller
@@ -21,7 +19,7 @@ class ConversationController extends Controller
     public function index()
     {
         return Inertia::render('Messages/Index', [
-            'conversations' => $this->listFor(Auth::user()),
+            'conversations' => ConversationList::for(Auth::user()),
         ]);
     }
 
@@ -75,15 +73,9 @@ class ConversationController extends Controller
             ->where('sender_id', '!=', $user->id)
             ->update(['read_at' => now()]);
 
-        $user->unreadNotifications()
-            ->where('type', NewMessage::class)
-            ->get()
-            ->filter(fn ($notification) => ($notification->data['conversation_id'] ?? null) === $conversation->id)
-            ->each->markAsRead();
-
         // Built after the messages are marked read, so the open conversation
         // shows no unread count.
-        $conversations = $this->listFor($user);
+        $conversations = ConversationList::for($user);
         // Reports this person already filed here, so the menus don't offer them twice.
         $reports = Report::where('conversation_id', $conversation->id)
             ->where('reporter_id', $user->id)
@@ -112,101 +104,6 @@ class ConversationController extends Controller
                 'extensions' => Message::ATTACHMENT_EXTENSIONS,
             ],
         ]);
-    }
-
-    /**
-     * The user's conversations for the list on the left, newest first.
-     *
-     * Each carries `unread_count`, `last_message` (a short preview), `is_hidden`
-     * and `is_request`: true for a technician's conversations where a customer
-     * has written but the technician has not answered yet. Replying moves it out
-     * of "Requests" into the inbox. Conversations a user started themselves,
-     * and ones with nothing in them yet, are never requests.
-     *
-     * Everything here is counted from what this person can still see: messages
-     * they deleted for themselves, or that the sender deleted for everyone, are
-     * not unread and are not "incoming". A conversation they deleted stays out of
-     * the list until something new arrives in it.
-     *
-     * @return Collection<int, Conversation>
-     */
-    private function listFor(User $user): Collection
-    {
-        $states = ConversationState::where('user_id', $user->id)->get()->keyBy('conversation_id');
-
-        $conversations = Conversation::where(fn ($query) => $query
-            ->where('customer_id', $user->id)
-            ->orWhere('technician_id', $user->id))
-            ->with(['customer:id,name,avatar_path', 'technician:id,name,avatar_path'])
-            ->withCount([
-                'messages as unread_count' => fn ($query) => $query
-                    ->visibleTo($user)
-                    ->whereNull('deleted_for_everyone_at')
-                    ->whereNull('read_at')
-                    ->where('sender_id', '!=', $user->id),
-                'messages as visible_count' => fn ($query) => $query->visibleTo($user),
-            ])
-            ->withExists([
-                'messages as has_incoming' => fn ($query) => $query
-                    ->visibleTo($user)
-                    ->whereNull('deleted_for_everyone_at')
-                    ->where('sender_id', '!=', $user->id),
-                'messages as has_replied' => fn ($query) => $query->where('sender_id', $user->id),
-            ])
-            ->orderByDesc('last_message_at')
-            ->get()
-            // A deleted conversation stays gone until something new shows up in it.
-            ->reject(fn (Conversation $conversation) => $states->get($conversation->id)?->cleared_at !== null
-                && (int) $conversation->visible_count === 0)
-            ->values();
-
-        // The newest message this person can see in every conversation, in one query.
-        $latest = Message::whereIn(
-            'id',
-            Message::visibleTo($user)
-                ->whereIn('conversation_id', $conversations->modelKeys())
-                ->selectRaw('MAX(id)')
-                ->groupBy('conversation_id')
-        )
-            ->withCount('attachments')
-            ->get()
-            ->keyBy('conversation_id');
-
-        return $conversations->each(function (Conversation $conversation) use ($user, $latest, $states) {
-            $message = $latest->get($conversation->id);
-
-            $conversation->setAttribute(
-                'is_request',
-                $conversation->technician_id === $user->id && $conversation->has_incoming && ! $conversation->has_replied
-            );
-            $conversation->setAttribute('is_hidden', $states->get($conversation->id)?->hidden_at !== null);
-            $conversation->setAttribute('last_message', $message ? [
-                'preview' => $this->preview($message),
-                'from_me' => $message->sender_id === $user->id,
-                'created_at' => $message->created_at->toIso8601String(),
-            ] : null);
-            $conversation->makeHidden(['has_incoming', 'has_replied', 'visible_count']);
-        });
-    }
-
-    /** One line for the list; a message with only files has no text. */
-    private function preview(Message $message): ?string
-    {
-        if ($message->isDeletedForEveryone()) {
-            return 'This message was deleted';
-        }
-
-        $text = trim((string) $message->body);
-
-        if ($text !== '') {
-            return Str::limit(preg_replace('/\s+/u', ' ', $text), 80);
-        }
-
-        return match (true) {
-            $message->attachments_count === 0 => null,
-            $message->attachments_count === 1 => 'Sent an attachment',
-            default => "Sent {$message->attachments_count} attachments",
-        };
     }
 
     /**

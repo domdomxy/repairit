@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\ConversationList;
 use App\Support\NotificationItem;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -45,6 +46,10 @@ class HandleInertiaRequests extends Middleware
                     ->map(fn ($notification) => NotificationItem::make($notification))
                     ->all() ?? [],
             ],
+            // The messages panel in the top bar: unread conversations, and the newest few of the inbox and of the requests.
+            'inbox' => fn () => $request->user()
+                ? ConversationList::panel($request->user())
+                : ['unread' => 0, 'unread_requests' => 0, 'recent' => [], 'requests' => []],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
             ],

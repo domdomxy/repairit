@@ -50,7 +50,10 @@ class Review extends Model
             ->where('customer_id', $customer->id)
             ->where('technician_id', $technician->id)
             ->whereHas('messages', fn ($query) => $query->where('sender_id', $customer->id))
-            ->whereHas('messages', fn ($query) => $query->where('sender_id', $technician->id))
+            // An automatic reply doesn't count: the technician has to have actually answered.
+            ->whereHas('messages', fn ($query) => $query
+                ->where('sender_id', $technician->id)
+                ->where('is_automated', false))
             ->first();
     }
 }

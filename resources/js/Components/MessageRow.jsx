@@ -92,6 +92,9 @@ export default function MessageRow({
             {isMine && menuButton}
 
             <div className={`flex min-w-0 max-w-[75%] flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                {message.automated && !message.deleted && !editing && (
+                    <p className="mb-1 px-1 text-[11px] text-gray-500 dark:text-gray-400">Automatic reply</p>
+                )}
                 {message.deleted ? (
                     <div className="rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm italic text-gray-500 dark:border-gray-600 dark:text-gray-400">
                         {isMine ? 'You deleted this message' : 'This message was deleted'}

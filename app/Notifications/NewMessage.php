@@ -8,7 +8,6 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Support\Str;
 
 class NewMessage extends Notification implements ShouldQueue
 {
@@ -19,15 +18,13 @@ class NewMessage extends Notification implements ShouldQueue
 
     public function __construct(public Message $message) {}
 
+    /**
+     * Messages are not in the notifications list: they have their own panel in
+     * the top bar. The email is all that is left of this notification.
+     */
     public function via(object $notifiable): array
     {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->email_notifications) {
-            $channels[] = 'mail';
-        }
-
-        return $channels;
+        return $notifiable->email_notifications ? ['mail'] : [];
     }
 
     /**
@@ -52,18 +49,6 @@ class NewMessage extends Notification implements ShouldQueue
         return $message?->read_at === null && $message?->deleted_for_everyone_at === null;
     }
 
-    public function toArray(object $notifiable): array
-    {
-        return [
-            'kind' => 'message',
-            'title' => "New message from {$this->message->sender->name}",
-            'body' => $this->preview(),
-            'conversation_id' => $this->message->conversation_id,
-            'message_id' => $this->message->id,
-            'url' => route('conversations.show', $this->message->conversation_id, absolute: false),
-        ];
-    }
-
     /**
      * The email deliberately leaves out the message text: it only says who
      * wrote and links back to the app, so conversations stay off email.
@@ -78,23 +63,5 @@ class NewMessage extends Notification implements ShouldQueue
             ->line($this->escapeForMail($sender).' sent you a message on '.config('app.name').'.')
             ->action('Read the message', route('conversations.show', $this->message->conversation_id))
             ->line('You can turn these emails off in your profile settings.');
-    }
-
-    /** A short line for the in-app list; messages with only files have no text. */
-    private function preview(): ?string
-    {
-        $text = trim((string) $this->message->body);
-
-        if ($text !== '') {
-            return Str::limit(preg_replace('/\s+/u', ' ', $text), 120);
-        }
-
-        $count = $this->message->attachments()->count();
-
-        return match (true) {
-            $count === 0 => null,
-            $count === 1 => 'Sent an attachment',
-            default => "Sent {$count} attachments",
-        };
     }
 }

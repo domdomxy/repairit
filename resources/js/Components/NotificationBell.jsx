@@ -1,7 +1,9 @@
+import LiveUpdatesBoundary from '@/Components/LiveUpdatesBoundary';
 import { relativeTime } from '@/lib/dates';
+import useDismiss from '@/lib/useDismiss';
 import { Link, router, usePage } from '@inertiajs/react';
 import { useEchoNotification } from '@laravel/echo-react';
-import { Component, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const BELL_PATH =
     'M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9';
@@ -9,12 +11,6 @@ const BELL_PATH =
 // What each kind of notification looks like in the list, and its name in the
 // category filter. A kind that isn't listed here falls back to the bell.
 const KINDS = {
-    message: {
-        label: 'Messages',
-        bg: 'bg-sky-100 dark:bg-sky-900',
-        text: 'text-sky-600 dark:text-sky-300',
-        icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
-    },
     review: {
         label: 'Reviews',
         bg: 'bg-amber-100 dark:bg-amber-900',
@@ -217,25 +213,10 @@ function NotificationPanel({ items, unread, onClose, onOpen, onMarkAllRead, onDe
 // server pushes a notification for this user.
 function LiveUpdates({ userId }) {
     useEchoNotification(`App.Models.User.${userId}`, () => {
-        router.reload({ only: ['notifications', 'items', 'conversations', 'ticket', 'thread'] });
+        router.reload({ only: ['notifications', 'items', 'ticket', 'thread'] });
     });
 
     return null;
-}
-
-// The bell must keep working even if websockets are not configured (Echo throws
-// when its Reverb settings are missing), so a failure here is contained rather
-// than taking down every page that uses the layout.
-class LiveUpdatesBoundary extends Component {
-    state = { failed: false };
-
-    static getDerivedStateFromError() {
-        return { failed: true };
-    }
-
-    render() {
-        return this.state.failed ? null : this.props.children;
-    }
 }
 
 // After a change made here, only the notification data needs refreshing: the
@@ -256,27 +237,7 @@ export default function NotificationBell({ className = '' }) {
         setUnread(notifications?.unread ?? 0);
     }, [notifications]);
 
-    // Close on a click outside, or Escape. "mousedown" rather than "click": a
-    // click on a row's delete button removes that button before a document
-    // click handler would run, and it would then look like a click outside.
-    useEffect(() => {
-        if (!open) return undefined;
-
-        const closeOnOutsideClick = (e) => {
-            if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false);
-        };
-        const closeOnEscape = (e) => {
-            if (e.key === 'Escape') setOpen(false);
-        };
-
-        document.addEventListener('mousedown', closeOnOutsideClick);
-        document.addEventListener('keydown', closeOnEscape);
-
-        return () => {
-            document.removeEventListener('mousedown', closeOnOutsideClick);
-            document.removeEventListener('keydown', closeOnEscape);
-        };
-    }, [open]);
+    useDismiss(open, containerRef, () => setOpen(false));
 
     // Marks it read and goes to what it is about, in one request.
     function openNotification(note) {

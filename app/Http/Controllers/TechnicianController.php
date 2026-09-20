@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Review;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -14,6 +15,16 @@ class TechnicianController extends Controller
     private const EARTH_RADIUS_KM = 6371;
 
     private const KM_PER_DEGREE_LAT = 111.32;
+
+    /** Most technicians drawn on the search map. */
+    private const MAP_LIMIT = 200;
+
+    /**
+     * Decimal places kept of a technician's coordinates on the map: 2 snaps a
+     * pin to a grid about 1 km wide. Profiles promise that only the city is
+     * public, so the map shows the neighbourhood and never the exact spot.
+     */
+    private const MAP_PRECISION = 2;
 
     public function index(Request $request)
     {
@@ -81,6 +92,9 @@ class TechnicianController extends Controller
             }
         }
 
+        // Everything the filters match goes on the map, not just this page of results.
+        $mapQuery = clone $query;
+
         // Sort: nearest first when asked (needs lat/lng), otherwise best rated.
         if ($geo && $request->input('sort') === 'distance') {
             // Technicians without coordinates have no distance; list them last.
@@ -101,9 +115,52 @@ class TechnicianController extends Controller
 
         return Inertia::render('Technicians/Index', [
             'technicians' => $technicians,
+            'mapPoints' => $this->mapPoints($mapQuery),
             'categories' => Category::orderBy('name')->get(),
             'filters' => $request->only(['name', 'category', 'city', 'availability', 'lat', 'lng', 'radius', 'sort']),
         ]);
+    }
+
+    /**
+     * The technicians to draw on the search map: everyone the filters match who
+     * has a location, best rated first, up to MAP_LIMIT.
+     *
+     * Like the cards, a point carries only public fields, and its coordinates
+     * are rounded (see MAP_PRECISION) so a pin never gives away the exact spot.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function mapPoints(Builder $query): array
+    {
+        return $query
+            ->setEagerLoads([])
+            ->select([
+                'users.id',
+                'users.name',
+                'technician_profiles.latitude',
+                'technician_profiles.longitude',
+                'technician_profiles.city',
+                'technician_profiles.availability_status',
+                'technician_profiles.rating_avg',
+                'technician_profiles.rating_count',
+            ])
+            ->whereNotNull('technician_profiles.latitude')
+            ->whereNotNull('technician_profiles.longitude')
+            ->orderByDesc('technician_profiles.rating_avg')
+            ->orderBy('users.id')
+            ->limit(self::MAP_LIMIT)
+            ->get()
+            ->map(fn (User $technician) => [
+                'id' => $technician->id,
+                'name' => $technician->name,
+                'lat' => round((float) $technician->latitude, self::MAP_PRECISION),
+                'lng' => round((float) $technician->longitude, self::MAP_PRECISION),
+                'city' => $technician->city,
+                'availability_status' => $technician->availability_status,
+                'rating_avg' => $technician->rating_avg,
+                'rating_count' => (int) $technician->rating_count,
+            ])
+            ->all();
     }
 
     /**

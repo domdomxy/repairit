@@ -215,23 +215,6 @@ test('delete for everyone leaves a placeholder for both people and keeps the tex
         ->and($message->fresh()->deleted_for_everyone_at)->not->toBeNull();
 });
 
-test('deleting for everyone removes the preview from the recipient\'s notification', function () {
-    [$customer, $technician, $conversation] = moderationSetup();
-
-    $this->actingAs($customer)
-        ->post(route('messages.store', $conversation), ['body' => 'Private preview text']);
-
-    $message = $conversation->messages()->firstOrFail();
-    $notification = $technician->notifications()->firstOrFail();
-
-    expect($notification->data['message_id'])->toBe($message->id)
-        ->and($notification->data['body'])->toBe('Private preview text');
-
-    $this->actingAs($customer)->delete(route('messages.destroy', $message), ['scope' => 'everyone']);
-
-    expect($technician->notifications()->firstOrFail()->data['body'])->toBe('This message was deleted.');
-});
-
 test('a deleted message no longer counts as unread or as a request', function () {
     $this->withoutVite();
 
@@ -624,15 +607,4 @@ test('the admin dashboard counts open reports', function () {
     $this->actingAs($admin)
         ->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page->where('stats.reports_open', 1));
-});
-
-test('a new message notification still links to the conversation and now names the message', function () {
-    [$customer, $technician, $conversation] = moderationSetup();
-
-    $this->actingAs($customer)->post(route('messages.store', $conversation), ['body' => 'Hello there']);
-
-    $data = $technician->notifications()->firstOrFail()->data;
-
-    expect($data['conversation_id'])->toBe($conversation->id)
-        ->and($data['message_id'])->toBe($conversation->messages()->firstOrFail()->id);
 });

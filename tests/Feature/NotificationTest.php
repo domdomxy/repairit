@@ -116,40 +116,8 @@ test('messaging a suspended user is refused and notifies no one', function () {
     Notification::assertNothingSent();
 });
 
-test('an attachment-only message still notifies, with a placeholder instead of text', function () {
-    Storage::fake('local');
-    $customer = notifCustomer(['name' => 'Amira']);
-    $technician = notifTechnician();
-    $conversation = notifConversation($customer, $technician);
-
-    $this->actingAs($customer)
-        ->post(route('messages.store', $conversation), ['attachments' => [UploadedFile::fake()->create('leak.pdf', 20, 'application/pdf')]])
-        ->assertSessionHasNoErrors();
-
-    $data = $technician->notifications()->first()->data;
-
-    expect($data['title'])->toBe('New message from Amira');
-    expect($data['body'])->toBe('Sent an attachment');
-});
-
-test('a message with several files says how many in its placeholder', function () {
-    Storage::fake('local');
-    $customer = notifCustomer(['name' => 'Amira']);
-    $technician = notifTechnician();
-    $conversation = notifConversation($customer, $technician);
-
-    $this->actingAs($customer)
-        ->post(route('messages.store', $conversation), ['attachments' => [
-            UploadedFile::fake()->create('one.pdf', 20, 'application/pdf'),
-            UploadedFile::fake()->create('two.pdf', 20, 'application/pdf'),
-            UploadedFile::fake()->create('three.pdf', 20, 'application/pdf'),
-        ]])
-        ->assertSessionHasNoErrors();
-
-    expect($technician->notifications()->first()->data['body'])->toBe('Sent 3 attachments');
-});
-
 test('an admin can be messaged and notified like anyone else', function () {
+    Notification::fake();
     $admin = User::factory()->create(['role' => 'admin']);
     $customer = notifCustomer();
     $conversation = notifConversation($customer, $admin);
@@ -157,25 +125,18 @@ test('an admin can be messaged and notified like anyone else', function () {
     // notifConversation puts the second user in the technician seat.
     notifSend($customer, $conversation, 'Question for the team');
 
-    expect($admin->notifications()->count())->toBe(1);
+    Notification::assertSentTo($admin, NewMessage::class);
 });
 
-test('a message is stored in the app, and emailed without its text', function () {
+test('a message is emailed without its text, and is not a stored notification', function () {
     $customer = notifCustomer(['name' => 'Amira']);
     $technician = notifTechnician(['email' => 'sami@example.com']);
     $conversation = notifConversation($customer, $technician);
 
     notifSend($customer, $conversation, 'My boiler is leaking, secret-detail-123');
 
-    $stored = $technician->notifications()->get();
-    expect($stored)->toHaveCount(1);
-    expect($stored[0]->data)->toMatchArray([
-        'kind' => 'message',
-        'title' => 'New message from Amira',
-        'conversation_id' => $conversation->id,
-        'url' => "/messages/{$conversation->id}",
-    ]);
-    expect($stored[0]->data['body'])->toContain('secret-detail-123');
+    // Messages have their own panel: nothing lands in the notifications list.
+    expect($technician->notifications()->count())->toBe(0);
 
     expect(notifMails())->toHaveCount(1);
     $mail = notifMails()->first()->getOriginalMessage();
@@ -185,14 +146,16 @@ test('a message is stored in the app, and emailed without its text', function ()
     expect($mail->getHtmlBody())->toContain(route('conversations.show', $conversation));
 });
 
-test('a user who turned emails off still gets the in-app notification', function () {
+test('a user who turned emails off is sent nothing for a message', function () {
+    Notification::fake();
     $customer = notifCustomer();
     $technician = notifTechnician(['email_notifications' => false]);
     $conversation = notifConversation($customer, $technician);
 
     notifSend($customer, $conversation);
 
-    expect($technician->notifications()->count())->toBe(1);
+    // Nothing is queued to send: no email, and no entry in the notifications list.
+    expect($technician->notifications()->count())->toBe(0);
     expect(notifMails())->toHaveCount(0);
 });
 
@@ -230,8 +193,9 @@ test('the message channels depend on the email preference', function () {
     $on = User::factory()->create(['email_notifications' => true]);
     $off = User::factory()->create(['email_notifications' => false]);
 
-    expect((new NewMessage($message))->via($on))->toBe(['database', 'broadcast', 'mail']);
-    expect((new NewMessage($message))->via($off))->toBe(['database', 'broadcast']);
+    // Only the email: messages are not in the notifications list.
+    expect((new NewMessage($message))->via($on))->toBe(['mail']);
+    expect((new NewMessage($message))->via($off))->toBe([]);
     expect((new NewReview(new Review))->via($off))->toBe(['database', 'broadcast']);
 });
 
@@ -321,14 +285,9 @@ test('the notifications page lists only my notifications', function () {
     $this->withoutVite();
     $me = notifCustomer();
     $other = notifCustomer();
-    $sender = notifTechnician(['name' => 'Sami']);
 
-    $me->notify(new NewMessage(
-        notifConversation($me, $sender)->messages()->create(['sender_id' => $sender->id, 'body' => 'For me'])
-    ));
-    $other->notify(new NewMessage(
-        notifConversation($other, $sender)->messages()->create(['sender_id' => $sender->id, 'body' => 'Not for me'])
-    ));
+    notifStore($me, 'Sami left you a 5-star review');
+    notifStore($other, 'Not for me');
 
     $this->actingAs($me)
         ->get(route('notifications.index'))
@@ -336,22 +295,20 @@ test('the notifications page lists only my notifications', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Notifications/Index')
             ->has('items.data', 1)
-            ->where('items.data.0.title', 'New message from Sami')
-            ->where('items.data.0.body', 'For me')
+            ->where('items.data.0.title', 'Sami left you a 5-star review')
+            ->where('items.data.0.body', 'Hi')
             ->where('items.data.0.read_at', null)
             ->where('notifications.unread', 1));
 });
 
 test('opening a notification marks it read and goes to its page', function () {
     $me = notifCustomer();
-    $sender = notifTechnician();
-    $conversation = notifConversation($me, $sender);
-    $me->notify(new NewMessage($conversation->messages()->create(['sender_id' => $sender->id, 'body' => 'Hi'])));
+    notifStore($me, 'Sami left you a 5-star review');
     $notification = $me->notifications()->first();
 
     $this->actingAs($me)
         ->post(route('notifications.read', $notification->id))
-        ->assertRedirect("/messages/{$conversation->id}");
+        ->assertRedirect('/technicians/1');
 
     expect($notification->fresh()->read_at)->not->toBeNull();
 });
@@ -359,10 +316,7 @@ test('opening a notification marks it read and goes to its page', function () {
 test('nobody can open or mark someone else\'s notification', function () {
     $owner = notifCustomer();
     $intruder = notifCustomer();
-    $sender = notifTechnician();
-    $owner->notify(new NewMessage(
-        notifConversation($owner, $sender)->messages()->create(['sender_id' => $sender->id, 'body' => 'Hi'])
-    ));
+    notifStore($owner, 'Sami left you a 5-star review');
     $notification = $owner->notifications()->first();
 
     $this->actingAs($intruder)
@@ -389,12 +343,9 @@ test('a notification pointing off-site is never followed', function () {
 test('everything can be marked read at once', function () {
     $me = notifCustomer();
     $other = notifCustomer();
-    $sender = notifTechnician();
 
-    foreach ([$me, $other] as $user) {
-        $conversation = notifConversation($user, $sender);
-        $user->notify(new NewMessage($conversation->messages()->create(['sender_id' => $sender->id, 'body' => 'Hi'])));
-    }
+    notifStore($me, 'One');
+    notifStore($other, 'Two');
 
     $this->actingAs($me)->post(route('notifications.read-all'))->assertSessionHasNoErrors();
 
@@ -402,24 +353,6 @@ test('everything can be marked read at once', function () {
     expect($other->unreadNotifications()->count())->toBe(1);
 });
 
-test('opening a conversation clears that conversation\'s notifications only', function () {
-    $this->withoutVite();
-    $me = notifCustomer();
-    $first = notifTechnician();
-    $second = notifTechnician();
-    $opened = notifConversation($me, $first);
-    $untouched = notifConversation($me, $second);
-
-    foreach ([[$opened, $first], [$untouched, $second]] as [$conversation, $sender]) {
-        $me->notify(new NewMessage($conversation->messages()->create(['sender_id' => $sender->id, 'body' => 'Hi'])));
-    }
-
-    $this->actingAs($me)->get(route('conversations.show', $opened))->assertOk();
-
-    $remaining = $me->unreadNotifications()->get();
-    expect($remaining)->toHaveCount(1);
-    expect($remaining[0]->data['conversation_id'])->toBe($untouched->id);
-});
 
 // ---------------------------------------------------------- preference
 
@@ -477,8 +410,8 @@ function notifStore(User $user, string $title, int $minutesAgo = 0): void
 {
     $user->notifications()->create([
         'id' => (string) Str::uuid(),
-        'type' => NewMessage::class,
-        'data' => ['kind' => 'message', 'title' => $title, 'body' => 'Hi', 'url' => '/messages/1'],
+        'type' => NewReview::class,
+        'data' => ['kind' => 'review', 'title' => $title, 'body' => 'Hi', 'url' => '/technicians/1'],
         'created_at' => now()->subMinutes($minutesAgo),
     ]);
 }
@@ -498,7 +431,7 @@ test('every page carries the newest ten notifications for the bell, without thei
             ->has('notifications.recent', 10)
             ->where('notifications.recent.0.title', 'Note 12')
             ->where('notifications.recent.9.title', 'Note 3')
-            ->where('notifications.recent.0.kind', 'message')
+            ->where('notifications.recent.0.kind', 'review')
             ->missing('notifications.recent.0.url')
             ->missing('notifications.recent.0.data'));
 });

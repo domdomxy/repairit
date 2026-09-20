@@ -104,12 +104,13 @@ class DashboardController extends Controller
         $conversations = Conversation::query()->where('technician_id', $user->id);
         $messages = Message::query()->whereIn('conversation_id', Conversation::query()->where('technician_id', $user->id)->select('id'));
         $received = (clone $messages)->where('sender_id', '!=', $user->id);
-        $sent = (clone $messages)->where('sender_id', $user->id);
+        // Automatic replies are left out: these numbers are about what the technician wrote.
+        $sent = (clone $messages)->where('sender_id', $user->id)->where('is_automated', false);
         $reviews = Review::query()->where('technician_id', $user->id);
 
         $total = (clone $conversations)->count();
         $replied = (clone $conversations)
-            ->whereHas('messages', fn ($query) => $query->where('sender_id', $user->id))
+            ->whereHas('messages', fn ($query) => $query->where('sender_id', $user->id)->where('is_automated', false))
             ->count();
 
         return [

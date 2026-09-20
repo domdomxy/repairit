@@ -1,23 +1,20 @@
 import Avatar from '@/Components/Avatar';
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
+import MessagesMenu from '@/Components/MessagesMenu';
 import NavLink from '@/Components/NavLink';
 import NotificationBell from '@/Components/NotificationBell';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import TechnicianSearchBar from '@/Components/TechnicianSearchBar';
 import ThemeToggle from '@/Components/ThemeToggle';
+import { useInbox } from '@/lib/inbox';
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-
-// Any account can act as a customer (message technicians, review them), so these
-// are shown to everyone, whatever their role. Admin tools live on the admin dashboard.
-const navLinks = [
-    { label: 'Messages', routeName: 'conversations.index' },
-];
 
 export default function AuthenticatedLayout({ header, children }) {
     const { auth, flash, notifications } = usePage().props;
     const user = auth.user;
+    const { unread: unreadMessages } = useInbox();
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
@@ -41,15 +38,6 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     Dashboard
                                 </NavLink>
-                                {navLinks.map((link) => (
-                                    <NavLink
-                                        key={link.routeName}
-                                        href={route(link.routeName)}
-                                        active={route().current(link.routeName)}
-                                    >
-                                        {link.label}
-                                    </NavLink>
-                                ))}
                             </div>
                         </div>
 
@@ -59,8 +47,8 @@ export default function AuthenticatedLayout({ header, children }) {
                         </div>
 
                         <div className="hidden sm:ms-6 sm:flex sm:items-center">
+                            <MessagesMenu />
                             <NotificationBell />
-                            <ThemeToggle />
                             <div className="relative ms-3">
                                 <Dropdown>
                                     <Dropdown.Trigger>
@@ -99,6 +87,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                         >
                                             Support
                                         </Dropdown.Link>
+                                        <ThemeToggle variant="menu" />
                                         <Dropdown.Link
                                             href={route('logout')}
                                             method="post"
@@ -112,7 +101,6 @@ export default function AuthenticatedLayout({ header, children }) {
                         </div>
 
                         <div className="-me-2 flex items-center sm:hidden">
-                            <ThemeToggle className="me-1" />
                             <button
                                 onClick={() =>
                                     setShowingNavigationDropdown(
@@ -168,15 +156,18 @@ export default function AuthenticatedLayout({ header, children }) {
                         >
                             Dashboard
                         </ResponsiveNavLink>
-                        {navLinks.map((link) => (
-                            <ResponsiveNavLink
-                                key={link.routeName}
-                                href={route(link.routeName)}
-                                active={route().current(link.routeName)}
-                            >
-                                {link.label}
-                            </ResponsiveNavLink>
-                        ))}
+                        {/* The panel doesn't fit a phone's top bar, so here it is a plain link. */}
+                        <ResponsiveNavLink
+                            href={route('conversations.index')}
+                            active={route().current('conversations.*')}
+                        >
+                            Messages
+                            {unreadMessages > 0 && (
+                                <span className="ms-2 rounded-full bg-red-600 px-2 text-xs font-semibold text-white">
+                                    {unreadMessages}
+                                </span>
+                            )}
+                        </ResponsiveNavLink>
                         <ResponsiveNavLink
                             href={route('notifications.index')}
                             active={route().current('notifications.index')}
@@ -210,6 +201,7 @@ export default function AuthenticatedLayout({ header, children }) {
                             <ResponsiveNavLink href={route('profile.edit')}>
                                 Profile
                             </ResponsiveNavLink>
+                            <ThemeToggle variant="responsive" />
                             <ResponsiveNavLink
                                 method="post"
                                 href={route('logout')}

@@ -8,6 +8,7 @@ import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Transition } from '@headlessui/react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 
 const STATUSES = [
     { value: 'available', label: 'Available' },
@@ -17,10 +18,13 @@ const STATUSES = [
 
 const BIO_LIMIT = 1000;
 
-export default function EditProfile({ profile, categories }) {
+export default function EditProfile({ profile, categories, autoReplyDefault, autoReplyMaxLength }) {
     const user = usePage().props.auth.user;
 
-    const { data, setData, put, errors, processing, recentlySuccessful } = useForm({
+    // Which automatic message is sent: the default one, or the technician's own.
+    const [replyMode, setReplyMode] = useState(profile.auto_reply_message ? 'custom' : 'default');
+
+    const { data, setData, put, transform, setError, clearErrors, errors, processing, recentlySuccessful } = useForm({
         bio: profile.bio ?? '',
         phone: profile.phone ?? '',
         address: profile.address ?? '',
@@ -30,8 +34,16 @@ export default function EditProfile({ profile, categories }) {
         availability_status: profile.availability_status,
         show_phone_publicly: profile.show_phone_publicly,
         show_email_publicly: profile.show_email_publicly,
+        auto_reply_enabled: profile.auto_reply_enabled,
+        auto_reply_message: profile.auto_reply_message ?? '',
         categories: profile.categories,
     });
+
+    // The default message is sent by leaving the custom one empty.
+    transform((form) => ({
+        ...form,
+        auto_reply_message: replyMode === 'custom' ? form.auto_reply_message.trim() : null,
+    }));
 
     function toggleCategory(id) {
         setData(
@@ -44,6 +56,13 @@ export default function EditProfile({ profile, categories }) {
 
     function submit(e) {
         e.preventDefault();
+
+        if (data.auto_reply_enabled && replyMode === 'custom' && data.auto_reply_message.trim() === '') {
+            setError('auto_reply_message', 'Write your message, or choose the default one.');
+            return;
+        }
+
+        clearErrors('auto_reply_message');
         put(route('technician.profile.update'), { preserveScroll: true });
     }
 
@@ -196,6 +215,88 @@ export default function EditProfile({ profile, categories }) {
                                         Show my email ({user.email}) on my public profile
                                     </span>
                                 </label>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Automatic reply */}
+                    <section className="bg-white p-4 shadow sm:rounded-lg sm:p-8 dark:bg-gray-800">
+                        <div className="max-w-xl">
+                            <header>
+                                <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                                    Automatic reply
+                                </h2>
+                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                    Send a message on your behalf when a customer writes to you for
+                                    the first time. It is sent once per customer, and it is marked
+                                    as automatic so they know it isn&apos;t a personal answer.
+                                </p>
+                            </header>
+
+                            <div className="mt-6 space-y-4">
+                                <label className="flex items-center">
+                                    <Checkbox
+                                        checked={data.auto_reply_enabled}
+                                        onChange={(e) => setData('auto_reply_enabled', e.target.checked)}
+                                    />
+                                    <span className="ms-2 text-sm text-gray-600 dark:text-gray-400">
+                                        Reply automatically to a customer&apos;s first message
+                                    </span>
+                                </label>
+
+                                {data.auto_reply_enabled && (
+                                    <div className="space-y-4">
+                                        <div className="grid gap-3 sm:grid-cols-2">
+                                            {[
+                                                { value: 'default', label: 'Default message' },
+                                                { value: 'custom', label: 'My own message' },
+                                            ].map((option) => (
+                                                <button
+                                                    type="button"
+                                                    key={option.value}
+                                                    onClick={() => {
+                                                        setReplyMode(option.value);
+                                                        clearErrors('auto_reply_message');
+                                                    }}
+                                                    className={`px-4 py-3 rounded-md border text-sm font-medium ${
+                                                        replyMode === option.value
+                                                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30'
+                                                            : 'border-gray-300 dark:border-gray-600'
+                                                    }`}
+                                                >
+                                                    {option.label}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {replyMode === 'default' ? (
+                                            <p className="whitespace-pre-line rounded-md bg-gray-100 px-4 py-3 text-sm text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                                                {autoReplyDefault}
+                                            </p>
+                                        ) : (
+                                            <div>
+                                                <InputLabel htmlFor="auto_reply_message" value="Your message" />
+                                                <textarea
+                                                    id="auto_reply_message"
+                                                    rows={4}
+                                                    maxLength={autoReplyMaxLength}
+                                                    value={data.auto_reply_message}
+                                                    onChange={(e) => setData('auto_reply_message', e.target.value)}
+                                                    placeholder="Hi {name}, thanks for your message! I usually answer within a few hours."
+                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-indigo-600 dark:focus:ring-indigo-600"
+                                                />
+                                                <p className="mt-1 text-right text-xs text-gray-500 dark:text-gray-400">
+                                                    {data.auto_reply_message.length}/{autoReplyMaxLength}
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                            <code>{'{name}'}</code> is replaced with the customer&apos;s first name.
+                                        </p>
+                                        <InputError message={errors.auto_reply_message} className="mt-1" />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </section>

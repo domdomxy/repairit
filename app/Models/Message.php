@@ -37,10 +37,12 @@ class Message extends Model
         'sender_id',
         'body',
         'read_at',
+        'is_automated',
     ];
 
     protected $casts = [
         'read_at' => 'datetime',
+        'is_automated' => 'boolean',
         'edited_at' => 'datetime',
         'deleted_for_everyone_at' => 'datetime',
     ];
@@ -126,6 +128,7 @@ class Message extends Model
             'created_at' => $this->created_at->toIso8601String(),
             'edited_at' => $deleted ? null : $this->edited_at?->toIso8601String(),
             'deleted' => $deleted,
+            'automated' => (bool) $this->is_automated,
         ];
     }
 }

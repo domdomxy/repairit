@@ -2,18 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
 import KeywordSearchBar from '@/Components/KeywordSearchBar';
+import TechnicianMap from '@/Components/TechnicianMap';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-
-// Small OpenStreetMap preview centred on the given point. The box grows with the
-// reported accuracy so a rough (Wi-Fi / IP based) fix still shows sensible context.
-function mapEmbedUrl(lat, lng, accuracy) {
-    const spanMeters = Math.max(accuracy ?? 0, 500) * 3;
-    const latDelta = spanMeters / 111320;
-    const lngDelta = latDelta / Math.max(Math.cos((lat * Math.PI) / 180), 0.01);
-    const bbox = [lng - lngDelta, lat - latDelta, lng + lngDelta, lat + latDelta].join(',');
-
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${encodeURIComponent(`${lat},${lng}`)}`;
-}
 
 function formatMeters(meters) {
     return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${meters} m`;
@@ -48,7 +38,7 @@ function buildParams(form) {
     );
 }
 
-export default function Index({ technicians, categories, filters }) {
+export default function Index({ technicians, mapPoints, categories, filters }) {
     const [form, setForm] = useState({
         name: filters.name ?? '',
         category: filters.category ?? '',
@@ -239,16 +229,29 @@ export default function Index({ technicians, categories, filters }) {
                                     Open larger map ↗
                                 </a>
                             </div>
-
-                            <iframe
-                                title="Map showing your location"
-                                src={mapEmbedUrl(latNum, lngNum, accuracy)}
-                                loading="lazy"
-                                className="w-full h-56 border-0"
-                            />
                         </div>
                     )}
                 </div>
+
+                {/* Where the matching technicians are */}
+                {(mapPoints.length > 0 || showLocationPanel) && (
+                    <div className="mb-6 overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800">
+                        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+                            <p className="font-medium">
+                                {mapPoints.length} technician{mapPoints.length === 1 ? '' : 's'} on the map
+                            </p>
+                            <p className="text-gray-500">
+                                Locations are approximate (about 1 km). Green is available, yellow busy, grey offline.
+                            </p>
+                        </div>
+                        <TechnicianMap
+                            points={mapPoints}
+                            origin={showLocationPanel ? { lat: latNum, lng: lngNum } : null}
+                            radiusKm={showLocationPanel && Number(form.radius) > 0 ? Number(form.radius) : null}
+                            className="h-80 w-full"
+                        />
+                    </div>
+                )}
 
                 {/* Results */}
                 {technicians.data.length === 0 && (
