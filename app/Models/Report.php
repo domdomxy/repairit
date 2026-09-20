@@ -6,9 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * A user reporting a message, a whole conversation or an offer. Admins can read
- * the full conversation of a reported chat, including messages that were
- * deleted. An offer report has no conversation.
+ * A user reporting a message, a whole conversation, an offer or a review.
+ * Admins can read the full conversation of a reported chat, including messages
+ * that were deleted. An offer or review report has no conversation.
  */
 class Report extends Model
 {
@@ -30,6 +30,12 @@ class Report extends Model
         'message_id',
         'offer_id',
         'offer_title',
+        'review_id',
+        'customer_review_id',
+        'review_kind',
+        'review_subject_id',
+        'review_rating',
+        'review_comment',
         'reason',
         'details',
         'status',
@@ -40,6 +46,7 @@ class Report extends Model
 
     protected $casts = [
         'reviewed_at' => 'datetime',
+        'review_rating' => 'integer',
     ];
 
     protected $attributes = [
@@ -76,21 +83,46 @@ class Report extends Model
         return $this->belongsTo(User::class, 'reviewed_by_id');
     }
 
+    /** The reported review, when a customer's review of a technician: gone once it is deleted. */
+    public function review(): BelongsTo
+    {
+        return $this->belongsTo(Review::class);
+    }
+
+    /** The reported review, when a technician's review of a customer: gone once it is deleted. */
+    public function customerReview(): BelongsTo
+    {
+        return $this->belongsTo(CustomerReview::class);
+    }
+
+    /** Who the reported review was about (the reported user is the one who wrote it). */
+    public function reviewSubject(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'review_subject_id');
+    }
+
     public function isMessageReport(): bool
     {
         return $this->message_id !== null;
     }
 
-    /** Only offer reports have no conversation (the offer itself may be gone by now). */
-    public function isOfferReport(): bool
+    /** A review report keeps its own copy of the review, so it stays one after the review is deleted. */
+    public function isReviewReport(): bool
     {
-        return $this->conversation_id === null;
+        return $this->review_kind !== null;
     }
 
-    /** What was reported: 'offer', 'message' or 'conversation'. */
+    /** Offer reports have no conversation (the offer itself may be gone by now); nor do review reports, which are told apart first. */
+    public function isOfferReport(): bool
+    {
+        return $this->conversation_id === null && ! $this->isReviewReport();
+    }
+
+    /** What was reported: 'review', 'offer', 'message' or 'conversation'. */
     public function type(): string
     {
         return match (true) {
+            $this->isReviewReport() => 'review',
             $this->isOfferReport() => 'offer',
             $this->isMessageReport() => 'message',
             default => 'conversation',
@@ -101,6 +133,7 @@ class Report extends Model
     public function targetLabel(): string
     {
         return match ($this->type()) {
+            'review' => 'a review',
             'offer' => 'an offer',
             'message' => 'a message',
             default => 'a conversation',

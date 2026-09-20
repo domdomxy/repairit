@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Models\Report;
 use App\Models\Review;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -308,6 +309,8 @@ class TechnicianController extends Controller
             'technician' => $this->detail($technician),
             // The offer form's options, only for the technician looking at their own profile.
             'offerForm' => $viewer->is($technician) ? TechnicianOfferController::formProps() : null,
+            // The reasons the report form on each review offers.
+            'reportReasons' => Report::REASONS,
             'canReview' => Review::conversationFor($viewer, $technician) !== null,
             'myReview' => Review::where('customer_id', $viewer->id)
                 ->where('technician_id', $technician->id)

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CustomerReview;
+use App\Models\Report;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -41,11 +42,14 @@ class CustomerProfileController extends Controller
         $isTechnician = $viewer->role === 'technician';
 
         return Inertia::render('Customers/Show', [
-            // Only what is meant to be public: never the email or anything else.
+            // Only what is meant to be public: never the email or anything else. The bio and
+            // city are there only because the customer chose to fill them in.
             'customer' => [
                 'id' => $customer->id,
                 'name' => $customer->name,
                 'avatar_url' => $customer->avatar_url,
+                'bio' => $customer->bio,
+                'city' => $customer->city,
                 'member_since' => $customer->created_at?->toIso8601String(),
                 'rating_count' => (int) $stats->total,
                 'rating_avg' => $stats->total ? round((float) $stats->average, 2) : null,
@@ -53,6 +57,8 @@ class CustomerProfileController extends Controller
             ],
             // Whether the viewer has earned the right to rate (see CustomerReview::conversationFor);
             // `myReview` prefills the form.
+            // The reasons the report form on each review offers.
+            'reportReasons' => Report::REASONS,
             'canReview' => $isTechnician && CustomerReview::conversationFor($viewer, $customer) !== null,
             'myReview' => $isTechnician
                 ? CustomerReview::where('technician_id', $viewer->id)

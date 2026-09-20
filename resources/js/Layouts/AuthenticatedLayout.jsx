@@ -179,6 +179,14 @@ export default function AuthenticatedLayout({ children }) {
                             >
                                 Dashboard
                             </ResponsiveNavLink>
+                            {user.role !== 'admin' && (
+                                <ResponsiveNavLink
+                                    href={route('requests.index')}
+                                    active={route().current('requests.*')}
+                                >
+                                    Repair requests
+                                </ResponsiveNavLink>
+                            )}
                             {user.role === 'technician' && (
                                 <ResponsiveNavLink
                                     href={route('technician.repairs.index')}

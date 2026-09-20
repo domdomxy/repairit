@@ -6,6 +6,7 @@ import OfferForm from '@/Components/OfferForm';
 import OfferMenu from '@/Components/OfferMenu';
 import OfferShareActions from '@/Components/OfferShareActions';
 import ReviewForm from '@/Components/ReviewForm';
+import ReviewReportButton from '@/Components/ReviewReportButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useState } from 'react';
 
@@ -13,7 +14,7 @@ import { useState } from 'react';
 // stretched to the height of the page, and stack on small ones.
 const PANEL = 'rounded-lg bg-white p-6 shadow dark:bg-gray-800';
 
-export default function Show({ technician, canReview, myReview, offerForm }) {
+export default function Show({ technician, canReview, myReview, offerForm, reportReasons }) {
     const { auth } = usePage().props;
     const profile = technician.technician_profile;
     const isOwnProfile = auth.user.id === technician.id;
@@ -232,6 +233,14 @@ export default function Show({ technician, canReview, myReview, offerForm }) {
                                                 <p className="mt-1 break-words text-sm text-gray-600 dark:text-gray-300">
                                                     {review.comment}
                                                 </p>
+                                            )}
+                                            {/* Anyone but its author can report it */}
+                                            {review.customer.id !== auth.user.id && (
+                                                <ReviewReportButton
+                                                    action={route('reviews.report', review.id)}
+                                                    reasons={reportReasons}
+                                                    authorName={review.customer.name}
+                                                />
                                             )}
                                         </div>
                                     </div>

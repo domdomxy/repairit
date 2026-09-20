@@ -1,6 +1,7 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
 import ReviewForm from '@/Components/ReviewForm';
+import ReviewReportButton from '@/Components/ReviewReportButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { formatDate } from '@/lib/dates';
 
@@ -8,7 +9,7 @@ import { formatDate } from '@/lib/dates';
 // technicians say about them on the right.
 const PANEL = 'rounded-lg bg-white p-6 shadow dark:bg-gray-800';
 
-export default function Show({ customer, canReview, myReview }) {
+export default function Show({ customer, canReview, myReview, reportReasons }) {
     const { auth } = usePage().props;
     const isOwnProfile = auth.user.id === customer.id;
     const isTechnician = auth.user.role === 'technician';
@@ -29,8 +30,18 @@ export default function Show({ customer, canReview, myReview }) {
                             <div className="min-w-0">
                                 <h3 className="break-words text-lg font-semibold">{customer.name}</h3>
                                 <p className="text-sm text-gray-500">Customer</p>
+                                {customer.city && <p className="text-sm text-gray-500">{customer.city}</p>}
                             </div>
                         </div>
+
+                        {customer.bio && <p className="mt-4 whitespace-pre-line break-words text-sm">{customer.bio}</p>}
+
+                        {isOwnProfile && !customer.bio && !customer.city && (
+                            <p className="mt-4 text-sm text-gray-500">
+                                Nothing here yet. Add a short bio and your city in your account settings so
+                                technicians know who they are talking to.
+                            </p>
+                        )}
 
                         {customer.member_since && (
                             <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">
@@ -100,6 +111,14 @@ export default function Show({ customer, canReview, myReview }) {
                                                 <p className="mt-1 break-words text-sm text-gray-600 dark:text-gray-300">
                                                     {review.comment}
                                                 </p>
+                                            )}
+                                            {/* Anyone but its author can report it */}
+                                            {review.technician.id !== auth.user.id && (
+                                                <ReviewReportButton
+                                                    action={route('customer-reviews.report', review.id)}
+                                                    reasons={reportReasons}
+                                                    authorName={review.technician.name}
+                                                />
                                             )}
                                         </div>
                                     </div>

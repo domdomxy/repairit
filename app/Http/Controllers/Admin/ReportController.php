@@ -16,12 +16,13 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Reported messages, conversations and offers, as an admin works through them.
+ * Reported messages, conversations, offers and reviews, as an admin works through them.
  *
  * A report is the only way an admin gets to read a private conversation. The
  * page shows all of it, including messages that were deleted (for one person or
  * for both) and what edited messages said before they were changed. A report
- * about an offer shows the offer instead: it has no conversation.
+ * about an offer shows the offer instead, and one about a review shows the
+ * review as it was reported: neither has a conversation.
  */
 class ReportController extends Controller
 {
@@ -81,6 +82,9 @@ class ReportController extends Controller
             'conversation',
             'offer.categories',
             'offer.media',
+            'review',
+            'customerReview',
+            'reviewSubject:id,name,email,role,suspended_at,avatar_path',
         ]);
         // An offer report has no conversation, and the offer may have been deleted since.
         $conversation = $report->conversation;
@@ -95,7 +99,11 @@ class ReportController extends Controller
             ->exists();
 
         if (! $alreadyLogged) {
-            $looked = $report->isOfferReport() ? 'looked at the offer' : 'read the conversation';
+            $looked = match ($report->type()) {
+                'review' => 'looked at the review',
+                'offer' => 'looked at the offer',
+                default => 'read the conversation',
+            };
 
             AdminLog::record(
                 $admin,
@@ -167,7 +175,9 @@ class ReportController extends Controller
                 'title' => $offer?->title ?? $report->offer_title,
                 'card' => $offer?->toCard(),
             ] : null,
-            // Other reports about the same conversation or offer, so nothing is judged in isolation.
+            // The reported review: what it said when it was reported, and whether it still stands.
+            'review' => $report->isReviewReport() ? $this->reviewPayload($report) : null,
+            // Other reports about the same conversation, offer or review, so nothing is judged in isolation.
             'related' => $this->relatedTo($report)
                 ->with('reporter:id,name')
                 ->latest()
@@ -222,17 +232,76 @@ class ReportController extends Controller
         return back()->with('success', $changed ? 'Report updated.' : 'Note saved.');
     }
 
-    /** The other reports about the same conversation, or about the same offer. */
+    /**
+     * Remove the review a report is about. Reviews are kept until an admin
+     * decides otherwise, so this is a separate step from closing the report.
+     */
+    public function destroyReview(Request $request, Report $report): RedirectResponse
+    {
+        $review = $report->review ?? $report->customerReview;
+
+        abort_if($review === null, 404, 'That review is already gone.');
+
+        $writer = $report->reportedUser?->name ?? 'a deleted user';
+        $about = $report->reviewSubject?->name ?? 'a deleted user';
+
+        AdminLog::record(
+            $request->user(),
+            'review.deleted',
+            "Removed {$review->rating}-star review by {$writer} for {$about} (report #{$report->id})",
+            $review,
+        );
+
+        // Model delete (not a query delete) so the observer refreshes a
+        // technician's cached rating.
+        $review->delete();
+
+        return back()->with('success', 'Review removed.');
+    }
+
+    /** The other reports about the same conversation, offer or review. */
     private function relatedTo(Report $report): Builder
     {
         return Report::query()
             ->whereKeyNot($report->id)
             ->when(
-                $report->conversation_id !== null,
-                fn ($query) => $query->where('conversation_id', $report->conversation_id),
-                // An offer that has been deleted no longer links its reports together.
-                fn ($query) => $query->where('offer_id', $report->offer_id ?? 0),
+                $report->isReviewReport(),
+                // A review that has been deleted no longer links its reports together.
+                fn ($query) => $query->where(fn ($query) => $query
+                    ->where('review_id', $report->review_id ?? 0)
+                    ->orWhere('customer_review_id', $report->customer_review_id ?? 0)),
+                fn ($query) => $query->when(
+                    $report->conversation_id !== null,
+                    fn ($query) => $query->where('conversation_id', $report->conversation_id),
+                    // An offer that has been deleted no longer links its reports together.
+                    fn ($query) => $query->where('offer_id', $report->offer_id ?? 0),
+                ),
             );
+    }
+
+    /**
+     * A reported review as the admin sees it: the copy taken when it was
+     * reported, and whether the live one is still the same, was changed
+     * since, or is gone.
+     *
+     * @return array<string, mixed>
+     */
+    private function reviewPayload(Report $report): array
+    {
+        $live = $report->review ?? $report->customerReview;
+
+        return [
+            'kind' => $report->review_kind,
+            'rating' => $report->review_rating,
+            'comment' => $report->review_comment,
+            'subject' => $this->person($report->reviewSubject),
+            // Whether the review can still be removed from here.
+            'exists' => $live !== null,
+            'changed' => $live !== null
+                && ($live->rating !== $report->review_rating || $live->comment !== $report->review_comment),
+            'current_rating' => $live?->rating,
+            'current_comment' => $live?->comment,
+        ];
     }
 
     /** @return array<string, mixed>|null */

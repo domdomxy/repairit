@@ -13,7 +13,9 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\RepairController;
+use App\Http\Controllers\ServiceRequestController;
 use App\Http\Controllers\SupportController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -48,6 +50,8 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    // What a customer chooses to show on their public profile page.
+    Route::patch('/profile/public', [ProfileController::class, 'updatePublicInfo'])->name('profile.public.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::post('/profile/avatar', [AvatarController::class, 'store'])->name('profile.avatar.store');
     Route::delete('/profile/avatar', [AvatarController::class, 'destroy'])->name('profile.avatar.destroy');
@@ -92,7 +96,24 @@ Route::middleware('auth')->group(function () {
     Route::post('/offers/{offer}/share', [MessageController::class, 'shareOffer'])->middleware('throttle:20,1')->name('offers.share');
     // Report an offer to the admins.
     Route::post('/offers/{offer}/report', [ReportController::class, 'storeOffer'])->middleware('throttle:10,1,reports')->name('offers.report');
+    // Report a review: one a customer wrote about a technician, or one a technician wrote about a customer.
+    Route::post('/reviews/{review}/report', [ReportController::class, 'storeReview'])->middleware('throttle:10,1,reports')->name('reviews.report');
+    Route::post('/customer-reviews/{customerReview}/report', [ReportController::class, 'storeCustomerReview'])->middleware('throttle:10,1,reports')->name('customer-reviews.report');
     Route::get('/offer-media/{media}', [TechnicianOfferController::class, 'media'])->name('offers.media');
+    // Repair requests: what customers need fixed, for technicians to answer with a quote.
+    // "mine" and "new" must stay above /requests/{serviceRequest}, or they would be read as an id.
+    Route::get('/requests', [ServiceRequestController::class, 'index'])->name('requests.index');
+    Route::get('/requests/mine', [ServiceRequestController::class, 'mine'])->name('requests.mine');
+    Route::get('/requests/new', [ServiceRequestController::class, 'create'])->name('requests.create');
+    Route::post('/requests', [ServiceRequestController::class, 'store'])->middleware('throttle:10,1')->name('requests.store');
+    Route::get('/requests/{serviceRequest}', [ServiceRequestController::class, 'show'])->name('requests.show');
+    Route::get('/requests/{serviceRequest}/edit', [ServiceRequestController::class, 'edit'])->name('requests.edit');
+    Route::put('/requests/{serviceRequest}', [ServiceRequestController::class, 'update'])->name('requests.update');
+    Route::delete('/requests/{serviceRequest}', [ServiceRequestController::class, 'destroy'])->name('requests.destroy');
+    Route::post('/requests/{serviceRequest}/close', [ServiceRequestController::class, 'close'])->name('requests.close');
+    Route::post('/requests/{serviceRequest}/reopen', [ServiceRequestController::class, 'reopen'])->name('requests.reopen');
+    // The customer choosing one of the quotes they received.
+    Route::post('/quotes/{quote}/accept', [QuoteController::class, 'accept'])->name('quotes.accept');
     // Following a repair: the ones linked to my account, and one by its code (the link the technician gives out).
     Route::get('/repairs', [RepairController::class, 'index'])->name('repairs.index');
     Route::get('/repairs/{repair}', [RepairController::class, 'show'])->name('repairs.show');
@@ -103,6 +124,9 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'role:technician'])->group(function () {
     Route::get('/technician/profile', [TechnicianProfileController::class, 'edit'])->name('technician.profile.edit');
     Route::put('/technician/profile', [TechnicianProfileController::class, 'update'])->name('technician.profile.update');
+    // Answering a customer's repair request with a quote (sending again edits it), or taking it back.
+    Route::post('/requests/{serviceRequest}/quotes', [QuoteController::class, 'store'])->middleware('throttle:30,1')->name('requests.quotes.store');
+    Route::delete('/requests/{serviceRequest}/quote', [QuoteController::class, 'destroy'])->name('requests.quote.destroy');
     Route::get('/technician/offers', [TechnicianOfferController::class, 'index'])->name('technician.offers.index');
     Route::post('/technician/offers', [TechnicianOfferController::class, 'store'])->name('technician.offers.store');
     // The edit form sends a POST with _method=PUT: PHP doesn't read uploaded files from a real PUT request.
@@ -138,6 +162,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/reports', [AdminReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/{report}', [AdminReportController::class, 'show'])->name('reports.show');
     Route::post('/reports/{report}/status', [AdminReportController::class, 'status'])->name('reports.status');
+    // Remove the review a report is about.
+    Route::delete('/reports/{report}/review', [AdminReportController::class, 'destroyReview'])->name('reports.review.destroy');
 
     Route::get('/logs', [AdminLogController::class, 'index'])->name('logs.index');
 });

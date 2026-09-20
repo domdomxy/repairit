@@ -14,6 +14,11 @@ use Inertia\Response;
 
 class ProfileController extends Controller
 {
+    /** Longest bio and city a customer can put on their public profile, in characters. */
+    public const BIO_MAX_LENGTH = 500;
+
+    public const CITY_MAX_LENGTH = 100;
+
     /**
      * Display the user's profile form.
      */
@@ -27,7 +32,37 @@ class ProfileController extends Controller
                 'max_kb' => User::AVATAR_MAX_KB,
                 'extensions' => User::AVATAR_EXTENSIONS,
             ],
+            // What a customer shows on their public profile; technicians have their own profile page for this.
+            'publicInfo' => $request->user()->role === 'customer' ? [
+                'bio' => $request->user()->bio,
+                'city' => $request->user()->city,
+                'bio_max' => self::BIO_MAX_LENGTH,
+                'city_max' => self::CITY_MAX_LENGTH,
+            ] : null,
         ]);
+    }
+
+    /**
+     * Update what a customer shows on their public profile page. Everything
+     * here is visible to every signed-in user, and both fields are optional.
+     */
+    public function updatePublicInfo(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        abort_unless($user->role === 'customer', 403, 'Only customers have a public profile to fill in.');
+
+        $validated = $request->validate([
+            'bio' => ['nullable', 'string', 'max:'.self::BIO_MAX_LENGTH],
+            'city' => ['nullable', 'string', 'max:'.self::CITY_MAX_LENGTH],
+        ]);
+
+        $user->fill([
+            'bio' => filled($validated['bio'] ?? null) ? trim($validated['bio']) : null,
+            'city' => filled($validated['city'] ?? null) ? trim($validated['city']) : null,
+        ])->save();
+
+        return Redirect::route('profile.edit');
     }
 
     /**

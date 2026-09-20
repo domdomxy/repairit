@@ -32,6 +32,13 @@ export default function ProfileSidebar({ user, className = '' }) {
                 {user.role === 'admin' ? 'Administration' : 'Dashboard'}
             </Link>
 
+            {/* What customers need fixed: technicians answer with quotes, everyone else posts their own. */}
+            {user.role !== 'admin' && (
+                <Link href={route('requests.index')} className={`mt-1 ${LINK_CLASSES}`}>
+                    Repair requests
+                </Link>
+            )}
+
             {user.role === 'technician' && (
                 <Link href={route('technician.repairs.index')} className={`mt-1 ${LINK_CLASSES}`}>
                     Repairs

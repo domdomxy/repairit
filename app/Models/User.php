@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['name', 'email', 'password', 'role', 'email_notifications'])]
+#[Fillable(['name', 'email', 'password', 'role', 'email_notifications', 'bio', 'city'])]
 #[Hidden(['password', 'remember_token', 'avatar_path'])]
 class User extends Authenticatable
 {
@@ -127,6 +127,18 @@ class User extends Authenticatable
     public function customerReviewsReceived(): HasMany
     {
         return $this->hasMany(CustomerReview::class, 'customer_id');
+    }
+
+    /** The repair requests this person has posted. */
+    public function serviceRequests(): HasMany
+    {
+        return $this->hasMany(ServiceRequest::class, 'customer_id');
+    }
+
+    /** The quotes a technician has sent to other people's repair requests. */
+    public function quotes(): HasMany
+    {
+        return $this->hasMany(Quote::class, 'technician_id');
     }
 
     /** The offers a technician shows on their profile. */

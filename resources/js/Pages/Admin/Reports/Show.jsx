@@ -96,7 +96,75 @@ function TranscriptMessage({ message, reportedId }) {
     );
 }
 
-export default function Show({ report, messages, offer, related }) {
+// The reported review as it was when it was reported, with a note if it has been
+// changed or deleted since, and a way to remove it.
+function ReportedReview({ report, review }) {
+    const profileRoute = review.kind === 'customer' ? 'customers.show' : 'technicians.show';
+
+    function remove() {
+        if (confirm('Delete this review? This cannot be undone.')) {
+            router.delete(route('admin.reports.review.destroy', report.id), { preserveScroll: true });
+        }
+    }
+
+    return (
+        <section className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
+            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+                <h3 className="text-xs font-semibold uppercase text-gray-500">Reported review</h3>
+                <p className="text-xs text-gray-500">As it was when it was reported.</p>
+            </div>
+
+            <p className="text-sm">
+                <span className="font-medium">{report.reported.name}</span> wrote this about{' '}
+                {review.subject ? (
+                    <Link href={route(profileRoute, review.subject.id)} className="font-medium text-indigo-600 hover:underline">
+                        {review.subject.name}
+                    </Link>
+                ) : (
+                    <span className="font-medium">a deleted user</span>
+                )}{' '}
+                <span className="text-gray-500">({review.kind === 'customer' ? 'a customer' : 'a technician'})</span>
+            </p>
+
+            <div className="mt-3 rounded-md border p-3 dark:border-gray-700">
+                <p className="text-sm font-medium">{review.rating}/5</p>
+                {review.comment ? (
+                    <p className="mt-1 whitespace-pre-line break-words text-sm">{review.comment}</p>
+                ) : (
+                    <p className="mt-1 text-sm italic text-gray-500">(no comment)</p>
+                )}
+            </div>
+
+            {!review.exists && (
+                <p className="mt-3 text-sm text-gray-500">This review has been deleted since.</p>
+            )}
+
+            {review.exists && review.changed && (
+                <div className="mt-3 rounded-md bg-amber-50 p-3 text-sm dark:bg-amber-900/20">
+                    <p className="font-medium text-amber-800 dark:text-amber-300">It has been changed since it was reported. It now says:</p>
+                    <p className="mt-1">{review.current_rating}/5</p>
+                    {review.current_comment ? (
+                        <p className="mt-1 whitespace-pre-line break-words">{review.current_comment}</p>
+                    ) : (
+                        <p className="mt-1 italic text-gray-500">(no comment)</p>
+                    )}
+                </div>
+            )}
+
+            {review.exists && (
+                <button
+                    type="button"
+                    onClick={remove}
+                    className="mt-4 rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
+                >
+                    Delete this review
+                </button>
+            )}
+        </section>
+    );
+}
+
+export default function Show({ report, messages, offer, review, related }) {
     const [note, setNote] = useState('');
     const [errors, setErrors] = useState({});
     const [processing, setProcessing] = useState(false);
@@ -162,7 +230,9 @@ export default function Show({ report, messages, offer, related }) {
                         </section>
                     )}
 
-                    {offer ? (
+                    {review ? (
+                        <ReportedReview report={report} review={review} />
+                    ) : offer ? (
                         <section className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
                             <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
                                 <h3 className="text-xs font-semibold uppercase text-gray-500">Reported offer</h3>
@@ -199,7 +269,7 @@ export default function Show({ report, messages, offer, related }) {
 
                 <aside className="space-y-4">
                     {[
-                        ['Reported user', report.reported],
+                        [review ? 'Wrote the review' : 'Reported user', report.reported],
                         ['Reported by', report.reporter],
                     ].map(([label, person]) => (
                         <section key={label} className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
@@ -287,7 +357,7 @@ export default function Show({ report, messages, offer, related }) {
                     {related.length > 0 && (
                         <section className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
                             <h3 className="text-xs font-semibold uppercase text-gray-500">
-                                Other reports about this {offer ? 'offer' : 'conversation'}
+                                Other reports about this {report.type === 'review' ? 'review' : offer ? 'offer' : 'conversation'}
                             </h3>
                             <ul className="mt-2 divide-y divide-gray-100 text-sm dark:divide-gray-700">
                                 {related.map((other) => (

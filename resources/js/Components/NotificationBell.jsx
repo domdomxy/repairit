@@ -29,6 +29,12 @@ const KINDS = {
         text: 'text-sky-600 dark:text-sky-300',
         icon: 'M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9',
     },
+    quote: {
+        label: 'Quotes',
+        bg: 'bg-violet-100 dark:bg-violet-900',
+        text: 'text-violet-600 dark:text-violet-300',
+        icon: 'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z',
+    },
     report: {
         label: 'Reports',
         bg: 'bg-rose-100 dark:bg-rose-900',
