@@ -25,7 +25,7 @@ export default function AuthenticatedLayout({ children }) {
                     <div className="flex h-16 justify-between">
                         <div className="flex shrink-0">
                             <div className="flex shrink-0 items-center">
-                                <Link href={route('offers.index')}>
+                                <Link href={route('feed.index')}>
                                     <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800 dark:text-gray-200" />
                                 </Link>
                             </div>

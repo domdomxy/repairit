@@ -3,10 +3,9 @@ import { Head } from '@inertiajs/react';
 import DeleteUserForm from './Partials/DeleteUserForm';
 import UpdateAvatarForm from './Partials/UpdateAvatarForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
-import UpdatePublicInfoForm from './Partials/UpdatePublicInfoForm';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
 
-export default function Edit({ mustVerifyEmail, status, avatar, publicInfo }) {
+export default function Edit({ mustVerifyEmail, status, avatar }) {
     return (
         <AuthenticatedLayout>
             <Head title="Profile" />
@@ -24,12 +23,6 @@ export default function Edit({ mustVerifyEmail, status, avatar, publicInfo }) {
                             className="max-w-xl"
                         />
                     </div>
-
-                    {publicInfo && (
-                        <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8 dark:bg-gray-800">
-                            <UpdatePublicInfoForm publicInfo={publicInfo} className="max-w-xl" />
-                        </div>
-                    )}
 
                     <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8 dark:bg-gray-800">
                         <UpdatePasswordForm className="max-w-xl" />

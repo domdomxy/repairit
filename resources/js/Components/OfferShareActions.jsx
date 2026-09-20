@@ -48,7 +48,7 @@ export async function copyOfferLink(offer) {
 // The two ways to share an offer: send it in the chat with its technician (as a
 // card they can open), or copy its link. Your own offers can only be copied:
 // there is nobody to send them to. `showCopy` is off where the link lives in a
-// menu instead (the offers page).
+// menu instead (the feed).
 export default function OfferShareActions({ offer, technicianId, showCopy = true, className = '' }) {
     const { auth } = usePage().props;
     const isOwn = auth.user.id === technicianId;

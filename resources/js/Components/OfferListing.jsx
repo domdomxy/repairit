@@ -1,4 +1,5 @@
 import Avatar from '@/Components/Avatar';
+import FeedKindBadge from '@/Components/FeedKindBadge';
 import OfferCard, { OfferPrice } from '@/Components/OfferCard';
 import OfferMenu from '@/Components/OfferMenu';
 import OfferShareActions from '@/Components/OfferShareActions';
@@ -11,7 +12,7 @@ const AVAILABILITY_STYLES = {
 
 // Who the offer belongs to: the top of every card, with the offer's menu at the
 // top right.
-function TechnicianHeader({ technician, menu }) {
+function TechnicianHeader({ technician, menu, showKind }) {
     return (
         <div className="flex items-start justify-between gap-3">
             <Link
@@ -27,6 +28,7 @@ function TechnicianHeader({ technician, menu }) {
                 </div>
             </Link>
             <div className="flex shrink-0 items-center gap-2">
+                {showKind && <FeedKindBadge kind="offer" />}
                 <span
                     className={`rounded-full px-2 py-1 text-xs capitalize ${
                         AVAILABILITY_STYLES[technician.availability_status] ?? 'bg-gray-100 text-gray-600'
@@ -44,7 +46,8 @@ function TechnicianHeader({ technician, menu }) {
 // itself, and what can be done with it: send it in the chat, or copy its link
 // or report it from the menu. The price sits with the actions at the bottom.
 // `offer.technician` is the public card the server sends with each offer.
-export default function OfferListing({ offer, reportReasons }) {
+// In the feed, `showKind` marks it as an offer among the requests.
+export default function OfferListing({ offer, reportReasons, showKind = false }) {
     return (
         <div className="rounded-md bg-white dark:bg-gray-800">
             <OfferCard
@@ -54,6 +57,7 @@ export default function OfferListing({ offer, reportReasons }) {
                     <TechnicianHeader
                         technician={offer.technician}
                         menu={<OfferMenu offer={offer} reasons={reportReasons} />}
+                        showKind={showKind}
                     />
                 }
             >

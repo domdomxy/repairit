@@ -71,7 +71,7 @@ test('the offers pages send the reasons for the report form', function () {
     $customer = User::factory()->create(['role' => 'customer']);
 
     $this->actingAs($customer)
-        ->get(route('offers.index'))
+        ->get(route('feed.index'))
         ->assertInertia(fn (Assert $page) => $page->has('reportReasons.spam'));
 
     $this->actingAs($customer)

@@ -307,8 +307,13 @@ class TechnicianController extends Controller
 
         return Inertia::render('Technicians/Show', [
             'technician' => $this->detail($technician),
-            // The offer form's options, only for the technician looking at their own profile.
+            // The requests the technician posted (anyone can post one), listed with their offers.
+            'requests' => ServiceRequestController::profileCards($technician, $viewer),
+            // The forms' options, only for the technician looking at their own profile.
             'offerForm' => $viewer->is($technician) ? TechnicianOfferController::formProps() : null,
+            'requestForm' => $viewer->is($technician)
+                ? ServiceRequestController::formProps() + ['defaultCity' => $technician->technicianProfile?->city]
+                : null,
             // The reasons the report form on each review offers.
             'reportReasons' => Report::REASONS,
             'canReview' => Review::conversationFor($viewer, $technician) !== null,
@@ -383,8 +388,9 @@ class TechnicianController extends Controller
 
         $data['email'] = $profile?->show_email_publicly ? $technician->email : null;
 
+        // The date is what lets the page list the offers among the requests.
         $data['offers'] = $technician->offers
-            ->map(fn ($offer) => $offer->toCard())
+            ->map(fn ($offer) => $offer->toCard() + ['created_at' => $offer->created_at?->toIso8601String()])
             ->values()
             ->all();
 

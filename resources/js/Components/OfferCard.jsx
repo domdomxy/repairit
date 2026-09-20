@@ -33,7 +33,7 @@ function OfferCategories({ categories, className = '' }) {
 // delete) so the technician's own list can reuse the same card, and `header`
 // (optional) sits above the title, e.g. who the offer belongs to.
 //
-// `listing` is the layout of the offers page: the category tags sit beside the
+// `listing` is the layout of the feed: the category tags sit beside the
 // title, and the price is left out (the caller puts it in its row of actions).
 export default function OfferCard({
     offer,

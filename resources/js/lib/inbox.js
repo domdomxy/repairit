@@ -1,8 +1,7 @@
 import { usePage } from '@inertiajs/react';
 
-/** The chat bubble used for messages throughout the app. */
-export const CHAT_PATH =
-    'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z';
+/** The paper plane, seen from the side, used for messages throughout the app (outline, 24x24). */
+export const MESSAGES_ICON_PATH = 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z';
 
 /**
  * The messages panel's data: the newest conversations of the inbox and of the

@@ -5,7 +5,7 @@ import ThemeToggle from '@/Components/ThemeToggle';
 const LINK_CLASSES =
     'rounded-md px-2 py-2 text-sm text-gray-700 transition duration-150 ease-in-out hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700';
 
-// The account rail shown beside the offers list: who you are up top, a way
+// The account rail shown beside the feed: who you are up top, a way
 // back to the dashboard under that, then the theme toggle and support pinned
 // to the bottom so they're always in the same spot regardless of content height.
 export default function ProfileSidebar({ user, className = '' }) {

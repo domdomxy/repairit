@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Quote;
 use App\Models\ServiceRequest;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,6 +23,9 @@ use Inertia\Response;
 class ServiceRequestController extends Controller
 {
     private const PER_PAGE = 12;
+
+    /** Most requests a profile lists: the latest ones. The rest are under "My requests". */
+    private const PROFILE_LIMIT = 20;
 
     /** Every open request, with search and filters. */
     public function index(Request $request): Response
@@ -56,9 +60,10 @@ class ServiceRequestController extends Controller
         $serviceRequest = $user->serviceRequests()->create(Arr::only($data, ['title', 'description', 'budget', 'city']));
         $serviceRequest->categories()->sync($data['categories'] ?? []);
 
-        return redirect()
-            ->route('requests.show', $serviceRequest)
-            ->with('success', 'Your request is posted. Technicians can now send you quotes.');
+        // Posted from a panel on another page (the feed, the customer's profile): stay there, as adding an offer does.
+        $response = $request->boolean('from_panel') ? back() : redirect()->route('requests.show', $serviceRequest);
+
+        return $response->with('success', 'Your request is posted. Technicians can now send you quotes.');
     }
 
     public function show(Request $request, ServiceRequest $serviceRequest): Response
@@ -250,8 +255,48 @@ class ServiceRequestController extends Controller
         abort_unless($serviceRequest->customer_id === $request->user()->id, 403);
     }
 
+    /**
+     * The requests a profile lists, as cards: the latest ones. Everybody sees
+     * the open requests, as in the feed; the person who posted them also sees
+     * their closed ones. Shared by the customer's and the technician's profile
+     * (anyone can post a request).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function profileCards(User $owner, User $viewer): array
+    {
+        return $owner->serviceRequests()
+            ->when($viewer->isNot($owner), fn ($query) => $query->open())
+            ->with(['customer:id,name,avatar_path,role', 'categories'])
+            ->withCount('quotes')
+            // Lets a technician see which requests they have already answered.
+            ->withExists(['quotes as has_my_quote' => fn ($query) => $query->where('technician_id', $viewer->id)])
+            ->latest()
+            ->latest('id')
+            ->limit(self::PROFILE_LIMIT)
+            ->get()
+            ->map(fn (ServiceRequest $serviceRequest) => $serviceRequest->toCard() + [
+                'has_my_quote' => (bool) $serviceRequest->has_my_quote,
+            ])
+            ->all();
+    }
+
+    /**
+     * What the post-a-request form needs: the categories to tag with and the
+     * limits it lets through. Shared by the form page and the feed's panel.
+     *
+     * @return array<string, mixed>
+     */
+    public static function formProps(): array
+    {
+        return [
+            'categories' => self::categories(),
+            'limits' => self::limits(),
+        ];
+    }
+
     /** @return array{title_max: int, description_max: int, budget_max: int, city_max: int, max_categories: int, price_max: int, time_max: int, message_max: int} */
-    private function limits(): array
+    private static function limits(): array
     {
         return [
             'title_max' => ServiceRequest::TITLE_MAX,
@@ -265,7 +310,7 @@ class ServiceRequestController extends Controller
         ];
     }
 
-    private function categories()
+    private static function categories()
     {
         return Category::orderBy('name')->get(['id', 'name', 'slug']);
     }

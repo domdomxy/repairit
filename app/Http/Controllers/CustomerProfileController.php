@@ -5,13 +5,62 @@ namespace App\Http\Controllers;
 use App\Models\CustomerReview;
 use App\Models\Report;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
+use Inertia\Response;
 
-/** A customer's public profile: who they are and what technicians say about them. */
+/**
+ * A customer's public profile: who they are, the repair requests they posted
+ * and what technicians say about them.
+ */
 class CustomerProfileController extends Controller
 {
-    public function show(Request $request, User $customer)
+    /** Longest bio and city a customer can put on their public profile, in characters. */
+    public const BIO_MAX_LENGTH = 500;
+
+    public const CITY_MAX_LENGTH = 100;
+
+    /**
+     * The page where a customer edits what their public profile shows: a
+     * technician's own edit page has the same place (TechnicianProfileController).
+     * The picture and the account details are on the account page.
+     */
+    public function edit(Request $request): Response
+    {
+        $user = $request->user();
+
+        return Inertia::render('Customers/EditProfile', [
+            'profile' => [
+                'bio' => $user->bio,
+                'city' => $user->city,
+                'bio_max' => self::BIO_MAX_LENGTH,
+                'city_max' => self::CITY_MAX_LENGTH,
+            ],
+        ]);
+    }
+
+    /**
+     * Save what the public profile shows. Everything here is visible to every
+     * signed-in user, and both fields are optional.
+     */
+    public function update(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'bio' => ['nullable', 'string', 'max:'.self::BIO_MAX_LENGTH],
+            'city' => ['nullable', 'string', 'max:'.self::CITY_MAX_LENGTH],
+        ]);
+
+        $request->user()->fill([
+            'bio' => filled($validated['bio'] ?? null) ? trim($validated['bio']) : null,
+            'city' => filled($validated['city'] ?? null) ? trim($validated['city']) : null,
+        ])->save();
+
+        return Redirect::route('customer.profile.edit');
+    }
+
+    public function show(Request $request, User $customer): Response
     {
         abort_unless($customer->role === 'customer' && ! $customer->isSuspended(), 404);
 
@@ -40,6 +89,7 @@ class CustomerProfileController extends Controller
             ->all();
 
         $isTechnician = $viewer->role === 'technician';
+        $isOwner = $viewer->is($customer);
 
         return Inertia::render('Customers/Show', [
             // Only what is meant to be public: never the email or anything else. The bio and
@@ -55,6 +105,11 @@ class CustomerProfileController extends Controller
                 'rating_avg' => $stats->total ? round((float) $stats->average, 2) : null,
                 'reviews' => $reviews,
             ],
+            'requests' => ServiceRequestController::profileCards($customer, $viewer),
+            // What the "Create a new request" panel needs: only on your own profile.
+            'requestForm' => $isOwner
+                ? ServiceRequestController::formProps() + ['defaultCity' => $customer->city]
+                : null,
             // Whether the viewer has earned the right to rate (see CustomerReview::conversationFor);
             // `myReview` prefills the form.
             // The reasons the report form on each review offers.

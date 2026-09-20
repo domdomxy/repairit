@@ -23,9 +23,9 @@ test('a customer can put a bio and a city on their public profile', function () 
     $customer = piCustomer();
 
     $this->actingAs($customer)
-        ->patch(route('profile.public.update'), ['bio' => "  I fix my own bike, mostly.\nBad with laptops.  ", 'city' => ' Tunis '])
+        ->put(route('customer.profile.update'), ['bio' => "  I fix my own bike, mostly.\nBad with laptops.  ", 'city' => ' Tunis '])
         ->assertSessionHasNoErrors()
-        ->assertRedirect(route('profile.edit'));
+        ->assertRedirect(route('customer.profile.edit'));
 
     $customer->refresh();
 
@@ -60,7 +60,7 @@ test('emptying the fields clears them', function () {
     $customer->forceFill(['bio' => 'Hello', 'city' => 'Sfax'])->save();
 
     $this->actingAs($customer)
-        ->patch(route('profile.public.update'), ['bio' => '   ', 'city' => ''])
+        ->put(route('customer.profile.update'), ['bio' => '   ', 'city' => ''])
         ->assertSessionHasNoErrors();
 
     $customer->refresh();
@@ -73,7 +73,7 @@ test('the bio and city have length limits', function () {
     $customer = piCustomer();
 
     $this->actingAs($customer)
-        ->patch(route('profile.public.update'), [
+        ->put(route('customer.profile.update'), [
             'bio' => str_repeat('a', 501),
             'city' => str_repeat('b', 101),
         ])
@@ -87,7 +87,7 @@ test('saving the public info leaves the account details alone', function () {
     $email = $customer->email;
 
     $this->actingAs($customer)
-        ->patch(route('profile.public.update'), ['bio' => 'Hi', 'city' => 'Sousse', 'email' => 'other@example.com', 'role' => 'admin']);
+        ->put(route('customer.profile.update'), ['bio' => 'Hi', 'city' => 'Sousse', 'email' => 'other@example.com', 'role' => 'admin']);
 
     $customer->refresh();
 
@@ -99,31 +99,45 @@ test('only customers have a public profile to fill in', function () {
     $technician = piTechnician();
 
     $this->actingAs($technician)
-        ->patch(route('profile.public.update'), ['bio' => 'Hi'])
+        ->put(route('customer.profile.update'), ['bio' => 'Hi'])
         ->assertForbidden();
 
     expect($technician->refresh()->bio)->toBeNull();
 });
 
 test('guests cannot fill in a public profile', function () {
-    $this->patch(route('profile.public.update'), ['bio' => 'Hi'])->assertRedirect(route('login'));
+    $this->put(route('customer.profile.update'), ['bio' => 'Hi'])->assertRedirect(route('login'));
 });
 
-test('the account page offers the public profile form to customers only', function () {
+test('the profile page offers the public info form to customers only', function () {
     $this->withoutVite();
 
     $customer = piCustomer();
     $customer->forceFill(['bio' => 'Hello', 'city' => 'Tunis'])->save();
 
     $this->actingAs($customer)
-        ->get(route('profile.edit'))
+        ->get(route('customer.profile.edit'))
+        ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('publicInfo.bio', 'Hello')
-            ->where('publicInfo.city', 'Tunis')
-            ->where('publicInfo.bio_max', 500)
-            ->where('publicInfo.city_max', 100));
+            ->component('Customers/EditProfile')
+            ->where('profile.bio', 'Hello')
+            ->where('profile.city', 'Tunis')
+            ->where('profile.bio_max', 500)
+            ->where('profile.city_max', 100));
 
-    $this->actingAs(piTechnician())
+    $this->actingAs(piTechnician())->get(route('customer.profile.edit'))->assertForbidden();
+    $this->actingAs(User::factory()->create(['role' => 'admin']))->get(route('customer.profile.edit'))->assertForbidden();
+});
+
+test('guests cannot open the profile page', function () {
+    $this->get(route('customer.profile.edit'))->assertRedirect(route('login'));
+});
+
+test('the account page no longer carries the public info form', function () {
+    $this->withoutVite();
+
+    $this->actingAs(piCustomer())
         ->get(route('profile.edit'))
-        ->assertInertia(fn (Assert $page) => $page->where('publicInfo', null));
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->missing('publicInfo'));
 });

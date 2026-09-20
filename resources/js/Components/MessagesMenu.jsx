@@ -1,7 +1,7 @@
 import Avatar from '@/Components/Avatar';
 import LiveUpdatesBoundary from '@/Components/LiveUpdatesBoundary';
 import { relativeTime } from '@/lib/dates';
-import { CHAT_PATH, useInbox } from '@/lib/inbox';
+import { MESSAGES_ICON_PATH, useInbox } from '@/lib/inbox';
 import useDismiss from '@/lib/useDismiss';
 import { Link, router, usePage } from '@inertiajs/react';
 import { useEcho } from '@laravel/echo-react';
@@ -79,7 +79,7 @@ function MessagesPanel({ inbox, requests, activeId, unreadInbox, unreadRequests,
                             stroke="currentColor"
                             aria-hidden="true"
                         >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d={CHAT_PATH} />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d={MESSAGES_ICON_PATH} />
                         </svg>
                         <p className="text-sm text-gray-400 dark:text-gray-500">
                             {TABS.find(({ key }) => key === tab).empty}
@@ -197,7 +197,7 @@ export default function MessagesMenu({ className = '' }) {
                     aria-expanded={open}
                 >
                     <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d={CHAT_PATH} />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d={MESSAGES_ICON_PATH} />
                     </svg>
                     {unread > 0 && (
                         <span className="absolute -end-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-semibold text-white">

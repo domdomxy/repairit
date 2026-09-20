@@ -30,18 +30,18 @@ function browseTitles($test, array $query = []): array
 {
     $titles = [];
 
-    $test->get(route('offers.index', $query))
+    $test->get(route('feed.index', $query))
         ->assertOk()
         ->assertInertia(function (Assert $page) use (&$titles) {
-            $page->component('Offers/Index');
-            $titles = collect($page->toArray()['props']['offers']['data'])->pluck('title')->all();
+            $page->component('Feed/Index');
+            $titles = collect($page->toArray()['props']['feed']['data'])->pluck('title')->all();
         });
 
     return $titles;
 }
 
 test('guests are sent to log in', function () {
-    $this->get(route('offers.index'))->assertRedirect(route('login'));
+    $this->get(route('feed.index'))->assertRedirect(route('login'));
 });
 
 test('any signed-in user sees every technician\'s offers, newest first', function () {
@@ -78,8 +78,8 @@ test('the technician card never carries private contact data', function () {
     ]);
     browseOffer($technician, 'Boiler service');
 
-    $response = $this->actingAs($viewer)->get(route('offers.index'))->assertOk();
-    $json = json_encode($response->viewData('page')['props']['offers']);
+    $response = $this->actingAs($viewer)->get(route('feed.index'))->assertOk();
+    $json = json_encode($response->viewData('page')['props']['feed']);
 
     expect($json)->toContain('Tunis')
         ->not->toContain('secret@example.com')
@@ -176,11 +176,11 @@ test('the list is paginated and keeps the filters', function () {
     }
 
     $this->actingAs($viewer)
-        ->get(route('offers.index', ['q' => 'boiler']))
+        ->get(route('feed.index', ['q' => 'boiler']))
         ->assertInertia(fn (Assert $page) => $page
-            ->has('offers.data', 12)
-            ->where('offers.total', 15)
-            ->where('offers.next_page_url', fn ($url) => str_contains($url, 'q=boiler')));
+            ->has('feed.data', 12)
+            ->where('feed.total', 15)
+            ->where('feed.next_page_url', fn ($url) => str_contains($url, 'q=boiler')));
 });
 
 test('with no filters set, they still reach the page as an object', function () {
@@ -189,7 +189,7 @@ test('with no filters set, they still reach the page as an object', function () 
     // An empty PHP array would arrive as a JS array, where `filters.sort` is
     // Array.prototype.sort rather than "unset". A full page load carries the
     // props in an HTML attribute, so the quotes are escaped.
-    foreach (['offers.index', 'technicians.index'] as $route) {
+    foreach (['feed.index', 'technicians.index'] as $route) {
         expect($this->actingAs($viewer)->get(route($route))->assertOk()->getContent())
             ->toContain('&quot;filters&quot;:{}');
     }
@@ -208,7 +208,7 @@ test('the top rated list is ranked, limited, and leaves out unrated and suspende
     browseTechnician(['name' => 'Well reviewed'], ['rating_avg' => 4.6, 'rating_count' => 9]);
 
     $this->actingAs($viewer)
-        ->get(route('offers.index'))
+        ->get(route('feed.index'))
         ->assertInertia(fn (Assert $page) => $page
             ->has('topRated', 5)
             ->where('topRated.0.name', 'Well reviewed')
@@ -226,7 +226,7 @@ test('the top rated list carries only public fields', function () {
         'rating_count' => 2,
     ]);
 
-    $json = json_encode($this->actingAs($viewer)->get(route('offers.index'))->viewData('page')['props']['topRated']);
+    $json = json_encode($this->actingAs($viewer)->get(route('feed.index'))->viewData('page')['props']['topRated']);
 
     expect($json)->not->toContain('secret@example.com')
         ->not->toContain('99 999 999')
@@ -234,10 +234,10 @@ test('the top rated list carries only public fields', function () {
         ->not->toContain('36.8065');
 });
 
-test('the offers page is the main page: the root sends signed-in users there, guests keep the welcome page', function () {
+test('the feed is the main page: the root sends signed-in users there, guests keep the welcome page', function () {
     $this->get('/')->assertOk();
 
     $this->actingAs(User::factory()->create(['role' => 'customer']))
         ->get('/')
-        ->assertRedirect(route('offers.index'));
+        ->assertRedirect(route('feed.index'));
 });

@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AvatarController;
 use App\Http\Controllers\CustomerProfileController;
 use App\Http\Controllers\CustomerReviewController;
+use App\Http\Controllers\FeedController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\ProfileController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\RepairController;
 use App\Http\Controllers\ServiceRequestController;
 use App\Http\Controllers\SupportController;
 use Illuminate\Foundation\Application;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\MessageController;
@@ -30,9 +32,9 @@ use App\Http\Controllers\DashboardController;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    // The main page of the app, once signed in, is the offers page.
+    // The main page of the app, once signed in, is the feed.
     if (auth()->check()) {
-        return redirect()->route('offers.index');
+        return redirect()->route('feed.index');
     }
 
     return Inertia::render('Welcome', [
@@ -50,8 +52,6 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    // What a customer chooses to show on their public profile page.
-    Route::patch('/profile/public', [ProfileController::class, 'updatePublicInfo'])->name('profile.public.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::post('/profile/avatar', [AvatarController::class, 'store'])->name('profile.avatar.store');
     Route::delete('/profile/avatar', [AvatarController::class, 'destroy'])->name('profile.avatar.destroy');
@@ -88,8 +88,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/customers/{customer}', [CustomerProfileController::class, 'show'])->name('customers.show');
     Route::post('/customers/{customer}/review', [CustomerReviewController::class, 'store'])->name('customer-reviews.store');
     Route::delete('/customers/{customer}/review', [CustomerReviewController::class, 'destroy'])->name('customer-reviews.destroy');
-    // Every technician's offers, with search and filters. (The technician's own list is technician.offers.index.)
-    Route::get('/offers', [OfferController::class, 'index'])->name('offers.index');
+    // The feed: every technician's offers and every open repair request, with search and filters.
+    // (The technician's own offers are technician.offers.index, a customer's own requests requests.mine.)
+    Route::get('/feed', [FeedController::class, 'index'])->name('feed.index');
+    // The feed used to be the offers page: keep old links (and their filters) working.
+    Route::get('/offers', fn (Request $request) => redirect()->route('feed.index', $request->query()));
     // One offer on its own page: the link people copy and share.
     Route::get('/offers/{offer}', [OfferController::class, 'show'])->name('offers.show');
     // Send an offer in the chat with its technician (starting the chat if needed).
@@ -120,6 +123,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/technicians/{technician}/review', [ReviewController::class, 'store'])->name('reviews.store');
     Route::delete('/technicians/{technician}/review', [ReviewController::class, 'destroy'])->name('reviews.destroy');
     });
+
+Route::middleware(['auth', 'role:customer'])->group(function () {
+    // What a customer chooses to show on their public profile page: a page of its own, like a technician's.
+    Route::get('/customer/profile', [CustomerProfileController::class, 'edit'])->name('customer.profile.edit');
+    Route::put('/customer/profile', [CustomerProfileController::class, 'update'])->name('customer.profile.update');
+});
 
 Route::middleware(['auth', 'role:technician'])->group(function () {
     Route::get('/technician/profile', [TechnicianProfileController::class, 'edit'])->name('technician.profile.edit');
