@@ -128,4 +128,16 @@ class User extends Authenticatable
     {
         return $this->hasMany(Offer::class, 'technician_id');
     }
+
+    /** The repairs a technician is keeping track of for their customers. */
+    public function technicianRepairs(): HasMany
+    {
+        return $this->hasMany(Repair::class, 'technician_id');
+    }
+
+    /** The repairs a customer follows: the ones a technician linked to their account. */
+    public function customerRepairs(): HasMany
+    {
+        return $this->hasMany(Repair::class, 'customer_id');
+    }
 }

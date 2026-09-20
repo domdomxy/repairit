@@ -30,10 +30,25 @@ async function copyText(text) {
     }
 }
 
+// Copies the link to an offer. When nothing works the link is shown instead, so
+// it can be copied by hand. Resolves to whether it ended up on the clipboard.
+export async function copyOfferLink(offer) {
+    const url = route('offers.show', offer.id);
+
+    if (await copyText(url)) {
+        return true;
+    }
+
+    window.prompt('Copy this link:', url);
+
+    return false;
+}
+
 // The two ways to share an offer: send it in the chat with its technician (as a
 // card they can open), or copy its link. Your own offers can only be copied:
-// there is nobody to send them to.
-export default function OfferShareActions({ offer, technicianId, className = '' }) {
+// there is nobody to send them to. `showCopy` is off where the link lives in a
+// menu instead (the offers page).
+export default function OfferShareActions({ offer, technicianId, showCopy = true, className = '' }) {
     const { auth } = usePage().props;
     const isOwn = auth.user.id === technicianId;
 
@@ -44,13 +59,7 @@ export default function OfferShareActions({ offer, technicianId, className = '' 
     useEffect(() => () => clearTimeout(timer.current), []);
 
     async function copyLink() {
-        const url = route('offers.show', offer.id);
-
-        if (!(await copyText(url))) {
-            // Nothing worked: show the link so it can be copied by hand.
-            window.prompt('Copy this link:', url);
-            return;
-        }
+        if (!(await copyOfferLink(offer))) return;
 
         setCopied(true);
         clearTimeout(timer.current);
@@ -64,6 +73,9 @@ export default function OfferShareActions({ offer, technicianId, className = '' 
         });
     }
 
+    // Nothing to show: your own offer, with the link kept in the menu.
+    if (isOwn && !showCopy) return null;
+
     return (
         <div className={`flex flex-wrap items-center gap-2 text-sm ${className}`}>
             {!isOwn && (
@@ -76,16 +88,20 @@ export default function OfferShareActions({ offer, technicianId, className = '' 
                     {sending ? 'Sending…' : 'Send in chat'}
                 </button>
             )}
-            <button
-                type="button"
-                onClick={copyLink}
-                className="rounded-md bg-gray-100 px-3 py-1.5 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
-            >
-                {copied ? '✓ Link copied' : 'Copy link'}
-            </button>
-            <span className="sr-only" role="status">
-                {copied ? 'Link copied' : ''}
-            </span>
+            {showCopy && (
+                <>
+                    <button
+                        type="button"
+                        onClick={copyLink}
+                        className="rounded-md bg-gray-100 px-3 py-1.5 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                    >
+                        {copied ? '✓ Link copied' : 'Copy link'}
+                    </button>
+                    <span className="sr-only" role="status">
+                        {copied ? 'Link copied' : ''}
+                    </span>
+                </>
+            )}
         </div>
     );
 }

@@ -1,6 +1,7 @@
 import Avatar from '@/Components/Avatar';
 import InputError from '@/Components/InputError';
 import MessageAttachments from '@/Components/MessageAttachments';
+import OfferCard from '@/Components/OfferCard';
 import ReportStatusBadge from '@/Components/ReportStatusBadge';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { formatDateTime } from '@/lib/dates';
@@ -95,7 +96,7 @@ function TranscriptMessage({ message, reportedId }) {
     );
 }
 
-export default function Show({ report, messages, related }) {
+export default function Show({ report, messages, offer, related }) {
     const [note, setNote] = useState('');
     const [errors, setErrors] = useState({});
     const [processing, setProcessing] = useState(false);
@@ -161,21 +162,39 @@ export default function Show({ report, messages, related }) {
                         </section>
                     )}
 
-                    <section className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
-                        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-                            <h3 className="text-xs font-semibold uppercase text-gray-500">Conversation</h3>
-                            <p className="text-xs text-gray-500">
-                                The full history, including deleted messages and earlier versions of edited ones.
-                            </p>
-                        </div>
+                    {offer ? (
+                        <section className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
+                            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+                                <h3 className="text-xs font-semibold uppercase text-gray-500">Reported offer</h3>
+                                <p className="text-xs text-gray-500">As it is now, which may differ from when it was reported.</p>
+                            </div>
 
-                        <div className="space-y-4">
-                            {messages.length === 0 && <p className="text-sm text-gray-500">There are no messages.</p>}
-                            {messages.map((message) => (
-                                <TranscriptMessage key={message.id} message={message} reportedId={report.reported.id} />
-                            ))}
-                        </div>
-                    </section>
+                            {offer.card ? (
+                                <OfferCard offer={offer.card} />
+                            ) : (
+                                <p className="text-sm text-gray-500">
+                                    <span className="font-medium text-gray-900 dark:text-gray-100">{offer.title}</span> has
+                                    been deleted since.
+                                </p>
+                            )}
+                        </section>
+                    ) : (
+                        <section className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
+                            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+                                <h3 className="text-xs font-semibold uppercase text-gray-500">Conversation</h3>
+                                <p className="text-xs text-gray-500">
+                                    The full history, including deleted messages and earlier versions of edited ones.
+                                </p>
+                            </div>
+
+                            <div className="space-y-4">
+                                {messages.length === 0 && <p className="text-sm text-gray-500">There are no messages.</p>}
+                                {messages.map((message) => (
+                                    <TranscriptMessage key={message.id} message={message} reportedId={report.reported.id} />
+                                ))}
+                            </div>
+                        </section>
+                    )}
                 </div>
 
                 <aside className="space-y-4">
@@ -268,7 +287,7 @@ export default function Show({ report, messages, related }) {
                     {related.length > 0 && (
                         <section className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
                             <h3 className="text-xs font-semibold uppercase text-gray-500">
-                                Other reports about this conversation
+                                Other reports about this {offer ? 'offer' : 'conversation'}
                             </h3>
                             <ul className="mt-2 divide-y divide-gray-100 text-sm dark:divide-gray-700">
                                 {related.map((other) => (

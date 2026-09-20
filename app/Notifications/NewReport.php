@@ -10,7 +10,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
- * Sent to admins when someone reports a message or a conversation. Like every
+ * Sent to admins when someone reports a message, a conversation or an offer. Like every
  * other email here it never carries what people wrote: it says that a report
  * came in and links to it.
  */
@@ -36,7 +36,7 @@ class NewReport extends Notification implements ShouldQueue
 
     public function toArray(object $notifiable): array
     {
-        $what = $this->report->isMessageReport() ? 'a message' : 'a conversation';
+        $what = $this->report->targetLabel();
 
         return [
             'kind' => 'report',
@@ -52,7 +52,7 @@ class NewReport extends Notification implements ShouldQueue
         return (new MailMessage)
             ->subject('New report to review')
             ->greeting('Hi '.$this->escapeForMail($notifiable->name).',')
-            ->line($this->escapeForMail($this->report->reporter->name).' reported '.($this->report->isMessageReport() ? 'a message' : 'a conversation').' ('.$this->report->reasonLabel().').')
+            ->line($this->escapeForMail($this->report->reporter->name).' reported '.$this->report->targetLabel().' ('.$this->report->reasonLabel().').')
             ->action('Review the report', route('admin.reports.show', $this->report))
             ->line('You can turn these emails off in your profile settings.');
     }

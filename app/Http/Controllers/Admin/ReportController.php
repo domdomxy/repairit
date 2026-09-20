@@ -7,6 +7,7 @@ use App\Models\AdminLog;
 use App\Models\Message;
 use App\Models\Report;
 use App\Notifications\NewReport;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,11 +16,12 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Reported messages and conversations, as an admin works through them.
+ * Reported messages, conversations and offers, as an admin works through them.
  *
  * A report is the only way an admin gets to read a private conversation. The
  * page shows all of it, including messages that were deleted (for one person or
- * for both) and what edited messages said before they were changed.
+ * for both) and what edited messages said before they were changed. A report
+ * about an offer shows the offer instead: it has no conversation.
  */
 class ReportController extends Controller
 {
@@ -51,7 +53,7 @@ class ReportController extends Controller
                 'id' => $report->id,
                 'status' => $report->status,
                 'reason_label' => $report->reasonLabel(),
-                'type' => $report->isMessageReport() ? 'message' : 'conversation',
+                'type' => $report->type(),
                 'created_at' => $report->created_at->toIso8601String(),
                 'reporter' => $this->person($report->reporter),
                 'reported' => $this->person($report->reportedUser),
@@ -77,8 +79,12 @@ class ReportController extends Controller
             'reportedUser:id,name,email,role,suspended_at,avatar_path',
             'reviewer:id,name',
             'conversation',
+            'offer.categories',
+            'offer.media',
         ]);
+        // An offer report has no conversation, and the offer may have been deleted since.
         $conversation = $report->conversation;
+        $offer = $report->offer;
 
         // Reading a private conversation is recorded, once per admin and report,
         // so the activity log shows who looked at what.
@@ -89,10 +95,12 @@ class ReportController extends Controller
             ->exists();
 
         if (! $alreadyLogged) {
+            $looked = $report->isOfferReport() ? 'looked at the offer' : 'read the conversation';
+
             AdminLog::record(
                 $admin,
                 'report.viewed',
-                "Opened report #{$report->id} ({$report->reporter->name} reporting {$report->reportedUser->name}) and read the conversation",
+                "Opened report #{$report->id} ({$report->reporter->name} reporting {$report->reportedUser->name}) and {$looked}",
                 $report,
             );
         }
@@ -103,7 +111,7 @@ class ReportController extends Controller
             ->filter(fn ($notification) => ($notification->data['report_id'] ?? null) === $report->id)
             ->each->markAsRead();
 
-        $messages = $conversation->messages()
+        $messages = $conversation?->messages()
             ->with(['sender:id,name', 'attachments', 'edits', 'deletions.user:id,name'])
             ->orderBy('created_at')
             ->orderBy('id')
@@ -133,13 +141,13 @@ class ReportController extends Controller
                 'flagged' => $message->id === $report->message_id,
             ])
             ->values()
-            ->all();
+            ->all() ?? [];
 
         return Inertia::render('Admin/Reports/Show', [
             'report' => [
                 'id' => $report->id,
                 'status' => $report->status,
-                'type' => $report->isMessageReport() ? 'message' : 'conversation',
+                'type' => $report->type(),
                 'message_id' => $report->message_id,
                 'reason' => $report->reason,
                 'reason_label' => $report->reasonLabel(),
@@ -150,13 +158,17 @@ class ReportController extends Controller
                 'reviewer' => $report->reviewer?->name,
                 'reporter' => $this->person($report->reporter),
                 'reported' => $this->person($report->reportedUser),
-                'customer_id' => $conversation->customer_id,
-                'technician_id' => $conversation->technician_id,
+                'customer_id' => $conversation?->customer_id,
+                'technician_id' => $conversation?->technician_id,
             ],
             'messages' => $messages,
-            // Other reports about the same conversation, so nothing is judged in isolation.
-            'related' => Report::where('conversation_id', $conversation->id)
-                ->whereKeyNot($report->id)
+            // The reported offer as it is now; without a card once the offer is deleted (the title is kept).
+            'offer' => $report->isOfferReport() ? [
+                'title' => $offer?->title ?? $report->offer_title,
+                'card' => $offer?->toCard(),
+            ] : null,
+            // Other reports about the same conversation or offer, so nothing is judged in isolation.
+            'related' => $this->relatedTo($report)
                 ->with('reporter:id,name')
                 ->latest()
                 ->get()
@@ -208,6 +220,19 @@ class ReportController extends Controller
         });
 
         return back()->with('success', $changed ? 'Report updated.' : 'Note saved.');
+    }
+
+    /** The other reports about the same conversation, or about the same offer. */
+    private function relatedTo(Report $report): Builder
+    {
+        return Report::query()
+            ->whereKeyNot($report->id)
+            ->when(
+                $report->conversation_id !== null,
+                fn ($query) => $query->where('conversation_id', $report->conversation_id),
+                // An offer that has been deleted no longer links its reports together.
+                fn ($query) => $query->where('offer_id', $report->offer_id ?? 0),
+            );
     }
 
     /** @return array<string, mixed>|null */

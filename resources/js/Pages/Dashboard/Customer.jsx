@@ -25,6 +25,12 @@ export default function Customer({ stats, charts }) {
                     >
                         View messages
                     </Link>
+                    <Link
+                        href={route('repairs.index')}
+                        className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+                    >
+                        My repairs
+                    </Link>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

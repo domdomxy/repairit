@@ -41,6 +41,12 @@ export default function Technician({ stats, trends, charts, recentReviews }) {
                     >
                         My offers
                     </Link>
+                    <Link
+                        href={route('technician.repairs.index')}
+                        className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+                    >
+                        Repairs
+                    </Link>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

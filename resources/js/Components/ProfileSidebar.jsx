@@ -25,6 +25,17 @@ export default function ProfileSidebar({ user, className = '' }) {
                 Dashboard
             </Link>
 
+            {user.role === 'technician' && (
+                <Link href={route('technician.repairs.index')} className={`mt-1 ${LINK_CLASSES}`}>
+                    Repairs
+                </Link>
+            )}
+            {user.role === 'customer' && (
+                <Link href={route('repairs.index')} className={`mt-1 ${LINK_CLASSES}`}>
+                    My repairs
+                </Link>
+            )}
+
             {/* Pushes the toggle and Support down to the bottom of the card. */}
             <div className="flex-1" />
 

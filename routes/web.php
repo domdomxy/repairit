@@ -11,6 +11,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RepairController;
 use App\Http\Controllers\SupportController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +21,7 @@ use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\TechnicianController;
 use App\Http\Controllers\TechnicianOfferController;
 use App\Http\Controllers\TechnicianProfileController;
+use App\Http\Controllers\TechnicianRepairController;
 use App\Http\Controllers\DashboardController;
 use Inertia\Inertia;
 
@@ -82,7 +84,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/offers/{offer}', [OfferController::class, 'show'])->name('offers.show');
     // Send an offer in the chat with its technician (starting the chat if needed).
     Route::post('/offers/{offer}/share', [MessageController::class, 'shareOffer'])->middleware('throttle:20,1')->name('offers.share');
+    // Report an offer to the admins.
+    Route::post('/offers/{offer}/report', [ReportController::class, 'storeOffer'])->middleware('throttle:10,1,reports')->name('offers.report');
     Route::get('/offer-media/{media}', [TechnicianOfferController::class, 'media'])->name('offers.media');
+    // Following a repair: the ones linked to my account, and one by its code (the link the technician gives out).
+    Route::get('/repairs', [RepairController::class, 'index'])->name('repairs.index');
+    Route::get('/repairs/{repair}', [RepairController::class, 'show'])->name('repairs.show');
     Route::post('/technicians/{technician}/review', [ReviewController::class, 'store'])->name('reviews.store');
     Route::delete('/technicians/{technician}/review', [ReviewController::class, 'destroy'])->name('reviews.destroy');
     });
@@ -95,6 +102,12 @@ Route::middleware(['auth', 'role:technician'])->group(function () {
     // The edit form sends a POST with _method=PUT: PHP doesn't read uploaded files from a real PUT request.
     Route::put('/technician/offers/{offer}', [TechnicianOfferController::class, 'update'])->name('technician.offers.update');
     Route::delete('/technician/offers/{offer}', [TechnicianOfferController::class, 'destroy'])->name('technician.offers.destroy');
+    // Keeping track of what customers leave: start tracking, post updates, fix details, delete.
+    Route::get('/technician/repairs', [TechnicianRepairController::class, 'index'])->name('technician.repairs.index');
+    Route::post('/technician/repairs', [TechnicianRepairController::class, 'store'])->middleware('throttle:30,1')->name('technician.repairs.store');
+    Route::put('/technician/repairs/{repair}', [TechnicianRepairController::class, 'update'])->name('technician.repairs.update');
+    Route::post('/technician/repairs/{repair}/updates', [TechnicianRepairController::class, 'storeUpdate'])->middleware('throttle:60,1')->name('technician.repairs.updates.store');
+    Route::delete('/technician/repairs/{repair}', [TechnicianRepairController::class, 'destroy'])->name('technician.repairs.destroy');
 });
 
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Offer;
+use App\Models\Report;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -108,6 +109,7 @@ class OfferController extends Controller
             'offers' => $offers,
             'categories' => Category::orderBy('name')->get(),
             'topRated' => $this->topRated((string) $request->input('top_category')),
+            'reportReasons' => Report::REASONS,
             // Cast to an object: an empty PHP array reaches the browser as a JS
             // array, where `filters.sort` is Array.prototype.sort, not "unset".
             'filters' => (object) $request->only(['q', 'category', 'city', 'availability', 'media', 'sort', 'top_category']),
@@ -176,7 +178,10 @@ class OfferController extends Controller
             404,
         );
 
-        return Inertia::render('Offers/Show', ['offer' => $this->card($offer)]);
+        return Inertia::render('Offers/Show', [
+            'offer' => $this->card($offer),
+            'reportReasons' => Report::REASONS,
+        ]);
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\Offer;
 use App\Models\Report;
 use App\Models\User;
 use App\Notifications\NewReport;
@@ -12,7 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
 
-/** Reporting from inside a conversation: one message, or the whole chat. */
+/** Reporting: one message or the whole chat from inside a conversation, or an offer from the offers page. */
 class ReportController extends Controller
 {
     /** Report a message the other person sent. */
@@ -31,6 +32,16 @@ class ReportController extends Controller
         return $this->file($request, $conversation, $message->sender_id, $message);
     }
 
+    /** Report an offer somebody else made. It has no conversation. */
+    public function storeOffer(Request $request, Offer $offer): RedirectResponse
+    {
+        $user = $request->user();
+
+        abort_if($offer->technician_id === $user->id, 403, 'You cannot report your own offer.');
+
+        return $this->file($request, null, $offer->technician_id, null, $offer);
+    }
+
     /** Report the conversation as a whole. */
     public function storeConversation(Request $request, Conversation $conversation): RedirectResponse
     {
@@ -41,7 +52,7 @@ class ReportController extends Controller
         return $this->file($request, $conversation, $conversation->participantFor($user)->id, null);
     }
 
-    private function file(Request $request, Conversation $conversation, int $reportedUserId, ?Message $message): RedirectResponse
+    private function file(Request $request, ?Conversation $conversation, int $reportedUserId, ?Message $message, ?Offer $offer = null): RedirectResponse
     {
         $user = $request->user();
 
@@ -52,8 +63,9 @@ class ReportController extends Controller
 
         // One open report per thing is enough; a second one would only fill the queue.
         $alreadyReported = Report::where('reporter_id', $user->id)
-            ->where('conversation_id', $conversation->id)
+            ->where('conversation_id', $conversation?->id)
             ->where('message_id', $message?->id)
+            ->where('offer_id', $offer?->id)
             ->where('status', 'open')
             ->exists();
 
@@ -64,8 +76,10 @@ class ReportController extends Controller
         $report = Report::create([
             'reporter_id' => $user->id,
             'reported_user_id' => $reportedUserId,
-            'conversation_id' => $conversation->id,
+            'conversation_id' => $conversation?->id,
             'message_id' => $message?->id,
+            'offer_id' => $offer?->id,
+            'offer_title' => $offer?->title,
             'reason' => $data['reason'],
             'details' => $data['details'] ?? null,
         ]);

@@ -35,7 +35,7 @@ function buildParams(form) {
     return Object.fromEntries(Object.entries(form).filter(([, value]) => value !== '' && value !== null));
 }
 
-export default function Index({ offers, categories, topRated, filters }) {
+export default function Index({ offers, categories, topRated, filters, reportReasons }) {
     const { auth } = usePage().props;
 
     const [form, setForm] = useState({
@@ -126,20 +126,6 @@ export default function Index({ offers, categories, topRated, filters }) {
     return (
         <AuthenticatedLayout>
             <div className="flex w-full flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
-                {/* Search and filters */}
-                <div className="mb-6 shrink-0 space-y-2 rounded-lg bg-white p-4 shadow dark:bg-gray-800">
-                    <KeywordSearchBar
-                        value={form.q}
-                        onChange={(value) => update('q', value)}
-                        filters={searchFilters}
-                        placeholder="Search offers by title, description or technician"
-                        className="w-full"
-                    />
-                    <p className="text-sm text-gray-500">
-                        {offers.total} offer{offers.total === 1 ? '' : 's'} found
-                    </p>
-                </div>
-
                 <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:items-start">
                     {/* Account rail: profile, dashboard, theme toggle, support. Stretched
                         to the row's height, which flex-1 above guarantees is at least the
@@ -148,15 +134,28 @@ export default function Index({ offers, categories, topRated, filters }) {
                         <ProfileSidebar user={auth.user} className="h-full" />
                     </aside>
 
-                    {/* Results */}
+                    {/* Search and results. The search sits right on top of the offers, in the same column. */}
                     <div className="min-w-0 flex-1">
+                        <div className="space-y-2 rounded-t-lg bg-white p-4 shadow dark:bg-gray-800">
+                            <KeywordSearchBar
+                                value={form.q}
+                                onChange={(value) => update('q', value)}
+                                filters={searchFilters}
+                                placeholder="Search offers by title, description or technician"
+                                className="w-full"
+                            />
+                            <p className="text-sm text-gray-500">
+                                {offers.total} offer{offers.total === 1 ? '' : 's'} found
+                            </p>
+                        </div>
+
                         {offers.data.length === 0 && (
-                            <p className="text-gray-500">No offers match your search.</p>
+                            <p className="pt-4 text-gray-500">No offers match your search.</p>
                         )}
 
                         <div className="grid grid-cols-1 gap-4">
                             {offers.data.map((offer) => (
-                                <OfferListing key={offer.id} offer={offer} />
+                                <OfferListing key={offer.id} offer={offer} reportReasons={reportReasons} />
                             ))}
                         </div>
 

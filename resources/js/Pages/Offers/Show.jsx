@@ -3,7 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 
 // One offer on its own page: where a shared link lands.
-export default function Show({ offer }) {
+export default function Show({ offer, reportReasons }) {
     return (
         <AuthenticatedLayout>
             <Head title={offer.title} />
@@ -13,7 +13,7 @@ export default function Show({ offer }) {
                     ← All offers
                 </Link>
 
-                <OfferListing offer={offer} />
+                <OfferListing offer={offer} reportReasons={reportReasons} />
             </div>
         </AuthenticatedLayout>
     );
