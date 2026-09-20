@@ -70,15 +70,22 @@ class MessageController extends Controller
         ]);
 
         // Everything is stored before the rows are written, and removed again
-        // if writing fails, so a failed send never leaves files behind.
+        // if writing fails, so a failed send never leaves files behind. Text
+        // and each file become their own message (like a real chat app: pick a
+        // photo and a document together and they arrive as two bubbles, not one
+        // bubble carrying both), so the transaction can return several rows.
         $stored = [];
 
         try {
-            $message = DB::transaction(function () use ($request, $conversation, $user, $validated, &$stored) {
-                $message = $conversation->messages()->create([
-                    'sender_id' => $user->id,
-                    'body' => $validated['body'] ?? null,
-                ]);
+            $messages = DB::transaction(function () use ($request, $conversation, $user, $validated, &$stored) {
+                $messages = [];
+
+                if (filled($validated['body'] ?? null)) {
+                    $messages[] = $conversation->messages()->create([
+                        'sender_id' => $user->id,
+                        'body' => $validated['body'],
+                    ]);
+                }
 
                 foreach ($request->file('attachments', []) as $file) {
                     $path = $file->store("message-attachments/{$conversation->id}", Message::ATTACHMENT_DISK);
@@ -89,16 +96,23 @@ class MessageController extends Controller
 
                     $name = $file->getClientOriginalName();
 
-                    $message->attachments()->create([
+                    $attachmentMessage = $conversation->messages()->create([
+                        'sender_id' => $user->id,
+                        'body' => null,
+                    ]);
+
+                    $attachmentMessage->attachments()->create([
                         'path' => $path,
                         // Keep the end of an over-long name so the extension survives.
                         'name' => mb_strlen($name) > 200 ? mb_substr($name, -200) : $name,
                         'mime' => $file->getMimeType() ?: 'application/octet-stream',
                         'size' => $file->getSize(),
                     ]);
+
+                    $messages[] = $attachmentMessage;
                 }
 
-                return $message;
+                return $messages;
             });
         } catch (Throwable $e) {
             Storage::disk(Message::ATTACHMENT_DISK)->delete($stored);
@@ -106,9 +120,13 @@ class MessageController extends Controller
             throw $e;
         }
 
-        $message->load('attachments');
+        foreach ($messages as $message) {
+            $message->load('attachments');
+        }
 
-        $conversation->update(['last_message_at' => $message->created_at]);
+        $lastMessage = end($messages);
+
+        $conversation->update(['last_message_at' => $lastMessage->created_at]);
 
         // Writing in a conversation you had hidden brings it back to your list.
         ConversationState::where('conversation_id', $conversation->id)
@@ -116,7 +134,9 @@ class MessageController extends Controller
             ->whereNotNull('hidden_at')
             ->update(['hidden_at' => null]);
 
-        broadcast(new MessageSent($message))->toOthers();
+        foreach ($messages as $message) {
+            broadcast(new MessageSent($message))->toOthers();
+        }
 
         // Tell the recipient once per unread stretch rather than for every line
         // of a back-and-forth: if they already have an unread message from this
@@ -124,11 +144,11 @@ class MessageController extends Controller
         $alreadyNotified = $conversation->messages()
             ->whereNull('read_at')
             ->where('sender_id', $user->id)
-            ->where('id', '<', $message->id)
+            ->where('id', '<', $lastMessage->id)
             ->exists();
 
         if (! $alreadyNotified) {
-            $conversation->participantFor($user)->notify(new NewMessage($message));
+            $conversation->participantFor($user)->notify(new NewMessage($lastMessage));
         }
 
         return back();
@@ -240,8 +260,9 @@ class MessageController extends Controller
      * Stream an attachment to the two people in its conversation.
      *
      * Files live on the private disk, so this is the only way to reach them.
-     * Plain images are shown inline; every other type is forced to download
-     * so an uploaded page or script can never run in the site's origin.
+     * Images and PDFs are shown inline, so they can open in the app's own
+     * viewer; every other type is forced to download so an uploaded page or
+     * script can never run in the site's origin.
      *
      * Files of a message that was deleted (for everyone, or for this person) are
      * gone for the participants. An admin can still open them, but only for a
@@ -268,7 +289,7 @@ class MessageController extends Controller
         $disk = Storage::disk(Message::ATTACHMENT_DISK);
         abort_unless($disk->exists($attachment->path), 404);
 
-        $inline = $attachment->isInlineImage();
+        $inline = $attachment->isInlineImage() || $attachment->is_pdf;
 
         return $disk->response(
             $attachment->path,

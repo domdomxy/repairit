@@ -223,25 +223,30 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                 </Link>
                 <Avatar user={otherParty} size="md" />
                 <h3 className="min-w-0 flex-1 truncate font-semibold">{otherParty.name}</h3>
-                <button
-                    type="button"
-                    onClick={onToggleInfo}
-                    aria-expanded={infoOpen}
-                    aria-label={infoOpen ? 'Hide contact information' : 'Show contact information'}
-                    className={`rounded-md px-2 py-1 text-xs font-medium transition ${
-                        infoOpen
-                            ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-                            : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-                    }`}
-                >
-                    Info
-                </button>
                 <ConversationMenu
                     conversation={conversation}
                     otherName={otherParty.name}
                     reported={moderation.reported_conversation}
                     reasons={moderation.reasons}
                 />
+                <button
+                    type="button"
+                    onClick={onToggleInfo}
+                    aria-expanded={infoOpen}
+                    aria-label={infoOpen ? 'Hide contact information' : 'Show contact information'}
+                    title={infoOpen ? 'Hide contact information' : 'Show contact information'}
+                    className={`rounded-md p-1.5 transition ${
+                        infoOpen
+                            ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+                            : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
+                    }`}
+                >
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" strokeWidth="1.5" />
+                        <path strokeLinecap="round" strokeWidth="1.5" d="M12 11v5.25" />
+                        <circle cx="12" cy="8" r="0.9" fill="currentColor" stroke="none" />
+                    </svg>
+                </button>
             </div>
 
             {conversation.is_hidden && (

@@ -32,6 +32,9 @@ export default function MessageRow({
     const [reporting, setReporting] = useState(false);
 
     const files = message.attachments ?? [];
+    const images = files.filter((file) => file.is_image);
+    const otherFiles = files.filter((file) => !file.is_image);
+    const hasBubble = !!message.body || otherFiles.length > 0 || !!message.edited_at;
     const canEdit = isMine && !message.deleted;
 
     function startEdit() {
@@ -119,20 +122,28 @@ export default function MessageRow({
                         </div>
                     </form>
                 ) : (
-                    <div
-                        className={`space-y-2 break-words rounded-lg px-4 py-2 ${
-                            isMine ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700'
-                        }`}
-                    >
-                        {message.body && <p className="whitespace-pre-line text-sm">{message.body}</p>}
-                        {files.length > 0 && <MessageAttachments attachments={files} onImageLoad={onImageLoad} />}
-                        {message.edited_at && (
-                            <p
-                                className={`text-[11px] ${isMine ? 'text-indigo-200' : 'text-gray-500 dark:text-gray-400'}`}
-                                title={`Edited ${formatDateTime(message.edited_at)}`}
+                    <div className={`flex flex-col gap-2 ${isMine ? 'items-end' : 'items-start'}`}>
+                        {images.length > 0 && <MessageAttachments attachments={images} onImageLoad={onImageLoad} />}
+
+                        {hasBubble && (
+                            <div
+                                className={`space-y-2 break-words rounded-lg px-4 py-2 ${
+                                    isMine ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700'
+                                }`}
                             >
-                                edited
-                            </p>
+                                {message.body && <p className="whitespace-pre-line text-sm">{message.body}</p>}
+                                {otherFiles.length > 0 && (
+                                    <MessageAttachments attachments={otherFiles} onImageLoad={onImageLoad} />
+                                )}
+                                {message.edited_at && (
+                                    <p
+                                        className={`text-[11px] ${isMine ? 'text-indigo-200' : 'text-gray-500 dark:text-gray-400'}`}
+                                        title={`Edited ${formatDateTime(message.edited_at)}`}
+                                    >
+                                        edited
+                                    </p>
+                                )}
+                            </div>
                         )}
                     </div>
                 )}

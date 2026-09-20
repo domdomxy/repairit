@@ -46,7 +46,9 @@ function ConversationList({ conversations, activeId, className }) {
     const visible = inTab(tab);
 
     return (
-        <section className={`min-h-0 flex-col border-gray-200 dark:border-gray-700 lg:border-e ${className}`}>
+        <section
+            className={`min-h-0 flex-col overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800 ${className}`}
+        >
             <div role="tablist" className="flex gap-1.5 border-b border-gray-200 p-3 dark:border-gray-700">
                 {TABS.map(({ key, label }) => {
                     const selected = tab === key;
@@ -153,7 +155,7 @@ export default function MessagesShell({ conversations, activeId = null, info = n
             <Head title="Messages" />
 
             {/* Fills everything below the top bar: no page heading, no margins. */}
-            <div className={`relative grid h-[calc(100vh-4rem)] min-h-[28rem] overflow-hidden bg-white dark:bg-gray-800 lg:grid-cols-[20rem_minmax(0,1fr)] ${
+            <div className={`relative grid h-[calc(100vh-4rem)] min-h-[28rem] gap-4 bg-gray-100 p-4 dark:bg-gray-900 lg:grid-cols-[20rem_minmax(0,1fr)] ${
                     activeId && infoOpen ? 'xl:grid-cols-[20rem_minmax(0,1fr)_18rem]' : ''
                 }`}>
                 {/* On a narrow screen only one of the list and the conversation shows. */}
@@ -165,11 +167,13 @@ export default function MessagesShell({ conversations, activeId = null, info = n
 
                 {activeId ? (
                     <>
-                        <section className="flex min-h-0 min-w-0 flex-col">{children}</section>
+                        <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800">
+                            {children}
+                        </section>
                         {info}
                     </>
                 ) : (
-                    <section className="hidden flex-col items-center justify-center gap-3 px-6 text-center lg:flex">
+                    <section className="hidden flex-col items-center justify-center gap-3 rounded-xl bg-white px-6 text-center shadow-sm dark:bg-gray-800 lg:flex">
                         <svg
                             className="h-14 w-14 text-gray-300 dark:text-gray-600"
                             fill="none"

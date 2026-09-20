@@ -29,9 +29,9 @@ export default function ConversationInfo({ contact, open, onClose }) {
         <aside
             className={`${
                 open
-                    ? 'absolute inset-y-0 end-0 z-20 flex w-80 max-w-full shadow-xl xl:static xl:z-auto xl:w-auto xl:shadow-none'
+                    ? 'absolute inset-y-4 end-4 z-20 flex w-80 max-w-full rounded-xl shadow-xl xl:static xl:z-auto xl:w-auto xl:shadow-sm'
                     : 'hidden'
-            } min-h-0 flex-col overflow-y-auto border-s border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800`}
+            } min-h-0 flex-col overflow-y-auto rounded-xl bg-white dark:bg-gray-800`}
             aria-label="Contact information"
         >
             <div className="flex justify-end px-3 pt-3">

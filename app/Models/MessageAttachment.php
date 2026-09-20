@@ -29,7 +29,7 @@ class MessageAttachment extends Model
         'updated_at',
     ];
 
-    protected $appends = ['is_image', 'url'];
+    protected $appends = ['is_image', 'is_pdf', 'url'];
 
     public function message(): BelongsTo
     {
@@ -44,6 +44,12 @@ class MessageAttachment extends Model
     protected function getIsImageAttribute(): bool
     {
         return $this->isInlineImage();
+    }
+
+    // PDFs are shown in an in-page viewer instead of a plain download link.
+    protected function getIsPdfAttribute(): bool
+    {
+        return $this->mime === 'application/pdf';
     }
 
     protected function getUrlAttribute(): string
