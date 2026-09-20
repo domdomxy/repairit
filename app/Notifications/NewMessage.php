@@ -41,7 +41,15 @@ class NewMessage extends Notification implements ShouldQueue
 
     public function shouldSend(object $notifiable, string $channel): bool
     {
-        return $channel !== 'mail' || $this->message->fresh()?->read_at === null;
+        if ($channel !== 'mail') {
+            return true;
+        }
+
+        // Nothing to tell them if they have read it meanwhile, or if the
+        // sender took it back.
+        $message = $this->message->fresh();
+
+        return $message?->read_at === null && $message?->deleted_for_everyone_at === null;
     }
 
     public function toArray(object $notifiable): array
@@ -51,6 +59,7 @@ class NewMessage extends Notification implements ShouldQueue
             'title' => "New message from {$this->message->sender->name}",
             'body' => $this->preview(),
             'conversation_id' => $this->message->conversation_id,
+            'message_id' => $this->message->id,
             'url' => route('conversations.show', $this->message->conversation_id, absolute: false),
         ];
     }

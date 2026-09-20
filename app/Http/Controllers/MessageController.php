@@ -2,17 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\MessageDeleted;
 use App\Events\MessageSent;
+use App\Events\MessageUpdated;
 use App\Models\Conversation;
+use App\Models\ConversationState;
 use App\Models\Message;
 use App\Models\MessageAttachment;
+use App\Models\User;
 use App\Notifications\NewMessage;
 use Closure;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
@@ -103,6 +110,12 @@ class MessageController extends Controller
 
         $conversation->update(['last_message_at' => $message->created_at]);
 
+        // Writing in a conversation you had hidden brings it back to your list.
+        ConversationState::where('conversation_id', $conversation->id)
+            ->where('user_id', $user->id)
+            ->whereNotNull('hidden_at')
+            ->update(['hidden_at' => null]);
+
         broadcast(new MessageSent($message))->toOthers();
 
         // Tell the recipient once per unread stretch rather than for every line
@@ -122,21 +135,135 @@ class MessageController extends Controller
     }
 
     /**
+     * Change the text of a message. Only the sender can, and only while it has
+     * not been deleted for everyone. The text it had before is kept, so an edit
+     * can't be used to rewrite what was really sent once a chat is reported.
+     */
+    public function update(Request $request, Message $message): RedirectResponse
+    {
+        $user = Auth::user();
+        $conversation = $message->conversation;
+
+        abort_unless($conversation->hasParticipant($user), 403);
+        abort_unless($message->sender_id === $user->id, 403, 'You can only edit your own messages.');
+        abort_if($message->isDeletedForEveryone(), 403, 'This message was deleted.');
+
+        $validated = $request->validate([
+            'body' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $body = $validated['body'] ?? null;
+
+        // A message must keep something to show: text, or the files it carries.
+        if ($body === null && ! $message->attachments()->exists()) {
+            throw ValidationException::withMessages([
+                'body' => 'A message needs some text. To remove it, delete it instead.',
+            ]);
+        }
+
+        if ($body === $message->body) {
+            return back();
+        }
+
+        DB::transaction(function () use ($message, $body) {
+            $message->edits()->create(['body' => $message->body]);
+
+            $message->forceFill(['body' => $body, 'edited_at' => now()])->save();
+        });
+
+        broadcast(new MessageUpdated($message))->toOthers();
+
+        return back();
+    }
+
+    /**
+     * Delete a message, either for the person asking only ("me") or for both
+     * people ("everyone", the sender's right alone).
+     *
+     * Neither removes anything from the database or the disk: that is what lets
+     * an admin read the whole conversation, deleted messages included, when it
+     * is reported. The people in the conversation just stop seeing it.
+     */
+    public function destroy(Request $request, Message $message): RedirectResponse
+    {
+        $user = Auth::user();
+        $conversation = $message->conversation;
+
+        abort_unless($conversation->hasParticipant($user), 403);
+
+        $scope = $request->validate([
+            'scope' => ['required', Rule::in(['me', 'everyone'])],
+        ])['scope'];
+
+        // Can't act on what this person can no longer see (already deleted for
+        // them, or from before they deleted the conversation).
+        abort_unless(Message::whereKey($message->id)->visibleTo($user)->exists(), 404);
+
+        if ($scope === 'me') {
+            $message->deletions()->firstOrCreate(['user_id' => $user->id]);
+
+            return back();
+        }
+
+        abort_unless($message->sender_id === $user->id, 403, 'Only the sender can delete a message for everyone.');
+
+        if ($message->isDeletedForEveryone()) {
+            return back();
+        }
+
+        $message->forceFill(['deleted_for_everyone_at' => now()])->save();
+
+        $this->redactNotifications($message, $conversation->participantFor($user));
+
+        broadcast(new MessageDeleted($message))->toOthers();
+
+        return back();
+    }
+
+    /**
+     * The recipient's notification for this message carries a preview of its
+     * text. Once the message is deleted for everyone the preview goes too.
+     */
+    private function redactNotifications(Message $message, User $recipient): void
+    {
+        $recipient->notifications()
+            ->where('type', NewMessage::class)
+            ->where('created_at', '>=', $message->created_at)
+            ->get()
+            ->filter(fn ($notification) => ($notification->data['message_id'] ?? null) === $message->id)
+            ->each(fn ($notification) => $notification->update([
+                'data' => [...$notification->data, 'body' => 'This message was deleted.'],
+            ]));
+    }
+
+    /**
      * Stream an attachment to the two people in its conversation.
      *
      * Files live on the private disk, so this is the only way to reach them.
      * Plain images are shown inline; every other type is forced to download
      * so an uploaded page or script can never run in the site's origin.
+     *
+     * Files of a message that was deleted (for everyone, or for this person) are
+     * gone for the participants. An admin can still open them, but only for a
+     * conversation that has been reported.
      */
     public function attachment(MessageAttachment $attachment): StreamedResponse
     {
         $user = Auth::user();
-        $conversation = $attachment->message->conversation;
+        $message = $attachment->message;
+        $conversation = $message->conversation;
 
-        abort_unless(
-            $user->id === $conversation->customer_id || $user->id === $conversation->technician_id,
-            403
-        );
+        $participant = $conversation->hasParticipant($user);
+        $auditing = ! $participant && $user->isAdmin() && $conversation->reports()->exists();
+
+        abort_unless($participant || $auditing, 403);
+
+        if ($participant) {
+            abort_unless(
+                Message::whereKey($message->id)->whereNull('deleted_for_everyone_at')->visibleTo($user)->exists(),
+                404,
+            );
+        }
 
         $disk = Storage::disk(Message::ATTACHMENT_DISK);
         abort_unless($disk->exists($attachment->path), 404);

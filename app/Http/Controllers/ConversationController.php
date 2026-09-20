@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Conversation;
+use App\Models\ConversationState;
 use App\Models\Message;
+use App\Models\Report;
 use App\Models\User;
 use App\Notifications\NewMessage;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -35,6 +38,12 @@ class ConversationController extends Controller
             'technician_id' => $technician->id,
         ]);
 
+        // Reaching out again to someone you had hidden brings them back to your list.
+        ConversationState::where('conversation_id', $conversation->id)
+            ->where('user_id', $customer->id)
+            ->whereNotNull('hidden_at')
+            ->update(['hidden_at' => null]);
+
         return redirect()->route('conversations.show', $conversation);
     }
 
@@ -48,10 +57,17 @@ class ConversationController extends Controller
 
         $conversation->load(['customer:id,name,avatar_path', 'technician:id,name,avatar_path']);
 
+        // What this person can see: not what they deleted for themselves, and
+        // nothing from before they deleted the conversation. Messages deleted
+        // for everyone come through as placeholders (see Message::forClient).
         $messages = $conversation->messages()
+            ->visibleTo($user)
             ->with(['sender:id,name', 'attachments'])
             ->orderBy('created_at')
-            ->get();
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Message $message) => $message->forClient())
+            ->all();
 
         // Mark incoming messages as read
         $conversation->messages()
@@ -68,13 +84,26 @@ class ConversationController extends Controller
         // Built after the messages are marked read, so the open conversation
         // shows no unread count.
         $conversations = $this->listFor($user);
-        $conversation->setAttribute('is_request', (bool) $conversations->firstWhere('id', $conversation->id)?->is_request);
+        // Reports this person already filed here, so the menus don't offer them twice.
+        $reports = Report::where('conversation_id', $conversation->id)
+            ->where('reporter_id', $user->id)
+            ->where('status', 'open')
+            ->get(['id', 'message_id']);
+
+        $listed = $conversations->firstWhere('id', $conversation->id);
+        $conversation->setAttribute('is_request', (bool) $listed?->is_request);
+        $conversation->setAttribute('is_hidden', (bool) $listed?->is_hidden);
 
         return Inertia::render('Messages/Show', [
             'conversation' => $conversation,
             'conversations' => $conversations,
             'contact' => $this->contactFor($conversation, $user),
             'messages' => $messages,
+            'moderation' => [
+                'reported_conversation' => $reports->whereNull('message_id')->isNotEmpty(),
+                'reported_message_ids' => $reports->pluck('message_id')->filter()->values()->all(),
+                'reasons' => Report::REASONS,
+            ],
             // What the composer offers: the limits and the extensions it lets through.
             'attachments' => [
                 'max_kb' => Message::ATTACHMENT_MAX_KB,
@@ -88,33 +117,54 @@ class ConversationController extends Controller
     /**
      * The user's conversations for the list on the left, newest first.
      *
-     * Each carries `unread_count`, `last_message` (a short preview) and
-     * `is_request`: true for a technician's conversations where a customer has
-     * written but the technician has not answered yet. Replying moves it out
+     * Each carries `unread_count`, `last_message` (a short preview), `is_hidden`
+     * and `is_request`: true for a technician's conversations where a customer
+     * has written but the technician has not answered yet. Replying moves it out
      * of "Requests" into the inbox. Conversations a user started themselves,
      * and ones with nothing in them yet, are never requests.
+     *
+     * Everything here is counted from what this person can still see: messages
+     * they deleted for themselves, or that the sender deleted for everyone, are
+     * not unread and are not "incoming". A conversation they deleted stays out of
+     * the list until something new arrives in it.
      *
      * @return Collection<int, Conversation>
      */
     private function listFor(User $user): Collection
     {
-        $conversations = Conversation::where('customer_id', $user->id)
-            ->orWhere('technician_id', $user->id)
+        $states = ConversationState::where('user_id', $user->id)->get()->keyBy('conversation_id');
+
+        $conversations = Conversation::where(fn ($query) => $query
+            ->where('customer_id', $user->id)
+            ->orWhere('technician_id', $user->id))
             ->with(['customer:id,name,avatar_path', 'technician:id,name,avatar_path'])
-            ->withCount(['messages as unread_count' => function ($query) use ($user) {
-                $query->whereNull('read_at')->where('sender_id', '!=', $user->id);
-            }])
+            ->withCount([
+                'messages as unread_count' => fn ($query) => $query
+                    ->visibleTo($user)
+                    ->whereNull('deleted_for_everyone_at')
+                    ->whereNull('read_at')
+                    ->where('sender_id', '!=', $user->id),
+                'messages as visible_count' => fn ($query) => $query->visibleTo($user),
+            ])
             ->withExists([
-                'messages as has_incoming' => fn ($query) => $query->where('sender_id', '!=', $user->id),
+                'messages as has_incoming' => fn ($query) => $query
+                    ->visibleTo($user)
+                    ->whereNull('deleted_for_everyone_at')
+                    ->where('sender_id', '!=', $user->id),
                 'messages as has_replied' => fn ($query) => $query->where('sender_id', $user->id),
             ])
             ->orderByDesc('last_message_at')
-            ->get();
+            ->get()
+            // A deleted conversation stays gone until something new shows up in it.
+            ->reject(fn (Conversation $conversation) => $states->get($conversation->id)?->cleared_at !== null
+                && (int) $conversation->visible_count === 0)
+            ->values();
 
-        // The newest message of every conversation, in one query.
+        // The newest message this person can see in every conversation, in one query.
         $latest = Message::whereIn(
             'id',
-            Message::whereIn('conversation_id', $conversations->modelKeys())
+            Message::visibleTo($user)
+                ->whereIn('conversation_id', $conversations->modelKeys())
                 ->selectRaw('MAX(id)')
                 ->groupBy('conversation_id')
         )
@@ -122,25 +172,30 @@ class ConversationController extends Controller
             ->get()
             ->keyBy('conversation_id');
 
-        return $conversations->each(function (Conversation $conversation) use ($user, $latest) {
+        return $conversations->each(function (Conversation $conversation) use ($user, $latest, $states) {
             $message = $latest->get($conversation->id);
 
             $conversation->setAttribute(
                 'is_request',
                 $conversation->technician_id === $user->id && $conversation->has_incoming && ! $conversation->has_replied
             );
+            $conversation->setAttribute('is_hidden', $states->get($conversation->id)?->hidden_at !== null);
             $conversation->setAttribute('last_message', $message ? [
                 'preview' => $this->preview($message),
                 'from_me' => $message->sender_id === $user->id,
                 'created_at' => $message->created_at->toIso8601String(),
             ] : null);
-            $conversation->makeHidden(['has_incoming', 'has_replied']);
+            $conversation->makeHidden(['has_incoming', 'has_replied', 'visible_count']);
         });
     }
 
     /** One line for the list; a message with only files has no text. */
     private function preview(Message $message): ?string
     {
+        if ($message->isDeletedForEveryone()) {
+            return 'This message was deleted';
+        }
+
         $text = trim((string) $message->body);
 
         if ($text !== '') {
@@ -198,5 +253,52 @@ class ConversationController extends Controller
         }
 
         return $contact;
+    }
+
+    /** Move a conversation out of the list into "Hidden". The other person isn't told. */
+    public function hide(Conversation $conversation): RedirectResponse
+    {
+        $user = Auth::user();
+        abort_unless($conversation->hasParticipant($user), 403);
+
+        $conversation->updateStateFor($user, ['hidden_at' => now()]);
+
+        return redirect()
+            ->route('conversations.index')
+            ->with('success', 'Conversation hidden. You can find it under Hidden.');
+    }
+
+    public function unhide(Conversation $conversation): RedirectResponse
+    {
+        $user = Auth::user();
+        abort_unless($conversation->hasParticipant($user), 403);
+
+        $conversation->updateStateFor($user, ['hidden_at' => null]);
+
+        return back()->with('success', 'Conversation moved back to your list.');
+    }
+
+    /**
+     * Delete a conversation for the person asking, and only for them. Its history
+     * is cleared from their side; the other person keeps everything, and if either
+     * of them writes again the conversation returns with only the new messages.
+     *
+     * Nothing is removed from the database, so a reported chat can still be read
+     * by an admin in full.
+     */
+    public function destroy(Conversation $conversation): RedirectResponse
+    {
+        $user = Auth::user();
+        abort_unless($conversation->hasParticipant($user), 403);
+
+        $conversation->updateStateFor($user, [
+            'hidden_at' => null,
+            'cleared_at' => now(),
+            'cleared_through_message_id' => $conversation->messages()->max('id') ?? 0,
+        ]);
+
+        return redirect()
+            ->route('conversations.index')
+            ->with('success', 'Conversation deleted.');
     }
 }

@@ -10,6 +10,7 @@ const adminLinks = [
     { label: 'Categories', routeName: 'admin.categories.index' },
     { label: 'Reviews', routeName: 'admin.reviews.index' },
     { label: 'Support', routeName: 'admin.support.index' },
+    { label: 'Reports', routeName: 'admin.reports.index' },
     { label: 'Activity log', routeName: 'admin.logs.index' },
 ];
 
@@ -58,7 +59,7 @@ export default function Admin({ stats, trends, charts, recentUsers, recentLogs }
                     ))}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
                     <StatCard label="Total users" value={stats.users} href={route('admin.users.index')} />
                     <StatCard
                         label="Customers"
@@ -80,6 +81,12 @@ export default function Admin({ stats, trends, charts, recentUsers, recentLogs }
                     <StatCard label="Conversations" value={stats.conversations} />
                     <StatCard label="Reviews" value={stats.reviews} href={route('admin.reviews.index')} />
                     <StatCard label="Open tickets" value={stats.tickets_open} alert href={route('admin.support.index')} />
+                    <StatCard
+                        label="Open reports"
+                        value={stats.reports_open}
+                        alert
+                        href={route('admin.reports.index', { status: 'open' })}
+                    />
                 </div>
 
                 <div>

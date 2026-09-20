@@ -2,12 +2,14 @@
 
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\LogController as AdminLogController;
+use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
 use App\Http\Controllers\Admin\SupportController as AdminSupportController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AvatarController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SupportController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -44,6 +46,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/messages/{conversation}', [ConversationController::class, 'show'])->name('conversations.show');
     Route::post('/technicians/{technician}/contact', [ConversationController::class, 'startWith'])->name('conversations.start');
     Route::post('/messages/{conversation}', [MessageController::class, 'store'])->name('messages.store');
+    // Hiding, deleting and reporting a conversation. Hiding and deleting only affect the person asking.
+    Route::post('/messages/{conversation}/hide', [ConversationController::class, 'hide'])->name('conversations.hide');
+    Route::post('/messages/{conversation}/unhide', [ConversationController::class, 'unhide'])->name('conversations.unhide');
+    Route::delete('/messages/{conversation}', [ConversationController::class, 'destroy'])->name('conversations.destroy');
+    Route::post('/messages/{conversation}/report', [ReportController::class, 'storeConversation'])->middleware('throttle:10,1,reports')->name('conversations.report');
+    // One message: edit it, delete it (scope "me" or "everyone"), or report it.
+    Route::patch('/message/{message}', [MessageController::class, 'update'])->name('messages.update');
+    Route::delete('/message/{message}', [MessageController::class, 'destroy'])->name('messages.destroy');
+    Route::post('/message/{message}/report', [ReportController::class, 'storeMessage'])->middleware('throttle:10,1,reports')->name('messages.report');
     Route::get('/message-attachments/{attachment}', [MessageController::class, 'attachment'])->name('messages.attachment');
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
@@ -92,6 +103,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/support/{ticket}', [AdminSupportController::class, 'show'])->name('support.show');
     Route::post('/support/{ticket}/reply', [AdminSupportController::class, 'reply'])->name('support.reply');
     Route::post('/support/{ticket}/status', [AdminSupportController::class, 'status'])->name('support.status');
+
+    Route::get('/reports', [AdminReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/{report}', [AdminReportController::class, 'show'])->name('reports.show');
+    Route::post('/reports/{report}/status', [AdminReportController::class, 'status'])->name('reports.status');
 
     Route::get('/logs', [AdminLogController::class, 'index'])->name('logs.index');
 });

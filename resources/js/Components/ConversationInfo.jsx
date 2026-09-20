@@ -17,9 +17,10 @@ function Row({ label, children }) {
     );
 }
 
-// The panel on the right of the messages page: who is on the other side. It is
-// a column next to the conversation on wide screens; on narrower ones it is
-// hidden until "Info" is pressed and then opens over the conversation.
+// The panel on the right of the messages page: who is on the other side. It can
+// be shown or hidden with the "Info" button in the conversation's header (or the
+// close button here). When shown it is a column next to the conversation on wide
+// screens, and opens over the conversation on narrower ones.
 export default function ConversationInfo({ contact, open, onClose }) {
     const profile = contact.profile;
     const availability = profile ? AVAILABILITY[profile.availability_status] : null;
@@ -27,11 +28,13 @@ export default function ConversationInfo({ contact, open, onClose }) {
     return (
         <aside
             className={`${
-                open ? 'absolute inset-y-0 end-0 z-20 flex w-80 max-w-full shadow-xl' : 'hidden'
-            } min-h-0 flex-col overflow-y-auto border-s border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 xl:static xl:z-auto xl:flex xl:w-auto xl:shadow-none`}
+                open
+                    ? 'absolute inset-y-0 end-0 z-20 flex w-80 max-w-full shadow-xl xl:static xl:z-auto xl:w-auto xl:shadow-none'
+                    : 'hidden'
+            } min-h-0 flex-col overflow-y-auto border-s border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800`}
             aria-label="Contact information"
         >
-            <div className="flex justify-end px-3 pt-3 xl:hidden">
+            <div className="flex justify-end px-3 pt-3">
                 <button
                     type="button"
                     onClick={onClose}

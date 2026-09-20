@@ -38,6 +38,28 @@ class Conversation extends Model
         return $this->messages()->latest()->limit(1);
     }
 
+    /** Each person's own hide/delete state for this conversation. */
+    public function states(): HasMany
+    {
+        return $this->hasMany(ConversationState::class);
+    }
+
+    public function reports(): HasMany
+    {
+        return $this->hasMany(Report::class);
+    }
+
+    public function hasParticipant(User $user): bool
+    {
+        return $user->id === $this->customer_id || $user->id === $this->technician_id;
+    }
+
+    /** Change one person's hide/delete state, creating it the first time. */
+    public function updateStateFor(User $user, array $attributes): ConversationState
+    {
+        return $this->states()->updateOrCreate(['user_id' => $user->id], $attributes);
+    }
+
     // Helper: the "other" participant relative to a given user
     public function participantFor(User $user): User
     {

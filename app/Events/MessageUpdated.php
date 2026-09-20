@@ -3,21 +3,18 @@
 namespace App\Events;
 
 use App\Models\Message;
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class MessageSent implements ShouldBroadcast
+/** The sender edited a message: the other person's open conversation swaps in the new text. */
+class MessageUpdated implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public function __construct(public Message $message)
-    {
-        $this->message->load(['sender:id,name', 'attachments']);
-    }
+    public function __construct(public Message $message) {}
 
     public function broadcastOn(): array
     {
@@ -28,11 +25,16 @@ class MessageSent implements ShouldBroadcast
 
     public function broadcastAs(): string
     {
-        return 'message.sent';
+        return 'message.updated';
     }
 
     public function broadcastWith(): array
     {
-        return $this->message->forClient();
+        return [
+            'id' => $this->message->id,
+            'conversation_id' => $this->message->conversation_id,
+            'body' => $this->message->body,
+            'edited_at' => $this->message->edited_at?->toIso8601String(),
+        ];
     }
 }

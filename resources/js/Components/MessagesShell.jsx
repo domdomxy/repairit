@@ -11,23 +11,32 @@ const TABS = [
         label: 'Requests',
         empty: 'No new requests. When a customer writes to you, the conversation waits here until you reply.',
     },
+    {
+        key: 'hidden',
+        label: 'Hidden',
+        empty: 'Nothing hidden. Conversations you hide are kept here until you unhide them.',
+    },
 ];
 
-// Section 1: the conversations, split into the inbox and the requests (new
-// conversations from customers that haven't been answered yet).
+// Section 1: the conversations, split into the inbox, the requests (new
+// conversations from customers that haven't been answered yet) and the ones
+// this person has hidden.
 function ConversationList({ conversations, activeId, className }) {
     const { auth } = usePage().props;
     const active = conversations.find((conversation) => conversation.id === activeId);
 
     // Opens on the tab the open conversation belongs to, the inbox otherwise.
-    const home = active?.is_request ? 'requests' : 'inbox';
+    const home = active?.is_hidden ? 'hidden' : active?.is_request ? 'requests' : 'inbox';
     const [tab, setTab] = useState(home);
 
     // Follows the open conversation: choosing another one, or replying to a
     // request (which moves it to the inbox).
     useEffect(() => setTab(home), [activeId, home]);
 
-    const inTab = (key) => conversations.filter((conversation) => conversation.is_request === (key === 'requests'));
+    const inTab = (key) =>
+        conversations.filter((conversation) =>
+            key === 'hidden' ? conversation.is_hidden : !conversation.is_hidden && conversation.is_request === (key === 'requests'),
+        );
     // The open conversation is being read, so it adds nothing to the counts.
     const unreadIn = (key) =>
         inTab(key)
@@ -38,7 +47,7 @@ function ConversationList({ conversations, activeId, className }) {
 
     return (
         <section className={`min-h-0 flex-col border-gray-200 dark:border-gray-700 lg:border-e ${className}`}>
-            <div role="tablist" className="flex gap-2 border-b border-gray-200 p-3 dark:border-gray-700">
+            <div role="tablist" className="flex gap-1.5 border-b border-gray-200 p-3 dark:border-gray-700">
                 {TABS.map(({ key, label }) => {
                     const selected = tab === key;
                     const unread = unreadIn(key);
@@ -50,7 +59,7 @@ function ConversationList({ conversations, activeId, className }) {
                             key={key}
                             aria-selected={selected}
                             onClick={() => setTab(key)}
-                            className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition ${
+                            className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-2 text-sm font-medium transition ${
                                 selected
                                     ? 'bg-indigo-600 text-white'
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
@@ -136,49 +145,51 @@ function ConversationList({ conversations, activeId, className }) {
 
 // The messages page: the list of conversations on the left; when one is open,
 // the conversation in the middle (`children`) and who it is with on the right
-// (`info`); when none is open, one empty area in place of those two.
-export default function MessagesShell({ conversations, activeId = null, info = null, children }) {
+// (`info`, only while `infoOpen`); when none is open, one empty area in place
+// of those two.
+export default function MessagesShell({ conversations, activeId = null, info = null, infoOpen = false, children }) {
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold">Messages</h2>}>
+        <AuthenticatedLayout>
             <Head title="Messages" />
 
-            <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                <div className="relative grid h-[calc(100vh-13rem)] min-h-[28rem] overflow-hidden bg-white shadow dark:bg-gray-800 sm:rounded-lg lg:grid-cols-[20rem_minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)_18rem]">
-                    {/* On a narrow screen only one of the list and the conversation shows. */}
-                    <ConversationList
-                        conversations={conversations}
-                        activeId={activeId}
-                        className={activeId ? 'hidden lg:flex' : 'flex'}
-                    />
+            {/* Fills everything below the top bar: no page heading, no margins. */}
+            <div className={`relative grid h-[calc(100vh-4rem)] min-h-[28rem] overflow-hidden bg-white dark:bg-gray-800 lg:grid-cols-[20rem_minmax(0,1fr)] ${
+                    activeId && infoOpen ? 'xl:grid-cols-[20rem_minmax(0,1fr)_18rem]' : ''
+                }`}>
+                {/* On a narrow screen only one of the list and the conversation shows. */}
+                <ConversationList
+                    conversations={conversations}
+                    activeId={activeId}
+                    className={activeId ? 'hidden lg:flex' : 'flex'}
+                />
 
-                    {activeId ? (
-                        <>
-                            <section className="flex min-h-0 min-w-0 flex-col">{children}</section>
-                            {info}
-                        </>
-                    ) : (
-                        <section className="hidden flex-col items-center justify-center gap-3 px-6 text-center lg:flex xl:col-span-2">
-                            <svg
-                                className="h-14 w-14 text-gray-300 dark:text-gray-600"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                aria-hidden="true"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="1.5"
-                                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                                />
-                            </svg>
-                            <p className="font-medium text-gray-700 dark:text-gray-300">Select a conversation</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Choose one from the list to read it and reply.
-                            </p>
-                        </section>
-                    )}
-                </div>
+                {activeId ? (
+                    <>
+                        <section className="flex min-h-0 min-w-0 flex-col">{children}</section>
+                        {info}
+                    </>
+                ) : (
+                    <section className="hidden flex-col items-center justify-center gap-3 px-6 text-center lg:flex">
+                        <svg
+                            className="h-14 w-14 text-gray-300 dark:text-gray-600"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            aria-hidden="true"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="1.5"
+                                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                            />
+                        </svg>
+                        <p className="font-medium text-gray-700 dark:text-gray-300">Select a conversation</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Choose one from the list to read it and reply.
+                        </p>
+                    </section>
+                )}
             </div>
         </AuthenticatedLayout>
     );

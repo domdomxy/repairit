@@ -6,6 +6,7 @@ use App\Models\AdminLog;
 use App\Models\Category;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\Report;
 use App\Models\Review;
 use App\Models\SupportTicket;
 use App\Models\TechnicianProfile;
@@ -47,6 +48,7 @@ class DashboardController extends Controller
                 'conversations' => Conversation::count(),
                 'reviews' => Review::count(),
                 'tickets_open' => SupportTicket::whereIn('status', SupportTicket::ACTIVE_STATUSES)->count(),
+                'reports_open' => Report::where('status', 'open')->count(),
                 'average_rating' => DashboardStats::averageRating($reviews),
             ],
             // Last 30 days against the 30 days before, for the "vs previous period" figures.
@@ -113,7 +115,7 @@ class DashboardController extends Controller
         return [
             'stats' => [
                 'conversations' => $total,
-                'unread' => (clone $received)->whereNull('read_at')->count(),
+                'unread' => (clone $received)->visibleTo($user)->whereNull('deleted_for_everyone_at')->whereNull('read_at')->count(),
                 'reviews' => (clone $reviews)->count(),
                 'average_rating' => DashboardStats::averageRating($reviews),
                 // Share of conversations the technician has written in, as a whole percentage.
@@ -164,7 +166,7 @@ class DashboardController extends Controller
         return [
             'stats' => [
                 'conversations' => $technicianIds->count(),
-                'unread' => (clone $received)->whereNull('read_at')->count(),
+                'unread' => (clone $received)->visibleTo($user)->whereNull('deleted_for_everyone_at')->whereNull('read_at')->count(),
                 'reviews' => (clone $reviews)->count(),
                 'tickets_open' => SupportTicket::where('user_id', $user->id)
                     ->whereIn('status', SupportTicket::ACTIVE_STATUSES)

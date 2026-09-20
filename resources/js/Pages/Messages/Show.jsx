@@ -3,60 +3,13 @@ import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { useEcho } from '@laravel/echo-react';
 import Avatar from '@/Components/Avatar';
 import ConversationInfo from '@/Components/ConversationInfo';
+import ConversationMenu from '@/Components/ConversationMenu';
+import MessageRow from '@/Components/MessageRow';
 import MessagesShell from '@/Components/MessagesShell';
-
-function formatSize(bytes) {
-    if (bytes == null) return '';
-    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-}
+import { formatSize } from '@/lib/files';
 
 // Same list the server shows inline; anything else is a plain file chip.
 const PREVIEWABLE = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-
-// The files of a message bubble: pictures are shown inline (side by side when
-// there are several), everything else is a download link. Both go through the
-// authorised attachment route.
-function Attachments({ attachments, onImageLoad }) {
-    const images = attachments.filter((attachment) => attachment.is_image);
-    const files = attachments.filter((attachment) => !attachment.is_image);
-
-    return (
-        <div className="space-y-2">
-            {images.length > 0 && (
-                <div className={images.length > 1 ? 'grid grid-cols-2 gap-1' : ''}>
-                    {images.map((image) => (
-                        <a key={image.id} href={image.url} target="_blank" rel="noopener noreferrer">
-                            <img
-                                src={image.url}
-                                alt={image.name ?? 'Image'}
-                                onLoad={onImageLoad}
-                                className={
-                                    images.length > 1
-                                        ? 'h-28 w-full rounded-md object-cover'
-                                        : 'max-h-60 rounded-md'
-                                }
-                            />
-                        </a>
-                    ))}
-                </div>
-            )}
-
-            {files.map((file) => (
-                <a
-                    key={file.id}
-                    href={file.url}
-                    download={file.name ?? true}
-                    className="flex items-center gap-2 text-sm"
-                >
-                    <span aria-hidden="true">📎</span>
-                    <span className="break-all underline">{file.name}</span>
-                    <span className="shrink-0 text-xs opacity-75">{formatSize(file.size)}</span>
-                </a>
-            ))}
-        </div>
-    );
-}
 
 // One chosen file in the composer, with a thumbnail when it is a picture.
 function PendingFile({ file, error, onRemove }) {
@@ -103,7 +56,7 @@ function PendingFile({ file, error, onRemove }) {
 // The conversation itself (section 2). Keyed by conversation in Show, so opening
 // another conversation starts it afresh: its own messages, composer and live
 // connection.
-function Chat({ conversation, messages: initialMessages, attachments: limits, onToggleInfo }) {
+function Chat({ conversation, messages: initialMessages, attachments: limits, moderation, infoOpen, onToggleInfo }) {
     const { auth } = usePage().props;
     const [messages, setMessages] = useState(initialMessages);
     const [fileProblems, setFileProblems] = useState([]);
@@ -121,19 +74,48 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, on
         [conversation.technician_id]: conversation.technician,
     };
 
+    // Keeps the list's preview and order up to date. "async" so it can't
+    // interrupt a message that is being sent at the same moment.
+    function refreshList() {
+        router.reload({ only: ['conversations'], async: true });
+    }
+
     // Live incoming messages
     useEcho(`conversation.${conversation.id}`, '.message.sent', (event) => {
         setMessages((current) => [...current, event]);
-        // Bring the list's preview and order up to date. "async" so it can't
-        // interrupt a message that is being sent at the same moment.
-        router.reload({ only: ['conversations'], async: true });
+        refreshList();
+    });
+
+    // The other person edited a message...
+    useEcho(`conversation.${conversation.id}`, '.message.updated', (event) => {
+        setMessages((current) =>
+            current.map((message) =>
+                message.id === event.id ? { ...message, body: event.body, edited_at: event.edited_at } : message,
+            ),
+        );
+        refreshList();
+    });
+
+    // ...or took one back for everyone: it stays in place as a placeholder.
+    useEcho(`conversation.${conversation.id}`, '.message.deleted', (event) => {
+        setMessages((current) =>
+            current.map((message) =>
+                message.id === event.id
+                    ? { ...message, body: null, attachments: [], edited_at: null, deleted: true }
+                    : message,
+            ),
+        );
+        refreshList();
     });
 
     function scrollToBottom() {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
 
-    useEffect(scrollToBottom, [messages]);
+    // Only when a message arrives or is sent: editing or deleting one further
+    // up the conversation shouldn't throw the reader to the bottom.
+    const lastMessageId = messages[messages.length - 1]?.id;
+    useEffect(scrollToBottom, [messages.length, lastMessageId]);
 
     const { data, setData, post, processing, progress, reset, errors, clearErrors } = useForm({
         body: '',
@@ -244,38 +226,53 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, on
                 <button
                     type="button"
                     onClick={onToggleInfo}
-                    className="rounded-md px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 xl:hidden"
+                    aria-expanded={infoOpen}
+                    aria-label={infoOpen ? 'Hide contact information' : 'Show contact information'}
+                    className={`rounded-md px-2 py-1 text-xs font-medium transition ${
+                        infoOpen
+                            ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+                            : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                    }`}
                 >
                     Info
                 </button>
+                <ConversationMenu
+                    conversation={conversation}
+                    otherName={otherParty.name}
+                    reported={moderation.reported_conversation}
+                    reasons={moderation.reasons}
+                />
             </div>
 
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-                {messages.map((message) => {
-                    const isMine = message.sender_id === auth.user.id;
-                    const files = message.attachments ?? [];
+            {conversation.is_hidden && (
+                <p className="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
+                    <span>This conversation is hidden. It stays out of your list until you unhide it or write in it.</span>
+                    <Link
+                        href={route('conversations.unhide', conversation.id)}
+                        method="post"
+                        as="button"
+                        preserveScroll
+                        className="shrink-0 font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+                    >
+                        Unhide
+                    </Link>
+                </p>
+            )}
 
-                    return (
-                        <div
-                            key={message.id}
-                            className={`flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}
-                        >
-                            {!isMine && <Avatar user={people[message.sender_id]} size="sm" />}
-                            <div
-                                className={`max-w-[75%] px-4 py-2 rounded-lg space-y-2 break-words ${
-                                    isMine
-                                        ? 'bg-indigo-600 text-white'
-                                        : 'bg-gray-100 dark:bg-gray-700'
-                                }`}
-                            >
-                                {message.body && <p className="text-sm">{message.body}</p>}
-                                {files.length > 0 && (
-                                    <Attachments attachments={files} onImageLoad={scrollToBottom} />
-                                )}
-                            </div>
-                        </div>
-                    );
-                })}
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+                {messages.map((message) => (
+                    <MessageRow
+                        key={message.id}
+                        message={message}
+                        isMine={message.sender_id === auth.user.id}
+                        author={people[message.sender_id]}
+                        otherName={otherParty.name}
+                        reported={moderation.reported_message_ids.includes(message.id)}
+                        reasons={moderation.reasons}
+                        onMessagesChange={setMessages}
+                        onImageLoad={scrollToBottom}
+                    />
+                ))}
                 <div ref={bottomRef} />
             </div>
 
@@ -347,17 +344,25 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, on
     );
 }
 
-export default function Show({ conversation, conversations, contact, messages, attachments }) {
-    // The contact panel opens over the conversation on screens too narrow to
-    // show it as a column; it starts closed for each conversation.
-    const [infoOpen, setInfoOpen] = useState(false);
+// Same breakpoint as Tailwind's `xl`, where the panel becomes a column.
+const isWideScreen = () => window.matchMedia('(min-width: 1280px)').matches;
 
-    useEffect(() => setInfoOpen(false), [conversation.id]);
+export default function Show({ conversation, conversations, contact, messages, attachments, moderation }) {
+    // The contact panel can be shown or hidden with the "Info" button. It starts
+    // open on wide screens, where it is a column next to the conversation, and
+    // closed on narrow ones, where it opens over the conversation (and closes
+    // again when another conversation is chosen).
+    const [infoOpen, setInfoOpen] = useState(isWideScreen);
+
+    useEffect(() => {
+        if (!isWideScreen()) setInfoOpen(false);
+    }, [conversation.id]);
 
     return (
         <MessagesShell
             conversations={conversations}
             activeId={conversation.id}
+            infoOpen={infoOpen}
             info={<ConversationInfo contact={contact} open={infoOpen} onClose={() => setInfoOpen(false)} />}
         >
             <Chat
@@ -365,6 +370,8 @@ export default function Show({ conversation, conversations, contact, messages, a
                 conversation={conversation}
                 messages={messages}
                 attachments={attachments}
+                moderation={moderation}
+                infoOpen={infoOpen}
                 onToggleInfo={() => setInfoOpen((open) => !open)}
             />
         </MessagesShell>
