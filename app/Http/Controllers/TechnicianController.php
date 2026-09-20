@@ -157,6 +157,7 @@ class TechnicianController extends Controller
 
         $technician->load([
             'technicianProfile.categories',
+            'offers' => fn ($q) => $q->latest()->latest('id')->with('media'),
             'reviewsReceived' => fn ($q) => $q->latest()->with('customer:id,name,avatar_path'),
         ]);
 
@@ -218,7 +219,7 @@ class TechnicianController extends Controller
     }
 
     /**
-     * The public profile page: the card plus bio, reviews and any contact
+     * The public profile page: the card plus bio, offers, reviews and any contact
      * details the technician has chosen to make public.
      *
      * @return array<string, mixed>
@@ -238,6 +239,11 @@ class TechnicianController extends Controller
         }
 
         $data['email'] = $profile?->show_email_publicly ? $technician->email : null;
+
+        $data['offers'] = $technician->offers
+            ->map(fn ($offer) => $offer->toCard())
+            ->values()
+            ->all();
 
         $data['reviews_received'] = $technician->reviewsReceived
             ->map(fn ($review) => [

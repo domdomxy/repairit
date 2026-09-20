@@ -1,5 +1,6 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
+import OfferCard from '@/Components/OfferCard';
 import ReviewForm from '@/Components/ReviewForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
@@ -70,6 +71,33 @@ export default function Show({ technician, canReview, myReview }) {
                         </div>
                     )}
                 </div>
+
+                {(technician.offers?.length > 0 || isOwnProfile) && (
+                    <div>
+                        <div className="mb-2 flex items-center justify-between gap-4">
+                            <h4 className="font-semibold">Offers</h4>
+                            {isOwnProfile && (
+                                <Link
+                                    href={route('technician.offers.index')}
+                                    className="text-sm text-indigo-600 underline hover:text-indigo-500 dark:text-indigo-400"
+                                >
+                                    Manage offers
+                                </Link>
+                            )}
+                        </div>
+
+                        {technician.offers.length === 0 && (
+                            <p className="text-sm text-gray-500">You have not added any offers yet.</p>
+                        )}
+                        <ul className="space-y-3">
+                            {technician.offers.map((offer) => (
+                                <li key={offer.id}>
+                                    <OfferCard offer={offer} />
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
 
                 <div>
                     <h4 className="font-semibold mb-2">Reviews</h4>

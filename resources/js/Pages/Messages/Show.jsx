@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { useForm, usePage } from '@inertiajs/react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { useEcho } from '@laravel/echo-react';
 import Avatar from '@/Components/Avatar';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ConversationInfo from '@/Components/ConversationInfo';
+import MessagesShell from '@/Components/MessagesShell';
 
 function formatSize(bytes) {
     if (bytes == null) return '';
@@ -99,7 +100,10 @@ function PendingFile({ file, error, onRemove }) {
     );
 }
 
-export default function Show({ conversation, messages: initialMessages, attachments: limits }) {
+// The conversation itself (section 2). Keyed by conversation in Show, so opening
+// another conversation starts it afresh: its own messages, composer and live
+// connection.
+function Chat({ conversation, messages: initialMessages, attachments: limits, onToggleInfo }) {
     const { auth } = usePage().props;
     const [messages, setMessages] = useState(initialMessages);
     const [fileProblems, setFileProblems] = useState([]);
@@ -120,6 +124,9 @@ export default function Show({ conversation, messages: initialMessages, attachme
     // Live incoming messages
     useEcho(`conversation.${conversation.id}`, '.message.sent', (event) => {
         setMessages((current) => [...current, event]);
+        // Bring the list's preview and order up to date. "async" so it can't
+        // interrupt a message that is being sent at the same moment.
+        router.reload({ only: ['conversations'], async: true });
     });
 
     function scrollToBottom() {
@@ -223,103 +230,143 @@ export default function Show({ conversation, messages: initialMessages, attachme
     );
 
     return (
-        <AuthenticatedLayout
-            header={
-                <div className="flex items-center gap-3">
-                    <Avatar user={otherParty} size="md" />
-                    <h2 className="text-xl font-semibold">{otherParty.name}</h2>
-                </div>
-            }
-        >
-            <div className="max-w-3xl mx-auto py-8 px-4 flex flex-col h-[70vh]">
-                <div className="flex-1 overflow-y-auto space-y-3 pr-2">
-                    {messages.map((message) => {
-                        const isMine = message.sender_id === auth.user.id;
-                        const files = message.attachments ?? [];
-
-                        return (
-                            <div
-                                key={message.id}
-                                className={`flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}
-                            >
-                                {!isMine && <Avatar user={people[message.sender_id]} size="sm" />}
-                                <div
-                                    className={`max-w-xs px-4 py-2 rounded-lg space-y-2 break-words ${
-                                        isMine
-                                            ? 'bg-indigo-600 text-white'
-                                            : 'bg-gray-100 dark:bg-gray-800'
-                                    }`}
-                                >
-                                    {message.body && <p className="text-sm">{message.body}</p>}
-                                    {files.length > 0 && (
-                                        <Attachments attachments={files} onImageLoad={scrollToBottom} />
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })}
-                    <div ref={bottomRef} />
-                </div>
-
-                <form onSubmit={submit} className="mt-4">
-                    {data.attachments.length > 0 && (
-                        <ul className="mb-2 space-y-1">
-                            {data.attachments.map((file, index) => (
-                                <PendingFile
-                                    key={`${file.name}-${file.size}-${file.lastModified}`}
-                                    file={file}
-                                    error={rejected.has(index)}
-                                    onRemove={() => removeFile(index)}
-                                />
-                            ))}
-                        </ul>
-                    )}
-
-                    {problems.length > 0 && (
-                        <div className="mb-2 space-y-1 text-sm text-red-600">
-                            {problems.map((problem) => (
-                                <p key={problem}>{problem}</p>
-                            ))}
-                        </div>
-                    )}
-
-                    <div className="flex gap-2">
-                        <input
-                            ref={fileInput}
-                            type="file"
-                            multiple
-                            accept={limits.extensions.map((extension) => `.${extension}`).join(',')}
-                            onChange={pickFiles}
-                            className="hidden"
-                        />
-                        <button
-                            type="button"
-                            onClick={() => fileInput.current?.click()}
-                            title="Attach files"
-                            aria-label="Attach files"
-                            className="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-md"
-                        >
-                            📎
-                        </button>
-                        <input
-                            type="text"
-                            value={data.body}
-                            onChange={(e) => setData('body', e.target.value)}
-                            placeholder="Type a message..."
-                            className="flex-1 rounded-md border-gray-300 dark:bg-gray-800"
-                        />
-                        <button
-                            type="submit"
-                            disabled={processing}
-                            className="px-4 py-2 bg-indigo-600 text-white rounded-md disabled:opacity-50"
-                        >
-                            {processing && data.attachments.length > 0 && progress
-                                ? `${progress.percentage}%`
-                                : 'Send'}
-                        </button>
-                    </div>
-                </form>
+        <>
+            <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+                <Link
+                    href={route('conversations.index')}
+                    aria-label="Back to conversations"
+                    className="rounded p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 lg:hidden"
+                >
+                    ←
+                </Link>
+                <Avatar user={otherParty} size="md" />
+                <h3 className="min-w-0 flex-1 truncate font-semibold">{otherParty.name}</h3>
+                <button
+                    type="button"
+                    onClick={onToggleInfo}
+                    className="rounded-md px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 xl:hidden"
+                >
+                    Info
+                </button>
             </div>
-        </AuthenticatedLayout>
+
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+                {messages.map((message) => {
+                    const isMine = message.sender_id === auth.user.id;
+                    const files = message.attachments ?? [];
+
+                    return (
+                        <div
+                            key={message.id}
+                            className={`flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}
+                        >
+                            {!isMine && <Avatar user={people[message.sender_id]} size="sm" />}
+                            <div
+                                className={`max-w-[75%] px-4 py-2 rounded-lg space-y-2 break-words ${
+                                    isMine
+                                        ? 'bg-indigo-600 text-white'
+                                        : 'bg-gray-100 dark:bg-gray-700'
+                                }`}
+                            >
+                                {message.body && <p className="text-sm">{message.body}</p>}
+                                {files.length > 0 && (
+                                    <Attachments attachments={files} onImageLoad={scrollToBottom} />
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+                <div ref={bottomRef} />
+            </div>
+
+            {conversation.is_request && (
+                <p className="border-t border-gray-200 bg-indigo-50 px-4 py-2 text-xs text-indigo-800 dark:border-gray-700 dark:bg-indigo-900/20 dark:text-indigo-200">
+                    This is a new request. Reply to move it to your inbox.
+                </p>
+            )}
+
+            <form onSubmit={submit} className="border-t border-gray-200 p-3 dark:border-gray-700">
+                {data.attachments.length > 0 && (
+                    <ul className="mb-2 space-y-1">
+                        {data.attachments.map((file, index) => (
+                            <PendingFile
+                                key={`${file.name}-${file.size}-${file.lastModified}`}
+                                file={file}
+                                error={rejected.has(index)}
+                                onRemove={() => removeFile(index)}
+                            />
+                        ))}
+                    </ul>
+                )}
+
+                {problems.length > 0 && (
+                    <div className="mb-2 space-y-1 text-sm text-red-600">
+                        {problems.map((problem) => (
+                            <p key={problem}>{problem}</p>
+                        ))}
+                    </div>
+                )}
+
+                <div className="flex gap-2">
+                    <input
+                        ref={fileInput}
+                        type="file"
+                        multiple
+                        accept={limits.extensions.map((extension) => `.${extension}`).join(',')}
+                        onChange={pickFiles}
+                        className="hidden"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => fileInput.current?.click()}
+                        title="Attach files"
+                        aria-label="Attach files"
+                        className="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-md"
+                    >
+                        📎
+                    </button>
+                    <input
+                        type="text"
+                        value={data.body}
+                        onChange={(e) => setData('body', e.target.value)}
+                        placeholder="Type a message..."
+                        className="flex-1 rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900"
+                    />
+                    <button
+                        type="submit"
+                        disabled={processing}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-md disabled:opacity-50"
+                    >
+                        {processing && data.attachments.length > 0 && progress
+                            ? `${progress.percentage}%`
+                            : 'Send'}
+                    </button>
+                </div>
+            </form>
+        </>
+    );
+}
+
+export default function Show({ conversation, conversations, contact, messages, attachments }) {
+    // The contact panel opens over the conversation on screens too narrow to
+    // show it as a column; it starts closed for each conversation.
+    const [infoOpen, setInfoOpen] = useState(false);
+
+    useEffect(() => setInfoOpen(false), [conversation.id]);
+
+    return (
+        <MessagesShell
+            conversations={conversations}
+            activeId={conversation.id}
+            info={<ConversationInfo contact={contact} open={infoOpen} onClose={() => setInfoOpen(false)} />}
+        >
+            <Chat
+                key={conversation.id}
+                conversation={conversation}
+                messages={messages}
+                attachments={attachments}
+                onToggleInfo={() => setInfoOpen((open) => !open)}
+            />
+        </MessagesShell>
     );
 }

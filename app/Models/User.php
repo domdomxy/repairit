@@ -38,6 +38,9 @@ class User extends Authenticatable
                 Storage::disk(self::AVATAR_DISK)->delete($user->avatar_path);
             }
 
+            // Offers and their media rows go with the cascade; the files don't.
+            Storage::disk(Offer::MEDIA_DISK)->deleteDirectory("offer-media/{$user->id}");
+
             Conversation::where('customer_id', $user->id)
                 ->orWhere('technician_id', $user->id)
                 ->pluck('id')
@@ -118,5 +121,11 @@ class User extends Authenticatable
     public function reviewsReceived(): HasMany
     {
         return $this->hasMany(Review::class, 'technician_id');
+    }
+
+    /** The offers a technician shows on their profile. */
+    public function offers(): HasMany
+    {
+        return $this->hasMany(Offer::class, 'technician_id');
     }
 }

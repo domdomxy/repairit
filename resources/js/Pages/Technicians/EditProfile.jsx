@@ -258,8 +258,15 @@ export default function EditProfile({ profile, categories }) {
                         </Transition>
 
                         <Link
+                            href={route('technician.offers.index')}
+                            className="ms-auto text-sm text-indigo-600 underline hover:text-indigo-500 dark:text-indigo-400"
+                        >
+                            Manage offers
+                        </Link>
+
+                        <Link
                             href={route('technicians.show', user.id)}
-                            className="ms-auto text-sm text-gray-600 underline dark:text-gray-400"
+                            className="text-sm text-gray-600 underline dark:text-gray-400"
                         >
                             View public profile
                         </Link>

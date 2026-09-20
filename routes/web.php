@@ -15,6 +15,7 @@ use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\TechnicianController;
+use App\Http\Controllers\TechnicianOfferController;
 use App\Http\Controllers\TechnicianProfileController;
 use App\Http\Controllers\DashboardController;
 use Inertia\Inertia;
@@ -47,6 +48,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
+    Route::delete('/notifications', [NotificationController::class, 'clear'])->name('notifications.clear');
+    Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
     Route::get('/support', [SupportController::class, 'index'])->name('support.index');
     // Must stay above /support/{ticket}, or "new" would be read as a ticket id.
     Route::get('/support/new', [SupportController::class, 'create'])->name('support.create');
@@ -56,6 +59,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/support/{ticket}/close', [SupportController::class, 'close'])->name('support.close');
     Route::get('/technicians', [TechnicianController::class, 'index'])->name('technicians.index');
     Route::get('/technicians/{technician}', [TechnicianController::class, 'show'])->name('technicians.show');
+    Route::get('/offer-media/{media}', [TechnicianOfferController::class, 'media'])->name('offers.media');
     Route::post('/technicians/{technician}/review', [ReviewController::class, 'store'])->name('reviews.store');
     Route::delete('/technicians/{technician}/review', [ReviewController::class, 'destroy'])->name('reviews.destroy');
     });
@@ -63,6 +67,11 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'role:technician'])->group(function () {
     Route::get('/technician/profile', [TechnicianProfileController::class, 'edit'])->name('technician.profile.edit');
     Route::put('/technician/profile', [TechnicianProfileController::class, 'update'])->name('technician.profile.update');
+    Route::get('/technician/offers', [TechnicianOfferController::class, 'index'])->name('technician.offers.index');
+    Route::post('/technician/offers', [TechnicianOfferController::class, 'store'])->name('technician.offers.store');
+    // The edit form sends a POST with _method=PUT: PHP doesn't read uploaded files from a real PUT request.
+    Route::put('/technician/offers/{offer}', [TechnicianOfferController::class, 'update'])->name('technician.offers.update');
+    Route::delete('/technician/offers/{offer}', [TechnicianOfferController::class, 'destroy'])->name('technician.offers.destroy');
 });
 
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {

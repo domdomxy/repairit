@@ -469,3 +469,68 @@ test('a user can only listen to their own notification channel', function () {
         ->post('/broadcasting/auth', ['channel_name' => "private-App.Models.User.{$other->id}", 'socket_id' => '1234.5678'])
         ->assertForbidden();
 });
+
+// ----------------------------------------------------- the bell's dropdown
+
+/** A stored notification with the given title, created `$minutesAgo` minutes ago. */
+function notifStore(User $user, string $title, int $minutesAgo = 0): void
+{
+    $user->notifications()->create([
+        'id' => (string) Str::uuid(),
+        'type' => NewMessage::class,
+        'data' => ['kind' => 'message', 'title' => $title, 'body' => 'Hi', 'url' => '/messages/1'],
+        'created_at' => now()->subMinutes($minutesAgo),
+    ]);
+}
+
+test('every page carries the newest ten notifications for the bell, without their links', function () {
+    $this->withoutVite();
+    $me = notifCustomer();
+
+    // Note 12 is the newest, note 1 the oldest.
+    for ($i = 1; $i <= 12; $i++) {
+        notifStore($me, "Note {$i}", minutesAgo: 20 - $i);
+    }
+
+    $this->actingAs($me)
+        ->get(route('notifications.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('notifications.recent', 10)
+            ->where('notifications.recent.0.title', 'Note 12')
+            ->where('notifications.recent.9.title', 'Note 3')
+            ->where('notifications.recent.0.kind', 'message')
+            ->missing('notifications.recent.0.url')
+            ->missing('notifications.recent.0.data'));
+});
+
+test('a notification can be deleted by its owner only', function () {
+    $owner = notifCustomer();
+    $intruder = notifCustomer();
+    notifStore($owner, 'Mine');
+    $notification = $owner->notifications()->first();
+
+    $this->actingAs($intruder)
+        ->delete(route('notifications.destroy', $notification->id))
+        ->assertNotFound();
+
+    expect($owner->notifications()->count())->toBe(1);
+
+    $this->actingAs($owner)
+        ->delete(route('notifications.destroy', $notification->id))
+        ->assertSessionHasNoErrors();
+
+    expect($owner->notifications()->count())->toBe(0);
+});
+
+test('clearing all notifications leaves other people\'s alone', function () {
+    $me = notifCustomer();
+    $other = notifCustomer();
+    notifStore($me, 'One');
+    notifStore($me, 'Two');
+    notifStore($other, 'Not mine');
+
+    $this->actingAs($me)->delete(route('notifications.clear'))->assertSessionHasNoErrors();
+
+    expect($me->notifications()->count())->toBe(0)
+        ->and($other->notifications()->count())->toBe(1);
+});

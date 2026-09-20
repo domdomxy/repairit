@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\NotificationItem;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -36,6 +37,13 @@ class HandleInertiaRequests extends Middleware
             ],
             'notifications' => [
                 'unread' => fn () => $request->user()?->unreadNotifications()->count() ?? 0,
+                // The newest few, for the bell's dropdown (newest first).
+                'recent' => fn () => $request->user()
+                    ?->notifications()
+                    ->limit(10)
+                    ->get()
+                    ->map(fn ($notification) => NotificationItem::make($notification))
+                    ->all() ?? [],
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
