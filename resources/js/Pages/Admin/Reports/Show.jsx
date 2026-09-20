@@ -31,10 +31,22 @@ function TranscriptMessage({ message, reportedId }) {
                         removed ? 'border border-dashed border-red-400' : ''
                     }`}
                 >
+                    {message.offer && (
+                        <p>
+                            Shared an offer:{' '}
+                            {message.offer.url ? (
+                                <Link href={message.offer.url} className="font-medium text-indigo-600 hover:underline">
+                                    {message.offer.title}
+                                </Link>
+                            ) : (
+                                <span className="font-medium">{message.offer.title} (since deleted)</span>
+                            )}
+                        </p>
+                    )}
                     {message.body ? (
                         <p className="whitespace-pre-line">{message.body}</p>
                     ) : (
-                        files.length === 0 && <p className="italic text-gray-500">(no text)</p>
+                        files.length === 0 && !message.offer && <p className="italic text-gray-500">(no text)</p>
                     )}
                     {files.length > 0 && <MessageAttachments attachments={files} />}
                 </div>
@@ -121,19 +133,7 @@ export default function Show({ report, messages, related }) {
     const canSuspend = report.reported.role !== 'admin' && !report.reported.suspended;
 
     return (
-        <AuthenticatedLayout
-            header={
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h2 className="text-xl font-semibold">Report #{report.id}</h2>
-                        <p className="mt-1 text-xs capitalize text-gray-500">
-                            {report.type} report · {report.reason_label} · Filed {formatDateTime(report.created_at)}
-                        </p>
-                    </div>
-                    <ReportStatusBadge status={report.status} />
-                </div>
-            }
-        >
+        <AuthenticatedLayout>
             <Head title={`Report #${report.id}`} />
 
             <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 lg:grid-cols-3">
@@ -141,6 +141,16 @@ export default function Show({ report, messages, related }) {
                     <Link href={route('admin.reports.index')} className="text-sm text-indigo-600 hover:underline">
                         All reports
                     </Link>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-xl font-semibold">Report #{report.id}</h2>
+                            <p className="mt-1 text-xs capitalize text-gray-500">
+                                {report.type} report · {report.reason_label} · Filed {formatDateTime(report.created_at)}
+                            </p>
+                        </div>
+                        <ReportStatusBadge status={report.status} />
+                    </div>
 
                     {report.details && (
                         <section className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">

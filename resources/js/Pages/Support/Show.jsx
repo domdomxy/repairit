@@ -23,8 +23,14 @@ export default function Show({ ticket, thread }) {
     }
 
     return (
-        <AuthenticatedLayout
-            header={
+        <AuthenticatedLayout>
+            <Head title={`Ticket ${ticket.tracking_id}`} />
+
+            <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
+                <Link href={route('support.index')} className="text-sm text-indigo-600 hover:underline">
+                    All tickets
+                </Link>
+
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0">
                         <h2 className="truncate text-xl font-semibold">{ticket.subject}</h2>
@@ -34,14 +40,6 @@ export default function Show({ ticket, thread }) {
                     </div>
                     <SupportStatusBadge status={ticket.status} />
                 </div>
-            }
-        >
-            <Head title={`Ticket ${ticket.tracking_id}`} />
-
-            <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
-                <Link href={route('support.index')} className="text-sm text-indigo-600 hover:underline">
-                    All tickets
-                </Link>
 
                 <SupportThread thread={thread} viewerIsStaff={false} />
 

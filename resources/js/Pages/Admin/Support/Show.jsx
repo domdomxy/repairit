@@ -25,19 +25,7 @@ export default function Show({ ticket, thread }) {
     }
 
     return (
-        <AuthenticatedLayout
-            header={
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0">
-                        <h2 className="truncate text-xl font-semibold">{ticket.subject}</h2>
-                        <p className="mt-1 text-xs text-gray-500">
-                            {ticket.tracking_id} · {ticket.category_label} · Opened {formatDateTime(ticket.created_at)}
-                        </p>
-                    </div>
-                    <SupportStatusBadge status={ticket.status} />
-                </div>
-            }
-        >
+        <AuthenticatedLayout>
             <Head title={`Ticket ${ticket.tracking_id}`} />
 
             <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 lg:grid-cols-3">
@@ -45,6 +33,16 @@ export default function Show({ ticket, thread }) {
                     <Link href={route('admin.support.index')} className="text-sm text-indigo-600 hover:underline">
                         All tickets
                     </Link>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="min-w-0">
+                            <h2 className="truncate text-xl font-semibold">{ticket.subject}</h2>
+                            <p className="mt-1 text-xs text-gray-500">
+                                {ticket.tracking_id} · {ticket.category_label} · Opened {formatDateTime(ticket.created_at)}
+                            </p>
+                        </div>
+                        <SupportStatusBadge status={ticket.status} />
+                    </div>
 
                     <SupportThread thread={thread} viewerIsStaff />
 

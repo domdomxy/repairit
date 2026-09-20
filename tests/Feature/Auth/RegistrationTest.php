@@ -19,7 +19,7 @@ test('new customers can register', function () {
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    $response->assertRedirect(route('offers.index', absolute: false));
 
     $this->assertDatabaseHas('users', ['email' => 'test@example.com', 'role' => 'customer']);
     $this->assertDatabaseMissing('technician_profiles', ['user_id' => User::firstOrFail()->id]);
@@ -38,7 +38,7 @@ test('new technicians can register with categories and get a profile', function 
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    $response->assertRedirect(route('offers.index', absolute: false));
 
     $technician = User::where('email', 'tech@example.com')->firstOrFail();
 

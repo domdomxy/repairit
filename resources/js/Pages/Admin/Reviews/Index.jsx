@@ -29,7 +29,7 @@ export default function Index({ reviews, filters }) {
     }
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold">Reviews</h2>}>
+        <AuthenticatedLayout>
             <Head title="Reviews" />
 
             <div className="mx-auto max-w-4xl space-y-4 px-4 py-8">

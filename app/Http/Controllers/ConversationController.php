@@ -60,7 +60,7 @@ class ConversationController extends Controller
         // for everyone come through as placeholders (see Message::forClient).
         $messages = $conversation->messages()
             ->visibleTo($user)
-            ->with(['sender:id,name', 'attachments'])
+            ->with(['sender:id,name', 'attachments', 'offer.media'])
             ->orderBy('created_at')
             ->orderBy('id')
             ->get()

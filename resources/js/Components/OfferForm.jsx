@@ -61,7 +61,7 @@ function PendingFile({ file, error, onRemove }) {
 // The form to add an offer, or (with `offer`) to edit one. Pictures and videos
 // are chosen in as many rounds as needed; when editing, the ones already saved
 // can be marked for removal.
-export default function OfferForm({ offer = null, limits, onDone, onCancel }) {
+export default function OfferForm({ offer = null, categories = [], limits, onDone, onCancel }) {
     const fileInput = useRef(null);
     const [fileProblems, setFileProblems] = useState([]);
 
@@ -72,6 +72,7 @@ export default function OfferForm({ offer = null, limits, onDone, onCancel }) {
         title: offer?.title ?? '',
         description: offer?.description ?? '',
         price: offer?.price ?? '',
+        categories: offer?.categories?.map((category) => category.id) ?? [],
         media: [],
         remove_media: [],
     });
@@ -81,6 +82,15 @@ export default function OfferForm({ offer = null, limits, onDone, onCancel }) {
 
     function extensionOf(file) {
         return file.name.split('.').pop()?.toLowerCase();
+    }
+
+    function toggleCategory(id) {
+        setData(
+            'categories',
+            data.categories.includes(id)
+                ? data.categories.filter((existing) => existing !== id)
+                : [...data.categories, id],
+        );
     }
 
     function toggleRemoval(id) {
@@ -209,6 +219,35 @@ export default function OfferForm({ offer = null, limits, onDone, onCancel }) {
                     placeholder="e.g. From 50 TND, or 80 TND / hour"
                 />
                 <InputError message={errors.price} className="mt-2" />
+            </div>
+
+            <div>
+                <InputLabel value="Categories" />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Tag the offer with one or more categories, so customers can find it by them.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                    {categories.map((category) => {
+                        const selected = data.categories.includes(category.id);
+
+                        return (
+                            <button
+                                key={category.id}
+                                type="button"
+                                onClick={() => toggleCategory(category.id)}
+                                aria-pressed={selected}
+                                className={`rounded-full border px-3 py-1 text-sm transition ${
+                                    selected
+                                        ? 'border-indigo-600 bg-indigo-600 text-white'
+                                        : 'border-gray-300 text-gray-700 hover:border-indigo-400 dark:border-gray-600 dark:text-gray-300'
+                                }`}
+                            >
+                                {category.name}
+                            </button>
+                        );
+                    })}
+                </div>
+                <InputError message={errors.categories ?? errors['categories.0']} className="mt-2" />
             </div>
 
             <div>

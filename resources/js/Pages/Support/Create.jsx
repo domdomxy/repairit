@@ -17,7 +17,7 @@ export default function Create({ categories }) {
     const field = 'mt-1 block w-full rounded-md border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-900';
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold">New support ticket</h2>}>
+        <AuthenticatedLayout>
             <Head title="New support ticket" />
 
             <div className="mx-auto max-w-2xl px-4 py-8">

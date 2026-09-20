@@ -67,13 +67,7 @@ export default function EditProfile({ profile, categories, autoReplyDefault, aut
     }
 
     return (
-        <AuthenticatedLayout
-            header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
-                    Technician Profile
-                </h2>
-            }
-        >
+        <AuthenticatedLayout>
             <Head title="Technician Profile" />
 
             <div className="py-12">

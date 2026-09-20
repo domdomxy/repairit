@@ -10,6 +10,7 @@ use App\Models\Conversation;
 use App\Models\ConversationState;
 use App\Models\Message;
 use App\Models\MessageAttachment;
+use App\Models\Offer;
 use App\Models\User;
 use App\Notifications\NewMessage;
 use Closure;
@@ -129,8 +130,57 @@ class MessageController extends Controller
             throw $e;
         }
 
+        $this->deliver($conversation, $user, $messages, $isCustomersFirstMessage);
+
+        return back();
+    }
+
+    /**
+     * Send an offer in the chat with its technician: the offer arrives as a
+     * card the technician can open. Starts the conversation if there is none
+     * yet, then takes the sender to it.
+     */
+    public function shareOffer(Offer $offer): RedirectResponse
+    {
+        $technician = $offer->technician;
+
+        abort_unless($technician->role === 'technician' && ! $technician->isSuspended(), 404);
+
+        $customer = Auth::user();
+        abort_if($customer->id === $technician->id, 403, 'You cannot send your own offer to yourself.');
+
+        $conversation = Conversation::firstOrCreate([
+            'customer_id' => $customer->id,
+            'technician_id' => $technician->id,
+        ]);
+
+        // Checked before the message exists, like a written first message.
+        $isCustomersFirstMessage = ! $conversation->messages()->exists();
+
+        $message = $conversation->messages()->create([
+            'sender_id' => $customer->id,
+            'offer_id' => $offer->id,
+            'offer_title' => $offer->title,
+        ]);
+
+        $this->deliver($conversation, $customer, [$message], $isCustomersFirstMessage);
+
+        return redirect()->route('conversations.show', $conversation);
+    }
+
+    /**
+     * Everything that follows once a person's messages are stored: the
+     * conversation moves up, comes back from "hidden" for the sender, the other
+     * person is told (live, in their messages panel, and by email), and the
+     * technician's automatic reply goes out if this was the customer's first
+     * message.
+     *
+     * @param  array<int, Message>  $messages  Just created, oldest first.
+     */
+    private function deliver(Conversation $conversation, User $sender, array $messages, bool $isCustomersFirstMessage): void
+    {
         foreach ($messages as $message) {
-            $message->load('attachments');
+            $message->load('attachments', 'offer.media');
         }
 
         $lastMessage = end($messages);
@@ -139,7 +189,7 @@ class MessageController extends Controller
 
         // Writing in a conversation you had hidden brings it back to your list.
         ConversationState::where('conversation_id', $conversation->id)
-            ->where('user_id', $user->id)
+            ->where('user_id', $sender->id)
             ->whereNotNull('hidden_at')
             ->update(['hidden_at' => null]);
 
@@ -148,26 +198,24 @@ class MessageController extends Controller
         }
 
         // Their messages panel, wherever they are on the site.
-        broadcast(new InboxUpdated($conversation->participantFor($user)->id));
+        broadcast(new InboxUpdated($conversation->participantFor($sender)->id));
 
         // Tell the recipient once per unread stretch rather than for every line
         // of a back-and-forth: if they already have an unread message from this
         // sender, they have been told.
         $alreadyNotified = $conversation->messages()
             ->whereNull('read_at')
-            ->where('sender_id', $user->id)
+            ->where('sender_id', $sender->id)
             ->where('id', '<', $lastMessage->id)
             ->exists();
 
         if (! $alreadyNotified) {
-            $conversation->participantFor($user)->notify(new NewMessage($lastMessage));
+            $conversation->participantFor($sender)->notify(new NewMessage($lastMessage));
         }
 
         if ($isCustomersFirstMessage) {
             $this->sendAutoReply($conversation);
         }
-
-        return back();
     }
 
     /**
@@ -219,6 +267,7 @@ class MessageController extends Controller
         abort_unless($conversation->hasParticipant($user), 403);
         abort_unless($message->sender_id === $user->id, 403, 'You can only edit your own messages.');
         abort_if($message->isDeletedForEveryone(), 403, 'This message was deleted.');
+        abort_if($message->offer_title !== null, 403, 'A shared offer cannot be edited.');
 
         $validated = $request->validate([
             'body' => ['nullable', 'string', 'max:5000'],

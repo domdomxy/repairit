@@ -4,6 +4,7 @@ import MessageAttachments from '@/Components/MessageAttachments';
 import Modal from '@/Components/Modal';
 import ReportModal from '@/Components/ReportModal';
 import SecondaryButton from '@/Components/SecondaryButton';
+import SharedOfferCard from '@/Components/SharedOfferCard';
 import { formatDateTime } from '@/lib/dates';
 import { router } from '@inertiajs/react';
 import { useState } from 'react';
@@ -35,7 +36,8 @@ export default function MessageRow({
     const images = files.filter((file) => file.is_image);
     const otherFiles = files.filter((file) => !file.is_image);
     const hasBubble = !!message.body || otherFiles.length > 0 || !!message.edited_at;
-    const canEdit = isMine && !message.deleted;
+    // A shared offer is not text, so there is nothing to edit.
+    const canEdit = isMine && !message.deleted && !message.offer;
 
     function startEdit() {
         setDraft(message.body ?? '');
@@ -126,6 +128,8 @@ export default function MessageRow({
                     </form>
                 ) : (
                     <div className={`flex flex-col gap-2 ${isMine ? 'items-end' : 'items-start'}`}>
+                        {message.offer && <SharedOfferCard offer={message.offer} onImageLoad={onImageLoad} />}
+
                         {images.length > 0 && <MessageAttachments attachments={images} onImageLoad={onImageLoad} />}
 
                         {hasBubble && (

@@ -5,7 +5,7 @@ import { formatDateTime } from '@/lib/dates';
 
 export default function Index({ logs }) {
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold">Activity log</h2>}>
+        <AuthenticatedLayout>
             <Head title="Activity log" />
 
             <div className="mx-auto max-w-5xl px-4 py-8">

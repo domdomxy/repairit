@@ -43,7 +43,7 @@ export default function Admin({ stats, trends, charts, recentUsers, recentLogs }
     const ratingsTotal = charts.ratings.reduce((sum, r) => sum + r.count, 0);
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold">Admin Dashboard</h2>}>
+        <AuthenticatedLayout>
             <Head title="Admin Dashboard" />
 
             <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">

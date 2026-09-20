@@ -42,7 +42,7 @@ export default function Index({ categories }) {
     }
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold">Categories</h2>}>
+        <AuthenticatedLayout>
             <Head title="Categories" />
 
             <div className="mx-auto max-w-3xl space-y-4 px-4 py-8">

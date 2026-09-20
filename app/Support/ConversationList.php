@@ -97,7 +97,7 @@ class ConversationList
         });
     }
 
-    /** One line for the list; a message with only files has no text. */
+    /** One line for the list; a message with only files, or a shared offer, has no text. */
     private static function preview(Message $message): ?string
     {
         if ($message->isDeletedForEveryone()) {
@@ -108,6 +108,10 @@ class ConversationList
 
         if ($text !== '') {
             return Str::limit(preg_replace('/\s+/u', ' ', $text), 80);
+        }
+
+        if ($message->offer_title !== null) {
+            return Str::limit('Shared an offer: '.$message->offer_title, 80);
         }
 
         return match (true) {

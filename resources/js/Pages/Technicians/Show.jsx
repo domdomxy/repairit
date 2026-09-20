@@ -1,6 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
 import OfferCard from '@/Components/OfferCard';
+import OfferShareActions from '@/Components/OfferShareActions';
 import ReviewForm from '@/Components/ReviewForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
@@ -14,7 +15,7 @@ export default function Show({ technician, canReview, myReview }) {
     }
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold">{technician.name}</h2>}>
+        <AuthenticatedLayout>
             <div className="max-w-2xl mx-auto py-8 px-4 space-y-6">
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <div className="flex items-start justify-between gap-4">
@@ -92,7 +93,9 @@ export default function Show({ technician, canReview, myReview }) {
                         <ul className="space-y-3">
                             {technician.offers.map((offer) => (
                                 <li key={offer.id}>
-                                    <OfferCard offer={offer} />
+                                    <OfferCard offer={offer}>
+                                        <OfferShareActions offer={offer} technicianId={technician.id} />
+                                    </OfferCard>
                                 </li>
                             ))}
                         </ul>

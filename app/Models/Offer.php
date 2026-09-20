@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Offer extends Model
@@ -57,6 +58,12 @@ class Offer extends Model
         return $this->belongsTo(User::class, 'technician_id');
     }
 
+    /** The categories the technician tagged this offer with, by name. Load them with `with('categories')`. */
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(Category::class, 'category_offer')->orderBy('categories.name');
+    }
+
     /** The pictures and videos of this offer, oldest first. Load them with `with('media')`. */
     public function media(): HasMany
     {
@@ -105,6 +112,10 @@ class Offer extends Model
             'title' => $this->title,
             'description' => $this->description,
             'price' => $this->price,
+            'categories' => $this->categories
+                ->map(fn (Category $category) => ['id' => $category->id, 'name' => $category->name, 'slug' => $category->slug])
+                ->values()
+                ->all(),
             'media' => $this->media->values()->all(),
         ];
     }

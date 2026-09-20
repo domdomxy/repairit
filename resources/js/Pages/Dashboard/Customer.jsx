@@ -8,7 +8,7 @@ export default function Customer({ stats, charts }) {
     const dayLabels = charts.sent.map((day) => formatShortDate(day.date));
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold">Dashboard</h2>}>
+        <AuthenticatedLayout>
             <Head title="Dashboard" />
 
             <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">

@@ -101,7 +101,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
         setMessages((current) =>
             current.map((message) =>
                 message.id === event.id
-                    ? { ...message, body: null, attachments: [], edited_at: null, deleted: true }
+                    ? { ...message, body: null, attachments: [], offer: null, edited_at: null, deleted: true }
                     : message,
             ),
         );

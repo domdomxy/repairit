@@ -18,7 +18,7 @@ export default function Technician({ stats, trends, charts, recentReviews }) {
     const dayLabels = charts.received.map((day) => formatShortDate(day.date));
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold">Technician Dashboard</h2>}>
+        <AuthenticatedLayout>
             <Head title="Technician Dashboard" />
 
             <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">

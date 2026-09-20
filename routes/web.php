@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\SupportController as AdminSupportController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AvatarController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OfferController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SupportController;
@@ -23,6 +24,11 @@ use App\Http\Controllers\DashboardController;
 use Inertia\Inertia;
 
 Route::get('/', function () {
+    // The main page of the app, once signed in, is the offers page.
+    if (auth()->check()) {
+        return redirect()->route('offers.index');
+    }
+
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
         'canRegister' => Route::has('register'),
@@ -70,6 +76,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/support/{ticket}/close', [SupportController::class, 'close'])->name('support.close');
     Route::get('/technicians', [TechnicianController::class, 'index'])->name('technicians.index');
     Route::get('/technicians/{technician}', [TechnicianController::class, 'show'])->name('technicians.show');
+    // Every technician's offers, with search and filters. (The technician's own list is technician.offers.index.)
+    Route::get('/offers', [OfferController::class, 'index'])->name('offers.index');
+    // One offer on its own page: the link people copy and share.
+    Route::get('/offers/{offer}', [OfferController::class, 'show'])->name('offers.show');
+    // Send an offer in the chat with its technician (starting the chat if needed).
+    Route::post('/offers/{offer}/share', [MessageController::class, 'shareOffer'])->middleware('throttle:20,1')->name('offers.share');
     Route::get('/offer-media/{media}', [TechnicianOfferController::class, 'media'])->name('offers.media');
     Route::post('/technicians/{technician}/review', [ReviewController::class, 'store'])->name('reviews.store');
     Route::delete('/technicians/{technician}/review', [ReviewController::class, 'destroy'])->name('reviews.destroy');

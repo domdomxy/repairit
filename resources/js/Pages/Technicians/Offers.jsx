@@ -1,10 +1,11 @@
 import OfferCard from '@/Components/OfferCard';
 import OfferForm from '@/Components/OfferForm';
+import OfferShareActions from '@/Components/OfferShareActions';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
-export default function Offers({ offers, limits }) {
+export default function Offers({ offers, categories, limits }) {
     const user = usePage().props.auth.user;
     // Which offer is open in the edit form, if any.
     const [editingId, setEditingId] = useState(null);
@@ -18,13 +19,7 @@ export default function Offers({ offers, limits }) {
     const atLimit = offers.length >= limits.max_offers;
 
     return (
-        <AuthenticatedLayout
-            header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
-                    My offers
-                </h2>
-            }
-        >
+        <AuthenticatedLayout>
             <Head title="My offers" />
 
             <div className="py-12">
@@ -45,7 +40,7 @@ export default function Offers({ offers, limits }) {
                                     another.
                                 </p>
                             ) : (
-                                <OfferForm limits={limits} />
+                                <OfferForm limits={limits} categories={categories} />
                             )}
                         </div>
                     </section>
@@ -81,13 +76,14 @@ export default function Offers({ offers, limits }) {
                                         <OfferForm
                                             offer={offer}
                                             limits={limits}
+                                            categories={categories}
                                             onDone={() => setEditingId(null)}
                                             onCancel={() => setEditingId(null)}
                                         />
                                     </div>
                                 ) : (
                                     <OfferCard key={offer.id} offer={offer}>
-                                        <div className="flex gap-4 text-sm">
+                                        <div className="flex flex-wrap items-center gap-4 text-sm">
                                             <button
                                                 type="button"
                                                 onClick={() => setEditingId(offer.id)}
@@ -102,6 +98,7 @@ export default function Offers({ offers, limits }) {
                                             >
                                                 Delete
                                             </button>
+                                            <OfferShareActions offer={offer} technicianId={user.id} className="ms-auto" />
                                         </div>
                                     </OfferCard>
                                 ),

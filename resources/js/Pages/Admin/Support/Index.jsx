@@ -28,7 +28,7 @@ export default function Index({ tickets, filters, categories, counts }) {
         }`;
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold">Support tickets</h2>}>
+        <AuthenticatedLayout>
             <Head title="Support tickets" />
 
             <div className="mx-auto max-w-6xl space-y-4 px-4 py-8">

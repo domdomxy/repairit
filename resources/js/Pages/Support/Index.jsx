@@ -6,8 +6,10 @@ import { formatDateTime } from '@/lib/dates';
 
 export default function Index({ tickets }) {
     return (
-        <AuthenticatedLayout
-            header={
+        <AuthenticatedLayout>
+            <Head title="Support" />
+
+            <div className="mx-auto max-w-3xl space-y-4 px-4 py-8">
                 <div className="flex items-center justify-between gap-4">
                     <h2 className="text-xl font-semibold">Support</h2>
                     <Link
@@ -17,11 +19,7 @@ export default function Index({ tickets }) {
                         New ticket
                     </Link>
                 </div>
-            }
-        >
-            <Head title="Support" />
 
-            <div className="mx-auto max-w-3xl space-y-4 px-4 py-8">
                 {tickets.data.length === 0 ? (
                     <div className="rounded-lg bg-white p-8 text-center shadow dark:bg-gray-800">
                         <p className="text-sm text-gray-500">

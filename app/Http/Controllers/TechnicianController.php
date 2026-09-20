@@ -26,8 +26,20 @@ class TechnicianController extends Controller
      */
     private const MAP_PRECISION = 2;
 
+    /** Who a search looks for: technicians (the default), customers, or both. */
+    private const SCOPES = ['technician', 'customer', 'all'];
+
     public function index(Request $request)
     {
+        // Customers have no category, city, availability or map position, so
+        // looking for them (alone or together with technicians) is a plain
+        // search by name, kept apart from the technician search below.
+        $scope = in_array($request->input('type'), self::SCOPES, true) ? $request->input('type') : 'technician';
+
+        if ($scope !== 'technician') {
+            return $this->searchPeople($request, $scope);
+        }
+
         // Join the profile table once, up front, so every filter and the sort
         // share a single reference to technician_profiles. The inner join also
         // guarantees each technician has a profile (user_id is unique, so no
@@ -117,7 +129,75 @@ class TechnicianController extends Controller
             'technicians' => $technicians,
             'mapPoints' => $this->mapPoints($mapQuery),
             'categories' => Category::orderBy('name')->get(),
-            'filters' => $request->only(['name', 'category', 'city', 'availability', 'lat', 'lng', 'radius', 'sort']),
+            // Cast to an object: an empty PHP array reaches the browser as a JS
+            // array, where `filters.sort` is Array.prototype.sort, not "unset".
+            'filters' => (object) $request->only(['type', 'name', 'category', 'city', 'availability', 'lat', 'lng', 'radius', 'sort']),
+        ]);
+    }
+
+    /**
+     * The search for customers, or for customers and technicians together:
+     * everyone whose name matches, technicians first (best rated first), then
+     * customers by name. Suspended accounts and admins never show, and neither
+     * do you among the customers.
+     *
+     * A customer card carries only a name and a picture: nothing else about a
+     * customer is public.
+     *
+     * @param  'customer'|'all'  $scope
+     */
+    private function searchPeople(Request $request, string $scope)
+    {
+        $viewer = $request->user();
+
+        $query = User::query()
+            ->leftJoin('technician_profiles', 'technician_profiles.user_id', '=', 'users.id')
+            ->whereNull('users.suspended_at')
+            ->where(function ($q) use ($scope, $viewer) {
+                $q->where(fn ($customers) => $customers
+                    ->where('users.role', 'customer')
+                    ->where('users.id', '!=', $viewer->id));
+
+                if ($scope === 'all') {
+                    $q->orWhere(fn ($technicians) => $technicians
+                        ->where('users.role', 'technician')
+                        ->whereNotNull('technician_profiles.id'));
+                }
+            })
+            ->select('users.*')
+            ->with('technicianProfile.categories');
+
+        // Same partial, escaped match as the technician search.
+        $name = trim((string) $request->input('name'));
+
+        if ($name !== '') {
+            $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_substr($name, 0, 100));
+
+            $query->whereRaw("users.name LIKE ? ESCAPE '!'", ['%'.$escaped.'%']);
+        }
+
+        $people = $query
+            ->orderByRaw("CASE WHEN users.role = 'technician' THEN 0 ELSE 1 END")
+            ->orderByDesc('technician_profiles.rating_avg')
+            ->orderBy('users.name')
+            ->orderBy('users.id')
+            ->paginate(12)
+            ->withQueryString()
+            ->through(fn (User $user) => $user->role === 'technician'
+                ? $this->summary($user)
+                : [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'avatar_url' => $user->avatar_url,
+                    'role' => 'customer',
+                    'technician_profile' => null,
+                ]);
+
+        return Inertia::render('Technicians/Index', [
+            'technicians' => $people,
+            'mapPoints' => [],
+            'categories' => Category::orderBy('name')->get(),
+            'filters' => (object) $request->only(['type', 'name']),
         ]);
     }
 
@@ -214,7 +294,7 @@ class TechnicianController extends Controller
 
         $technician->load([
             'technicianProfile.categories',
-            'offers' => fn ($q) => $q->latest()->latest('id')->with('media'),
+            'offers' => fn ($q) => $q->latest()->latest('id')->with(['media', 'categories']),
             'reviewsReceived' => fn ($q) => $q->latest()->with('customer:id,name,avatar_path'),
         ]);
 
@@ -252,6 +332,7 @@ class TechnicianController extends Controller
             'id' => $technician->id,
             'name' => $technician->name,
             'avatar_url' => $technician->avatar_url,
+            'role' => 'technician',
             'technician_profile' => $profile ? [
                 'city' => $profile->city,
                 'availability_status' => $profile->availability_status,

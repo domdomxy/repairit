@@ -114,6 +114,11 @@ class ReportController extends Controller
                 'sender_name' => $message->sender?->name ?? 'Deleted user',
                 'body' => $message->body,
                 'attachments' => $message->attachments->toArray(),
+                // The offer shared in this message (the title is kept even if the offer is gone).
+                'offer' => $message->offer_title === null ? null : [
+                    'title' => $message->offer_title,
+                    'url' => $message->offer_id ? route('offers.show', $message->offer_id, absolute: false) : null,
+                ],
                 'created_at' => $message->created_at->toIso8601String(),
                 'edited_at' => $message->edited_at?->toIso8601String(),
                 'edits' => $message->edits->map(fn ($edit) => [

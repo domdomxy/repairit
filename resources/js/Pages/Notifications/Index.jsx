@@ -7,7 +7,7 @@ export default function Index({ items }) {
     const unread = usePage().props.notifications?.unread ?? 0;
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold">Notifications</h2>}>
+        <AuthenticatedLayout>
             <Head title="Notifications" />
 
             <div className="mx-auto max-w-2xl space-y-4 px-4 py-8">

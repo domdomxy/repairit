@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Offer;
 use App\Models\OfferMedia;
+use App\Models\Category;
 use Closure;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -11,6 +12,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -24,7 +26,7 @@ class TechnicianOfferController extends Controller
     {
         $offers = $request->user()
             ->offers()
-            ->with('media')
+            ->with(['media', 'categories'])
             ->latest()
             ->latest('id')
             ->get()
@@ -33,6 +35,8 @@ class TechnicianOfferController extends Controller
 
         return Inertia::render('Technicians/Offers', [
             'offers' => $offers,
+            // What an offer can be tagged with.
+            'categories' => Category::orderBy('name')->get(['id', 'name']),
             // What the form offers: the limits and the extensions it lets through.
             'limits' => Offer::limits() + [
                 'max_offers' => Offer::MAX_PER_TECHNICIAN,
@@ -60,6 +64,7 @@ class TechnicianOfferController extends Controller
         try {
             DB::transaction(function () use ($request, $user, $validated, &$stored) {
                 $offer = $user->offers()->create(Arr::only($validated, ['title', 'description', 'price']));
+                $offer->categories()->sync($validated['categories'] ?? []);
 
                 $this->attachFiles($offer, $request->file('media', []), $stored);
             });
@@ -87,6 +92,7 @@ class TechnicianOfferController extends Controller
         try {
             DB::transaction(function () use ($request, $offer, $validated, $removing, &$stored) {
                 $offer->update(Arr::only($validated, ['title', 'description', 'price']));
+                $offer->categories()->sync($validated['categories'] ?? []);
 
                 $this->attachFiles($offer, $request->file('media', []), $stored);
 
@@ -154,6 +160,9 @@ class TechnicianOfferController extends Controller
             'title' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:2000'],
             'price' => ['nullable', 'string', 'max:60'],
+            // One or more tags. An empty form sends none at all, which clears them.
+            'categories' => ['nullable', 'array'],
+            'categories.*' => ['integer', 'distinct', Rule::exists('categories', 'id')],
             'media' => [
                 'nullable',
                 'array',
@@ -185,6 +194,7 @@ class TechnicianOfferController extends Controller
             ],
         ], [
             'title.required' => 'Give your offer a title.',
+            'categories.*.exists' => 'Pick categories from the list.',
             'media.max' => 'An offer can have up to '.$limits['max_files'].' pictures and videos in total.',
             'media.*.uploaded' => 'A file could not be uploaded. It may be too large.',
             'media.*.mimetypes' => 'Use JPG, PNG, WebP or GIF pictures, or MP4, WebM or MOV videos.',

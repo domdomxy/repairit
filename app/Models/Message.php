@@ -36,6 +36,8 @@ class Message extends Model
         'conversation_id',
         'sender_id',
         'body',
+        'offer_id',
+        'offer_title',
         'read_at',
         'is_automated',
     ];
@@ -55,6 +57,12 @@ class Message extends Model
     public function sender(): BelongsTo
     {
         return $this->belongsTo(User::class, 'sender_id');
+    }
+
+    /** The offer this message shares, if any (gone once the technician deletes it). Load it with `with('offer.media')`. */
+    public function offer(): BelongsTo
+    {
+        return $this->belongsTo(Offer::class);
     }
 
     /** The files sent with this message, oldest first. Load them with `with('attachments')`. */
@@ -125,10 +133,39 @@ class Message extends Model
             'sender_name' => $this->relationLoaded('sender') ? $this->sender?->name : null,
             'body' => $deleted ? null : $this->body,
             'attachments' => $deleted ? [] : $this->attachments->toArray(),
+            'offer' => $deleted ? null : $this->sharedOffer(),
             'created_at' => $this->created_at->toIso8601String(),
             'edited_at' => $deleted ? null : $this->edited_at?->toIso8601String(),
             'deleted' => $deleted,
             'automated' => (bool) $this->is_automated,
+        ];
+    }
+
+    /**
+     * The offer this message shares, as the small card the chat shows: null for
+     * an ordinary message. When the offer has been deleted since, only its title
+     * is left, and the card says it is no longer available.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function sharedOffer(): ?array
+    {
+        if ($this->offer_title === null) {
+            return null;
+        }
+
+        $offer = $this->offer_id ? $this->offer : null;
+
+        if ($offer === null) {
+            return ['id' => null, 'title' => $this->offer_title, 'price' => null, 'image_url' => null, 'url' => null];
+        }
+
+        return [
+            'id' => $offer->id,
+            'title' => $offer->title,
+            'price' => $offer->price,
+            'image_url' => $offer->media->first(fn (OfferMedia $media) => $media->type === 'image')?->url,
+            'url' => route('offers.show', $offer->id, absolute: false),
         ];
     }
 }

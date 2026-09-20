@@ -40,7 +40,7 @@ export default function Index({ reports, filters, reasons, counts }) {
         }`;
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold">Reports</h2>}>
+        <AuthenticatedLayout>
             <Head title="Reports" />
 
             <div className="mx-auto max-w-6xl space-y-4 px-4 py-8">
