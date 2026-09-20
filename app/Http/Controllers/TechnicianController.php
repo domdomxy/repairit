@@ -28,6 +28,18 @@ class TechnicianController extends Controller
             ->select('users.*')
             ->with(['technicianProfile.categories']);
 
+        // Search by name: a partial, case-insensitive match. The term is a LIKE
+        // pattern, so %, _ and the escape character itself are escaped and match
+        // literally instead of acting as wildcards. "!" is the escape character
+        // because, unlike backslash, ESCAPE '!' means the same on MySQL and SQLite.
+        $name = trim((string) $request->input('name'));
+
+        if ($name !== '') {
+            $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_substr($name, 0, 100));
+
+            $query->whereRaw("users.name LIKE ? ESCAPE '!'", ['%'.$escaped.'%']);
+        }
+
         // Filter by category
         if ($request->filled('category')) {
             $query->whereHas('technicianProfile.categories', function ($q) use ($request) {
@@ -90,7 +102,7 @@ class TechnicianController extends Controller
         return Inertia::render('Technicians/Index', [
             'technicians' => $technicians,
             'categories' => Category::orderBy('name')->get(),
-            'filters' => $request->only(['category', 'city', 'availability', 'lat', 'lng', 'radius', 'sort']),
+            'filters' => $request->only(['name', 'category', 'city', 'availability', 'lat', 'lng', 'radius', 'sort']),
         ]);
     }
 

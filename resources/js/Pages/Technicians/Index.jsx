@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Link, router, usePage } from '@inertiajs/react';
+import { useEffect, useRef, useState } from 'react';
+import { Link, router } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
+import KeywordSearchBar from '@/Components/KeywordSearchBar';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
 // Small OpenStreetMap preview centred on the given point. The box grows with the
@@ -18,15 +19,45 @@ function formatMeters(meters) {
     return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${meters} m`;
 }
 
+const AVAILABILITY_OPTIONS = [
+    { value: 'available', label: 'Available' },
+    { value: 'busy', label: 'Busy' },
+    { value: 'offline', label: 'Offline' },
+];
+
+const SORT_OPTIONS = [
+    { value: 'rating', label: 'Highest rated' },
+    { value: 'distance', label: 'Nearest' },
+];
+
+// The search bar's select filters use 'all' for "not set"; the URL and the
+// controller use an empty value, so these convert between the two.
+const toBarValue = (value) => (value === '' || value == null ? 'all' : value);
+const fromBarValue = (value) => (value === 'all' ? '' : value);
+
+// Only send filters that are set, so the URL stays clean. The radius only means
+// something once a location is set.
+function buildParams(form) {
+    const hasLocation = form.lat !== '' && form.lng !== '';
+
+    return Object.fromEntries(
+        Object.entries(form).filter(([key, value]) => {
+            if (key === 'radius' && !hasLocation) return false;
+            return value !== '' && value !== null;
+        })
+    );
+}
+
 export default function Index({ technicians, categories, filters }) {
     const [form, setForm] = useState({
+        name: filters.name ?? '',
         category: filters.category ?? '',
         city: filters.city ?? '',
         availability: filters.availability ?? '',
         lat: filters.lat ?? '',
         lng: filters.lng ?? '',
         radius: filters.radius ?? '10',
-        sort: filters.sort ?? 'rating',
+        sort: filters.sort ?? '',
     });
     const [locating, setLocating] = useState(false);
     const [accuracy, setAccuracy] = useState(null); // metres, only known right after "Use my location"
@@ -35,19 +66,33 @@ export default function Index({ technicians, categories, filters }) {
         setForm((current) => ({ ...current, [key]: value }));
     }
 
-    function submit(e) {
-        e?.preventDefault();
-
-        // Only send non-empty filters, keep the URL clean
-        const params = Object.fromEntries(
-            Object.entries(form).filter(([, value]) => value !== '' && value !== null)
-        );
-
-        router.get(route('technicians.index'), params, {
-            preserveState: true,
-            preserveScroll: true,
-        });
+    // Results follow the bar as it changes: typing a name or picking a filter
+    // searches after a short pause, so there is no Search button to press. The
+    // last-sent query is remembered so the first render, and any change that ends
+    // up producing the same query, never triggers a request.
+    const lastSent = useRef(null);
+    if (lastSent.current === null) {
+        lastSent.current = JSON.stringify(buildParams(form));
     }
+
+    useEffect(() => {
+        const params = buildParams(form);
+        const key = JSON.stringify(params);
+
+        if (key === lastSent.current) return undefined;
+
+        const timer = setTimeout(() => {
+            lastSent.current = key;
+
+            router.get(route('technicians.index'), params, {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            });
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [form]);
 
     function useMyLocation() {
         if (!navigator.geolocation) {
@@ -75,7 +120,7 @@ export default function Index({ technicians, categories, filters }) {
     }
 
     function clearLocation() {
-        setForm((current) => ({ ...current, lat: '', lng: '', sort: 'rating' }));
+        setForm((current) => ({ ...current, lat: '', lng: '', sort: '' }));
         setAccuracy(null);
     }
 
@@ -85,86 +130,70 @@ export default function Index({ technicians, categories, filters }) {
     const lngNum = parseFloat(form.lng);
     const showLocationPanel = hasLocation && Number.isFinite(latNum) && Number.isFinite(lngNum);
 
-    // The location was just detected but the results below still reflect the previous search
-    const searchPending =
-        showLocationPanel &&
-        (String(filters.lat ?? '') !== form.lat || String(filters.lng ?? '') !== form.lng);
+    // Keywords offered by the search bar. Sorting only has a second option once
+    // there is a location to measure distance from, so that filter appears then.
+    const searchFilters = [
+        {
+            key: 'category',
+            keyword: 'category',
+            description: 'Filter by repair category',
+            options: categories.map((category) => ({ value: category.slug, label: category.name })),
+            value: toBarValue(form.category),
+            onChange: (value) => update('category', fromBarValue(value)),
+        },
+        {
+            key: 'city',
+            keyword: 'city',
+            description: 'Filter by city',
+            kind: 'text',
+            value: form.city,
+            onChange: (value) => update('city', value),
+        },
+        {
+            key: 'availability',
+            keyword: 'availability',
+            description: 'Filter by availability',
+            options: AVAILABILITY_OPTIONS,
+            value: toBarValue(form.availability),
+            onChange: (value) => update('availability', fromBarValue(value)),
+        },
+        ...(hasLocation
+            ? [
+                  {
+                      key: 'sort',
+                      keyword: 'sort',
+                      description: 'Order the results',
+                      options: SORT_OPTIONS,
+                      value: toBarValue(form.sort),
+                      onChange: (value) => update('sort', fromBarValue(value)),
+                  },
+              ]
+            : []),
+    ];
 
     return (
         <AuthenticatedLayout header={<h2 className="text-xl font-semibold">Find a technician</h2>}>
             <div className="max-w-5xl mx-auto py-8 px-4">
-                {/* Filters */}
-                <form
-                    onSubmit={submit}
-                    className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
-                >
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Category</label>
-                        <select
-                            value={form.category}
-                            onChange={(e) => update('category', e.target.value)}
-                            className="w-full rounded-md border-gray-300 dark:bg-gray-700"
-                        >
-                            <option value="">All categories</option>
-                            {categories.map((category) => (
-                                <option key={category.id} value={category.slug}>
-                                    {category.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-1">City</label>
-                        <input
-                            type="text"
-                            value={form.city}
-                            onChange={(e) => update('city', e.target.value)}
-                            placeholder="e.g. Ariana"
-                            className="w-full rounded-md border-gray-300 dark:bg-gray-700"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Availability</label>
-                        <select
-                            value={form.availability}
-                            onChange={(e) => update('availability', e.target.value)}
-                            className="w-full rounded-md border-gray-300 dark:bg-gray-700"
-                        >
-                            <option value="">Any</option>
-                            <option value="available">Available</option>
-                            <option value="busy">Busy</option>
-                            <option value="offline">Offline</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Sort by</label>
-                        <select
-                            value={form.sort}
-                            onChange={(e) => update('sort', e.target.value)}
-                            className="w-full rounded-md border-gray-300 dark:bg-gray-700"
-                        >
-                            <option value="rating">Highest rated</option>
-                            <option value="distance" disabled={!hasLocation}>
-                                Nearest {!hasLocation && '(set a location first)'}
-                            </option>
-                        </select>
-                    </div>
+                {/* Search and filters */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6 space-y-4">
+                    <KeywordSearchBar
+                        value={form.name}
+                        onChange={(value) => update('name', value)}
+                        filters={searchFilters}
+                        placeholder="Search technicians by name"
+                        className="w-full"
+                    />
 
                     {/* Geo radius controls */}
-                    <div className="sm:col-span-2 lg:col-span-4 flex flex-wrap items-end gap-4 pt-2 border-t dark:border-gray-700">
-                        <div>
-                            <button
-                                type="button"
-                                onClick={useMyLocation}
-                                disabled={locating}
-                                className="px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 rounded-md disabled:opacity-50"
-                            >
-                                {locating ? 'Locating…' : '📍 Use my location'}
-                            </button>
-                        </div>
+                    <div className="flex flex-wrap items-end gap-4">
+                        <button
+                            type="button"
+                            onClick={useMyLocation}
+                            disabled={locating}
+                            className="px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 rounded-md disabled:opacity-50"
+                        >
+                            {locating ? 'Locating…' : '📍 Use my location'}
+                        </button>
 
                         {hasLocation && (
                             <>
@@ -188,18 +217,11 @@ export default function Index({ technicians, categories, filters }) {
                                 </button>
                             </>
                         )}
-
-                        <button
-                            type="submit"
-                            className="ml-auto px-4 py-2 bg-indigo-600 text-white rounded-md"
-                        >
-                            Search
-                        </button>
                     </div>
 
                     {/* Detected location */}
                     {showLocationPanel && (
-                        <div className="sm:col-span-2 lg:col-span-4 rounded-lg border dark:border-gray-700 overflow-hidden">
+                        <div className="rounded-lg border dark:border-gray-700 overflow-hidden">
                             <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
                                 <div>
                                     <p className="font-medium">📍 Your location</p>
@@ -224,15 +246,9 @@ export default function Index({ technicians, categories, filters }) {
                                 loading="lazy"
                                 className="w-full h-56 border-0"
                             />
-
-                            {searchPending && (
-                                <p className="px-4 py-2 text-xs text-gray-500 bg-gray-50 dark:bg-gray-900">
-                                    Press Search to see technicians near this location.
-                                </p>
-                            )}
                         </div>
                     )}
-                </form>
+                </div>
 
                 {/* Results */}
                 {technicians.data.length === 0 && (

@@ -4,6 +4,7 @@ import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import NotificationBell from '@/Components/NotificationBell';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
+import TechnicianSearchBar from '@/Components/TechnicianSearchBar';
 import ThemeToggle from '@/Components/ThemeToggle';
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
@@ -12,7 +13,6 @@ import { useState } from 'react';
 // are shown to everyone, whatever their role. Admin tools live on the admin dashboard.
 const navLinks = [
     { label: 'Messages', routeName: 'conversations.index' },
-    { label: 'Find a Technician', routeName: 'technicians.index' },
 ];
 
 export default function AuthenticatedLayout({ header, children }) {
@@ -27,7 +27,7 @@ export default function AuthenticatedLayout({ header, children }) {
             <nav className="border-b border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 justify-between">
-                        <div className="flex">
+                        <div className="flex shrink-0">
                             <div className="flex shrink-0 items-center">
                                 <Link href="/">
                                     <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800 dark:text-gray-200" />
@@ -53,6 +53,11 @@ export default function AuthenticatedLayout({ header, children }) {
                             </div>
                         </div>
 
+                        {/* Find a technician: a search bar on every page, for every role. */}
+                        <div className="flex min-w-0 flex-1 items-center justify-center px-3 sm:px-4">
+                            <TechnicianSearchBar className="w-full max-w-md" />
+                        </div>
+
                         <div className="hidden sm:ms-6 sm:flex sm:items-center">
                             <NotificationBell />
                             <ThemeToggle />
@@ -64,8 +69,8 @@ export default function AuthenticatedLayout({ header, children }) {
                                                 type="button"
                                                 className="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none dark:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
                                             >
-                                                <Avatar user={user} size="sm" className="me-2" />
-                                                {user.name}
+                                                <Avatar user={user} size="sm" className="lg:me-2" />
+                                                <span className="hidden lg:inline">{user.name}</span>
 
                                                 <svg
                                                     className="-me-0.5 ms-2 h-4 w-4"
