@@ -125,7 +125,7 @@ export default function Index({ offers, categories, topRated, filters, reportRea
 
     return (
         <AuthenticatedLayout>
-            <div className="flex w-full flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
+            <div className="flex w-full flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">
                 <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:items-start">
                     {/* Account rail: profile, dashboard, theme toggle, support. Stretched
                         to the row's height, which flex-1 above guarantees is at least the
@@ -134,9 +134,9 @@ export default function Index({ offers, categories, topRated, filters, reportRea
                         <ProfileSidebar user={auth.user} className="h-full" />
                     </aside>
 
-                    {/* Search and results. The search sits right on top of the offers, in the same column. */}
-                    <div className="min-w-0 flex-1">
-                        <div className="space-y-2 rounded-t-lg bg-white p-4 shadow dark:bg-gray-800">
+                    {/* Search and results. The search is its own card above the offers. */}
+                    <div className="min-w-0 flex-1 space-y-4">
+                        <div className="space-y-2 rounded-lg bg-white p-4 shadow dark:bg-gray-800">
                             <KeywordSearchBar
                                 value={form.q}
                                 onChange={(value) => update('q', value)}
@@ -150,7 +150,7 @@ export default function Index({ offers, categories, topRated, filters, reportRea
                         </div>
 
                         {offers.data.length === 0 && (
-                            <p className="pt-4 text-gray-500">No offers match your search.</p>
+                            <p className="text-gray-500">No offers match your search.</p>
                         )}
 
                         <div className="grid grid-cols-1 gap-4">
@@ -163,7 +163,7 @@ export default function Index({ offers, categories, topRated, filters, reportRea
                     </div>
 
                     {/* The best rated technicians: beside the offers on wide screens, below them on small ones. */}
-                    <aside className="w-full lg:sticky lg:top-4 lg:w-72 lg:shrink-0">
+                    <aside className="w-full lg:sticky lg:top-4 lg:w-80 lg:shrink-0">
                         <TopRatedTechnicians
                             technicians={topRated}
                             categories={categories}

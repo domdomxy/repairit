@@ -77,6 +77,14 @@ export default function ConversationInfo({ contact, open, onClose }) {
                             </Row>
                         )}
 
+                        {contact.role === 'customer' && contact.rating_count !== undefined && (
+                            <Row label="Rating">
+                                {contact.rating_count > 0
+                                    ? `${contact.rating_avg} ★ (${contact.rating_count} review${contact.rating_count === 1 ? '' : 's'})`
+                                    : 'No reviews yet'}
+                            </Row>
+                        )}
+
                         {profile?.city && <Row label="City">{profile.city}</Row>}
 
                         {profile?.categories.length > 0 && (
@@ -100,9 +108,13 @@ export default function ConversationInfo({ contact, open, onClose }) {
                         {contact.member_since && <Row label="Member since">{formatDate(contact.member_since)}</Row>}
                     </dl>
 
-                    {contact.role === 'technician' && (
+                    {(contact.role === 'technician' || contact.role === 'customer') && (
                         <Link
-                            href={route('technicians.show', contact.id)}
+                            href={
+                                contact.role === 'technician'
+                                    ? route('technicians.show', contact.id)
+                                    : route('customers.show', contact.id)
+                            }
                             className="block rounded-md bg-indigo-600 px-4 py-2 text-center text-sm font-medium text-white transition hover:bg-indigo-700"
                         >
                             View profile

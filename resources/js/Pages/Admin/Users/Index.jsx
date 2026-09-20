@@ -2,7 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
 import { useState } from 'react';
 import Pagination from '@/Components/Pagination';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { formatDate } from '@/lib/dates';
 
 const roleStyles = {
@@ -34,7 +34,7 @@ export default function Index({ users, filters }) {
     }
 
     return (
-        <AuthenticatedLayout>
+        <AdminLayout>
             <Head title="Users" />
 
             <div className="mx-auto max-w-6xl space-y-4 px-4 py-8">
@@ -204,6 +204,6 @@ export default function Index({ users, filters }) {
 
                 <Pagination links={users.links} />
             </div>
-        </AuthenticatedLayout>
+        </AdminLayout>
     );
 }

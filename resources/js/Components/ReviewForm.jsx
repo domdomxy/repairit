@@ -6,10 +6,18 @@ import { useState } from 'react';
 const COMMENT_LIMIT = 1000;
 
 /**
- * Create or edit the signed-in customer's review of a technician.
- * Pass `review` ({ rating, comment }) to edit an existing one.
+ * Create or edit the signed-in person's review: a customer's review of a
+ * technician (pass `technicianId`), or a technician's rating of a customer
+ * (pass `storeUrl` and `destroyUrl`). Pass `review` ({ rating, comment }) to
+ * edit an existing one.
  */
-export default function ReviewForm({ technicianId, review = null }) {
+export default function ReviewForm({
+    technicianId,
+    review = null,
+    storeUrl = null,
+    destroyUrl = null,
+    placeholder = 'Share how the job went (optional)',
+}) {
     const { data, setData, post, processing, errors, recentlySuccessful } = useForm({
         rating: review?.rating ?? 0,
         comment: review?.comment ?? '',
@@ -22,13 +30,13 @@ export default function ReviewForm({ technicianId, review = null }) {
 
         if (!data.rating) return;
 
-        post(route('reviews.store', technicianId), { preserveScroll: true });
+        post(storeUrl ?? route('reviews.store', technicianId), { preserveScroll: true });
     }
 
     function remove() {
         if (!window.confirm('Delete your review?')) return;
 
-        router.delete(route('reviews.destroy', technicianId), { preserveScroll: true });
+        router.delete(destroyUrl ?? route('reviews.destroy', technicianId), { preserveScroll: true });
     }
 
     return (
@@ -72,7 +80,7 @@ export default function ReviewForm({ technicianId, review = null }) {
                     maxLength={COMMENT_LIMIT}
                     value={data.comment}
                     onChange={(e) => setData('comment', e.target.value)}
-                    placeholder="Share how the job went (optional)"
+                    placeholder={placeholder}
                     aria-label="Comment"
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-indigo-600 dark:focus:ring-indigo-600"
                 />

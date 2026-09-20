@@ -11,18 +11,25 @@ const LINK_CLASSES =
 export default function ProfileSidebar({ user, className = '' }) {
     return (
         <section className={`flex flex-col rounded-lg bg-white p-4 shadow dark:bg-gray-800 ${className}`}>
+            {/* Technicians and customers have a public profile; admins only have their account page. */}
             <Link
-                href={route('profile.edit')}
-                className="flex items-center gap-3 rounded-md p-2 transition duration-150 ease-in-out hover:bg-gray-100 dark:hover:bg-gray-700"
+                href={
+                    user.role === 'technician'
+                        ? route('technicians.show', user.id)
+                        : user.role === 'customer'
+                          ? route('customers.show', user.id)
+                          : route('profile.edit')
+                }
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 transition duration-150 ease-in-out hover:bg-gray-100 dark:hover:bg-gray-700"
             >
-                <Avatar user={user} size="md" />
-                <span className="min-w-0 truncate font-medium text-gray-800 dark:text-gray-200">
+                <Avatar user={user} size="xs" />
+                <span className="min-w-0 truncate text-xs font-medium text-gray-800 dark:text-gray-200">
                     {user.name}
                 </span>
             </Link>
 
             <Link href={route('dashboard')} className={`mt-1 ${LINK_CLASSES}`}>
-                Dashboard
+                {user.role === 'admin' ? 'Administration' : 'Dashboard'}
             </Link>
 
             {user.role === 'technician' && (

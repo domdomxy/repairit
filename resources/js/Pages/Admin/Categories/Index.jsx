@@ -1,7 +1,7 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/Components/InputError';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 
 export default function Index({ categories }) {
     const create = useForm({ name: '' });
@@ -42,7 +42,7 @@ export default function Index({ categories }) {
     }
 
     return (
-        <AuthenticatedLayout>
+        <AdminLayout>
             <Head title="Categories" />
 
             <div className="mx-auto max-w-3xl space-y-4 px-4 py-8">
@@ -135,6 +135,6 @@ export default function Index({ categories }) {
                     </ul>
                 </div>
             </div>
-        </AuthenticatedLayout>
+        </AdminLayout>
     );
 }

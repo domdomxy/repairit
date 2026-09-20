@@ -35,15 +35,26 @@ class TechnicianOfferController extends Controller
 
         return Inertia::render('Technicians/Offers', [
             'offers' => $offers,
-            // What an offer can be tagged with.
+        ] + self::formProps());
+    }
+
+    /**
+     * What the add/edit offer form needs: the categories an offer can be tagged
+     * with, and the limits and extensions it lets through. Shared by the offers
+     * page and the technician's own public profile.
+     *
+     * @return array<string, mixed>
+     */
+    public static function formProps(): array
+    {
+        return [
             'categories' => Category::orderBy('name')->get(['id', 'name']),
-            // What the form offers: the limits and the extensions it lets through.
             'limits' => Offer::limits() + [
                 'max_offers' => Offer::MAX_PER_TECHNICIAN,
                 'image_extensions' => Offer::IMAGE_EXTENSIONS,
                 'video_extensions' => Offer::VIDEO_EXTENSIONS,
             ],
-        ]);
+        ];
     }
 
     public function store(Request $request): RedirectResponse

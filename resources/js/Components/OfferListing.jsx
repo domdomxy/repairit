@@ -60,14 +60,14 @@ export default function OfferListing({ offer, reportReasons }) {
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                     <div className="flex flex-wrap items-center gap-2">
                         <OfferShareActions offer={offer} technicianId={offer.technician.id} showCopy={false} />
-                        <OfferPrice price={offer.price} />
+                        <Link
+                            href={route('technicians.show', offer.technician.id)}
+                            className="rounded-md bg-gray-100 px-3 py-1.5 text-sm hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                        >
+                            View profile
+                        </Link>
                     </div>
-                    <Link
-                        href={route('technicians.show', offer.technician.id)}
-                        className="text-sm text-indigo-600 underline dark:text-indigo-400"
-                    >
-                        View profile
-                    </Link>
+                    <OfferPrice price={offer.price} />
                 </div>
             </OfferCard>
         </div>

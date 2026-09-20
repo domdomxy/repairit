@@ -3,7 +3,7 @@ import Avatar from '@/Components/Avatar';
 import { useState } from 'react';
 import Pagination from '@/Components/Pagination';
 import SupportStatusBadge from '@/Components/SupportStatusBadge';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { formatDateTime } from '@/lib/dates';
 import { statusLabels } from '@/lib/support';
 
@@ -28,7 +28,7 @@ export default function Index({ tickets, filters, categories, counts }) {
         }`;
 
     return (
-        <AuthenticatedLayout>
+        <AdminLayout>
             <Head title="Support tickets" />
 
             <div className="mx-auto max-w-6xl space-y-4 px-4 py-8">
@@ -145,6 +145,6 @@ export default function Index({ tickets, filters, categories, counts }) {
 
                 <Pagination links={tickets.links} />
             </div>
-        </AuthenticatedLayout>
+        </AdminLayout>
     );
 }

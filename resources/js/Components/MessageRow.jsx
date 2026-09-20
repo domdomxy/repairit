@@ -5,7 +5,8 @@ import Modal from '@/Components/Modal';
 import ReportModal from '@/Components/ReportModal';
 import SecondaryButton from '@/Components/SecondaryButton';
 import SharedOfferCard from '@/Components/SharedOfferCard';
-import { formatDateTime } from '@/lib/dates';
+import { formatDateTime, formatMessageTime } from '@/lib/dates';
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { router } from '@inertiajs/react';
 import { useState } from 'react';
 
@@ -24,7 +25,6 @@ export default function MessageRow({
     onMessagesChange,
     onImageLoad,
 }) {
-    const [menuOpen, setMenuOpen] = useState(false);
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState('');
     const [editError, setEditError] = useState(null);
@@ -43,7 +43,6 @@ export default function MessageRow({
         setDraft(message.body ?? '');
         setEditError(null);
         setEditing(true);
-        setMenuOpen(false);
     }
 
     function saveEdit(e) {
@@ -76,21 +75,67 @@ export default function MessageRow({
         });
     }
 
+    // The ⋯ button opens a small dialog with what can be done to the message.
+    // It floats above the chat (so the scrolling list never clips it) and flips
+    // upward when there is no room below.
+    const menuItem =
+        'block w-full px-4 py-2 text-start text-sm text-gray-700 data-[focus]:bg-gray-100 dark:text-gray-300 dark:data-[focus]:bg-gray-800';
+
     const menuButton = (
-        <button
-            type="button"
-            onClick={() => setMenuOpen((open) => !open)}
-            aria-expanded={menuOpen}
-            aria-label="Message options"
-            className="mb-1 shrink-0 rounded-full px-1.5 text-lg leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:opacity-100 dark:hover:bg-gray-700 dark:hover:text-gray-200 sm:opacity-0 sm:group-hover:opacity-100"
+        <Menu>
+            <MenuButton
+                aria-label="Message options"
+                className="mb-1 shrink-0 rounded-full px-1.5 text-lg leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:opacity-100 data-[open]:bg-gray-100 data-[open]:opacity-100 dark:hover:bg-gray-700 dark:hover:text-gray-200 dark:data-[open]:bg-gray-700 sm:opacity-0 sm:group-hover:opacity-100"
+            >
+                ⋯
+            </MenuButton>
+
+            <MenuItems
+                anchor={isMine ? 'bottom end' : 'bottom start'}
+                className="z-50 w-40 rounded-md bg-white py-1 shadow-lg ring-1 ring-black/5 [--anchor-gap:6px] focus:outline-none dark:bg-gray-700"
+            >
+                {canEdit && (
+                    <MenuItem>
+                        <button type="button" onClick={startEdit} className={menuItem}>
+                            Edit
+                        </button>
+                    </MenuItem>
+                )}
+                <MenuItem>
+                    <button type="button" onClick={() => setDeleting(true)} className={menuItem}>
+                        Delete
+                    </button>
+                </MenuItem>
+                {!isMine && (
+                    <MenuItem disabled={reported}>
+                        {reported ? (
+                            <span className="block px-4 py-2 text-sm text-gray-400">Reported</span>
+                        ) : (
+                            <button type="button" onClick={() => setReporting(true)} className={menuItem}>
+                                Report
+                            </button>
+                        )}
+                    </MenuItem>
+                )}
+            </MenuItems>
+        </Menu>
+    );
+
+    // Shown beside the message while it is hovered (wide screens), on the side
+    // facing the middle of the chat.
+    const sentAt = (
+        <span
+            title={formatDateTime(message.created_at)}
+            className="mb-1.5 hidden shrink-0 whitespace-nowrap text-xs text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 sm:block dark:text-gray-500"
         >
-            ⋯
-        </button>
+            {formatMessageTime(message.created_at)}
+        </span>
     );
 
     return (
         <div className={`group flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}>
             {!isMine && <Avatar user={author} size="sm" />}
+            {isMine && sentAt}
             {isMine && menuButton}
 
             <div className={`flex min-w-0 max-w-[75%] flex-col ${isMine ? 'items-end' : 'items-start'}`}>
@@ -154,44 +199,10 @@ export default function MessageRow({
                         )}
                     </div>
                 )}
-
-                {menuOpen && !editing && (
-                    <div className="mt-1 flex flex-wrap items-center gap-3 px-1">
-                        {canEdit && (
-                            <button type="button" onClick={startEdit} className={ACTION}>
-                                Edit
-                            </button>
-                        )}
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setDeleting(true);
-                                setMenuOpen(false);
-                            }}
-                            className={ACTION}
-                        >
-                            Delete
-                        </button>
-                        {!isMine &&
-                            (reported ? (
-                                <span className="text-xs text-gray-400">Reported</span>
-                            ) : (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setReporting(true);
-                                        setMenuOpen(false);
-                                    }}
-                                    className={ACTION}
-                                >
-                                    Report
-                                </button>
-                            ))}
-                    </div>
-                )}
             </div>
 
             {!isMine && menuButton}
+            {!isMine && sentAt}
 
             <Modal show={deleting} onClose={() => setDeleting(false)} maxWidth="md">
                 <div className="p-6">

@@ -352,12 +352,44 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
 // Same breakpoint as Tailwind's `xl`, where the panel becomes a column.
 const isWideScreen = () => window.matchMedia('(min-width: 1280px)').matches;
 
+// Whether the contact panel was left open or closed on a wide screen. It lives
+// in the browser, per account, so it survives logging out and back in (like the
+// theme). Narrow screens don't use it: there the panel is a temporary overlay.
+const infoKey = (userId) => `conversation-info-open:${userId}`;
+
+function savedInfoOpen(userId) {
+    try {
+        const saved = localStorage.getItem(infoKey(userId));
+
+        return saved === null ? null : saved === '1';
+    } catch {
+        return null; // Storage can be blocked (private mode).
+    }
+}
+
+function saveInfoOpen(userId, open) {
+    try {
+        localStorage.setItem(infoKey(userId), open ? '1' : '0');
+    } catch {
+        // The panel still switches for this visit.
+    }
+}
+
 export default function Show({ conversation, conversations, contact, messages, attachments, moderation }) {
-    // The contact panel can be shown or hidden with the "Info" button. It starts
-    // open on wide screens, where it is a column next to the conversation, and
-    // closed on narrow ones, where it opens over the conversation (and closes
-    // again when another conversation is chosen).
-    const [infoOpen, setInfoOpen] = useState(isWideScreen);
+    const userId = usePage().props.auth.user.id;
+
+    // The contact panel can be shown or hidden with the "Info" button. On wide
+    // screens it is a column next to the conversation and comes back the way it
+    // was last left (open the first time). On narrow ones it opens over the
+    // conversation, starts closed and closes again when another conversation
+    // is chosen.
+    const [infoOpen, setInfoOpen] = useState(() => (isWideScreen() ? (savedInfoOpen(userId) ?? true) : false));
+
+    function changeInfo(next) {
+        setInfoOpen(next);
+
+        if (isWideScreen()) saveInfoOpen(userId, next);
+    }
 
     useEffect(() => {
         if (!isWideScreen()) setInfoOpen(false);
@@ -368,7 +400,7 @@ export default function Show({ conversation, conversations, contact, messages, a
             conversations={conversations}
             activeId={conversation.id}
             infoOpen={infoOpen}
-            info={<ConversationInfo contact={contact} open={infoOpen} onClose={() => setInfoOpen(false)} />}
+            info={<ConversationInfo contact={contact} open={infoOpen} onClose={() => changeInfo(false)} />}
         >
             <Chat
                 key={conversation.id}
@@ -377,7 +409,7 @@ export default function Show({ conversation, conversations, contact, messages, a
                 attachments={attachments}
                 moderation={moderation}
                 infoOpen={infoOpen}
-                onToggleInfo={() => setInfoOpen((open) => !open)}
+                onToggleInfo={() => changeInfo(!infoOpen)}
             />
         </MessagesShell>
     );

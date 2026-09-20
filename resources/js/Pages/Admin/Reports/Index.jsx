@@ -1,7 +1,7 @@
 import Avatar from '@/Components/Avatar';
 import Pagination from '@/Components/Pagination';
 import ReportStatusBadge from '@/Components/ReportStatusBadge';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { formatDateTime } from '@/lib/dates';
 import { reportStatusLabels } from '@/lib/reports';
 import { Head, Link, router } from '@inertiajs/react';
@@ -40,7 +40,7 @@ export default function Index({ reports, filters, reasons, counts }) {
         }`;
 
     return (
-        <AuthenticatedLayout>
+        <AdminLayout>
             <Head title="Reports" />
 
             <div className="mx-auto max-w-6xl space-y-4 px-4 py-8">
@@ -155,6 +155,6 @@ export default function Index({ reports, filters, reasons, counts }) {
 
                 <Pagination links={reports.links} />
             </div>
-        </AuthenticatedLayout>
+        </AdminLayout>
     );
 }

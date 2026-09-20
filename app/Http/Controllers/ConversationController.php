@@ -149,6 +149,16 @@ class ConversationController extends Controller
             $contact['email'] = $profile->show_email_publicly ? $other->email : null;
         }
 
+        // A customer's rating comes from what technicians wrote about them.
+        if (! $isTechnician && ! $other->isSuspended()) {
+            $stats = $other->customerReviewsReceived()
+                ->selectRaw('COUNT(*) as total, AVG(rating) as average')
+                ->first();
+
+            $contact['rating_count'] = (int) $stats->total;
+            $contact['rating_avg'] = $stats->total ? round((float) $stats->average, 2) : null;
+        }
+
         return $contact;
     }
 

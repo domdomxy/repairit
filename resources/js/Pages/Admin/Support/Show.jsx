@@ -3,7 +3,7 @@ import Avatar from '@/Components/Avatar';
 import InputError from '@/Components/InputError';
 import SupportStatusBadge from '@/Components/SupportStatusBadge';
 import SupportThread from '@/Components/SupportThread';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { formatDateTime } from '@/lib/dates';
 import { statusLabels } from '@/lib/support';
 
@@ -25,7 +25,7 @@ export default function Show({ ticket, thread }) {
     }
 
     return (
-        <AuthenticatedLayout>
+        <AdminLayout>
             <Head title={`Ticket ${ticket.tracking_id}`} />
 
             <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 lg:grid-cols-3">
@@ -129,6 +129,6 @@ export default function Show({ ticket, thread }) {
                     </section>
                 </aside>
             </div>
-        </AuthenticatedLayout>
+        </AdminLayout>
     );
 }

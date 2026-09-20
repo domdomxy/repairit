@@ -123,6 +123,12 @@ class User extends Authenticatable
         return $this->hasMany(Review::class, 'technician_id');
     }
 
+    /** What technicians wrote about a customer. */
+    public function customerReviewsReceived(): HasMany
+    {
+        return $this->hasMany(CustomerReview::class, 'customer_id');
+    }
+
     /** The offers a technician shows on their profile. */
     public function offers(): HasMany
     {

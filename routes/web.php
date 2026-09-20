@@ -7,6 +7,8 @@ use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
 use App\Http\Controllers\Admin\SupportController as AdminSupportController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AvatarController;
+use App\Http\Controllers\CustomerProfileController;
+use App\Http\Controllers\CustomerReviewController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\ProfileController;
@@ -78,6 +80,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/support/{ticket}/close', [SupportController::class, 'close'])->name('support.close');
     Route::get('/technicians', [TechnicianController::class, 'index'])->name('technicians.index');
     Route::get('/technicians/{technician}', [TechnicianController::class, 'show'])->name('technicians.show');
+    // A customer's public profile, and technicians rating the customers they have worked with.
+    Route::get('/customers/{customer}', [CustomerProfileController::class, 'show'])->name('customers.show');
+    Route::post('/customers/{customer}/review', [CustomerReviewController::class, 'store'])->name('customer-reviews.store');
+    Route::delete('/customers/{customer}/review', [CustomerReviewController::class, 'destroy'])->name('customer-reviews.destroy');
     // Every technician's offers, with search and filters. (The technician's own list is technician.offers.index.)
     Route::get('/offers', [OfferController::class, 'index'])->name('offers.index');
     // One offer on its own page: the link people copy and share.

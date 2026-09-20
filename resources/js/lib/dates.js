@@ -6,6 +6,18 @@ export function formatDateTime(iso) {
     return iso ? new Date(iso).toLocaleString() : '';
 }
 
+/** "14:32" for today's messages, "Sep 19, 14:32" for older ones (in the viewer's own format and time zone). */
+export function formatMessageTime(iso) {
+    if (!iso) return '';
+
+    const date = new Date(iso);
+    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (date.toDateString() === new Date().toDateString()) return time;
+
+    return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`;
+}
+
 /**
  * "Sep 19" for a plain `YYYY-MM-DD` date, as the chart data uses. Built from
  * its parts, not parsed as an ISO string, so no time zone can shift it a day.

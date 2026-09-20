@@ -7,13 +7,14 @@ import { useEffect, useRef, useState } from 'react';
 const ITEM =
     'block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 transition hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-300 dark:hover:bg-gray-800 dark:focus:bg-gray-800';
 
-// The "..." menu at the top right of a listed offer: copy its link, or report
-// it. Your own offers can only have their link copied, as with messages: you
-// report what somebody else made. `offer.technician` is the public card the
-// server sends with each offer.
-export default function OfferMenu({ offer, reasons }) {
+// The "..." menu at the top right of an offer: copy its link, edit it (your
+// own, when `onEdit` is given) or report it (somebody else's, when report
+// `reasons` are given). `offer.technician` is the public card the server sends
+// with each listed offer; on a profile page, where there is none, pass `isOwn`.
+export default function OfferMenu({ offer, reasons, isOwn: isOwnProp, onEdit }) {
     const { auth } = usePage().props;
-    const isOwn = auth.user.id === offer.technician.id;
+    const isOwn = isOwnProp ?? auth.user.id === offer.technician.id;
+    const canReport = !isOwn && Boolean(reasons) && Boolean(offer.technician);
 
     const [copied, setCopied] = useState(false);
     const [reporting, setReporting] = useState(false);
@@ -53,7 +54,13 @@ export default function OfferMenu({ offer, reasons }) {
                         Copy link
                     </button>
 
-                    {!isOwn && (
+                    {isOwn && onEdit && (
+                        <button type="button" onClick={onEdit} className={ITEM}>
+                            Edit offer
+                        </button>
+                    )}
+
+                    {canReport && (
                         <button
                             type="button"
                             onClick={() => setReporting(true)}
@@ -65,7 +72,7 @@ export default function OfferMenu({ offer, reasons }) {
                 </Dropdown.Content>
             </Dropdown>
 
-            {!isOwn && (
+            {canReport && (
                 <ReportModal
                     show={reporting}
                     onClose={() => setReporting(false)}

@@ -140,8 +140,12 @@ class MessageController extends Controller
      * card the technician can open. Starts the conversation if there is none
      * yet, then takes the sender to it.
      */
-    public function shareOffer(Offer $offer): RedirectResponse
+    public function shareOffer(Request $request, Offer $offer): RedirectResponse
     {
+        $validated = $request->validate([
+            'message' => ['nullable', 'string', 'max:5000'],
+        ]);
+
         $technician = $offer->technician;
 
         abort_unless($technician->role === 'technician' && ! $technician->isSuspended(), 404);
@@ -161,6 +165,8 @@ class MessageController extends Controller
             'sender_id' => $customer->id,
             'offer_id' => $offer->id,
             'offer_title' => $offer->title,
+            // Optional note that travels with the offer card.
+            'body' => filled($validated['message'] ?? null) ? trim($validated['message']) : null,
         ]);
 
         $this->deliver($conversation, $customer, [$message], $isCustomersFirstMessage);

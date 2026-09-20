@@ -1,11 +1,11 @@
 import { Head } from '@inertiajs/react';
 import Pagination from '@/Components/Pagination';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { formatDateTime } from '@/lib/dates';
 
 export default function Index({ logs }) {
     return (
-        <AuthenticatedLayout>
+        <AdminLayout>
             <Head title="Activity log" />
 
             <div className="mx-auto max-w-5xl px-4 py-8">
@@ -48,6 +48,6 @@ export default function Index({ logs }) {
 
                 <Pagination links={logs.links} />
             </div>
-        </AuthenticatedLayout>
+        </AdminLayout>
     );
 }

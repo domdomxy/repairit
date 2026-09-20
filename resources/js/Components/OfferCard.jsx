@@ -35,9 +35,16 @@ function OfferCategories({ categories, className = '' }) {
 //
 // `listing` is the layout of the offers page: the category tags sit beside the
 // title, and the price is left out (the caller puts it in its row of actions).
-export default function OfferCard({ offer, header, listing = false, children }) {
+export default function OfferCard({
+    offer,
+    header,
+    menu,
+    listing = false,
+    className = 'rounded-md border p-4 dark:border-gray-700',
+    children,
+}) {
     return (
-        <div className="space-y-3 rounded-md border p-4 dark:border-gray-700">
+        <div className={`space-y-3 ${className}`}>
             {header}
 
             <div className="flex items-start justify-between gap-3">
@@ -45,7 +52,10 @@ export default function OfferCard({ offer, header, listing = false, children }) 
                 {listing ? (
                     <OfferCategories categories={offer.categories} className="max-w-[60%] shrink-0 justify-end" />
                 ) : (
-                    <OfferPrice price={offer.price} />
+                    <div className="flex shrink-0 items-center gap-1">
+                        <OfferPrice price={offer.price} />
+                        {menu}
+                    </div>
                 )}
             </div>
 

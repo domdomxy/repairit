@@ -70,7 +70,7 @@ export default function AuthenticatedLayout({ children }) {
                                         <Dropdown.Link
                                             href={route('profile.edit')}
                                         >
-                                            Profile
+                                            Account
                                         </Dropdown.Link>
                                         <Dropdown.Link
                                             href={route('logout')}
@@ -199,7 +199,7 @@ export default function AuthenticatedLayout({ children }) {
                                 Support
                             </ResponsiveNavLink>
                             <ResponsiveNavLink href={route('profile.edit')}>
-                                Profile
+                                Account
                             </ResponsiveNavLink>
                             <ThemeToggle variant="responsive" />
                             <ResponsiveNavLink

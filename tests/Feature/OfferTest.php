@@ -326,6 +326,22 @@ test('a public profile shows the offers and never a storage path', function () {
             ->missing('technician.offers.0.media.0.mime'));
 });
 
+test('only the technician sees the offer form options on their own profile', function () {
+    $this->withoutVite();
+
+    $technician = offerTechnician();
+
+    $this->actingAs($technician)
+        ->get(route('technicians.show', $technician))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('offerForm.limits.max_offers', Offer::MAX_PER_TECHNICIAN)
+            ->has('offerForm.categories'));
+
+    $this->actingAs(offerCustomer())
+        ->get(route('technicians.show', $technician))
+        ->assertInertia(fn (Assert $page) => $page->where('offerForm', null));
+});
+
 // ---------------------------------------------------------------- serving files
 
 test('any signed-in user can load an offer file', function () {

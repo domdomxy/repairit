@@ -1,3 +1,4 @@
+import Modal from '@/Components/Modal';
 import { router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -54,6 +55,9 @@ export default function OfferShareActions({ offer, technicianId, showCopy = true
 
     const [copied, setCopied] = useState(false);
     const [sending, setSending] = useState(false);
+    const [composing, setComposing] = useState(false);
+    const [note, setNote] = useState('');
+    const [error, setError] = useState('');
     const timer = useRef(null);
 
     useEffect(() => () => clearTimeout(timer.current), []);
@@ -66,9 +70,20 @@ export default function OfferShareActions({ offer, technicianId, showCopy = true
         timer.current = setTimeout(() => setCopied(false), 2000);
     }
 
-    function sendInChat() {
-        router.post(route('offers.share', offer.id), {}, {
-            onStart: () => setSending(true),
+    // The offer goes as a card; the note is optional and travels with it.
+    function sendInChat(event) {
+        event?.preventDefault();
+
+        router.post(route('offers.share', offer.id), { message: note }, {
+            onStart: () => {
+                setSending(true);
+                setError('');
+            },
+            onError: (errors) => setError(errors.message ?? 'The offer could not be sent.'),
+            onSuccess: () => {
+                setComposing(false);
+                setNote('');
+            },
             onFinish: () => setSending(false),
         });
     }
@@ -81,12 +96,53 @@ export default function OfferShareActions({ offer, technicianId, showCopy = true
             {!isOwn && (
                 <button
                     type="button"
-                    onClick={sendInChat}
-                    disabled={sending}
-                    className="rounded-md bg-indigo-600 px-3 py-1.5 text-white hover:bg-indigo-700 disabled:opacity-50"
+                    onClick={() => setComposing(true)}
+                    className="rounded-md bg-indigo-600 px-3 py-1.5 text-white hover:bg-indigo-700"
                 >
-                    {sending ? 'Sending…' : 'Send in chat'}
+                    Send in chat
                 </button>
+            )}
+            {!isOwn && (
+                <Modal show={composing} onClose={() => !sending && setComposing(false)} maxWidth="md">
+                    <form onSubmit={sendInChat} className="space-y-4 p-6">
+                        <div>
+                            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Send offer in chat</h3>
+                            <p className="mt-1 truncate text-sm text-gray-500">{offer.title}</p>
+                        </div>
+                        <div>
+                            <label htmlFor={`offer-note-${offer.id}`} className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Message <span className="font-normal text-gray-500">(optional)</span>
+                            </label>
+                            <textarea
+                                id={`offer-note-${offer.id}`}
+                                value={note}
+                                onChange={(e) => setNote(e.target.value)}
+                                rows={4}
+                                maxLength={5000}
+                                placeholder="Add a message to send with this offer"
+                                className="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                            />
+                            {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+                        </div>
+                        <div className="flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setComposing(false)}
+                                disabled={sending}
+                                className="rounded-md bg-gray-100 px-3 py-1.5 text-sm hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={sending}
+                                className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-700 disabled:opacity-50"
+                            >
+                                {sending ? 'Sending…' : 'Send'}
+                            </button>
+                        </div>
+                    </form>
+                </Modal>
             )}
             {showCopy && (
                 <>

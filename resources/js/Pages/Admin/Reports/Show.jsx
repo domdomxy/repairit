@@ -3,7 +3,7 @@ import InputError from '@/Components/InputError';
 import MessageAttachments from '@/Components/MessageAttachments';
 import OfferCard from '@/Components/OfferCard';
 import ReportStatusBadge from '@/Components/ReportStatusBadge';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { formatDateTime } from '@/lib/dates';
 import { reportStatusLabels } from '@/lib/reports';
 import { Head, Link, router } from '@inertiajs/react';
@@ -134,7 +134,7 @@ export default function Show({ report, messages, offer, related }) {
     const canSuspend = report.reported.role !== 'admin' && !report.reported.suspended;
 
     return (
-        <AuthenticatedLayout>
+        <AdminLayout>
             <Head title={`Report #${report.id}`} />
 
             <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 lg:grid-cols-3">
@@ -311,6 +311,6 @@ export default function Show({ report, messages, offer, related }) {
                     )}
                 </aside>
             </div>
-        </AuthenticatedLayout>
+        </AdminLayout>
     );
 }

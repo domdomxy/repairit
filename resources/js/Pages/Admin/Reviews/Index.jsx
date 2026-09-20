@@ -2,7 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
 import { useState } from 'react';
 import Pagination from '@/Components/Pagination';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { formatDate } from '@/lib/dates';
 
 const stars = (rating) => '★'.repeat(rating) + '☆'.repeat(5 - rating);
@@ -29,7 +29,7 @@ export default function Index({ reviews, filters }) {
     }
 
     return (
-        <AuthenticatedLayout>
+        <AdminLayout>
             <Head title="Reviews" />
 
             <div className="mx-auto max-w-4xl space-y-4 px-4 py-8">
@@ -122,6 +122,6 @@ export default function Index({ reviews, filters }) {
 
                 <Pagination links={reviews.links} />
             </div>
-        </AuthenticatedLayout>
+        </AdminLayout>
     );
 }

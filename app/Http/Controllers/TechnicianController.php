@@ -295,7 +295,7 @@ class TechnicianController extends Controller
         $technician->load([
             'technicianProfile.categories',
             'offers' => fn ($q) => $q->latest()->latest('id')->with(['media', 'categories']),
-            'reviewsReceived' => fn ($q) => $q->latest()->with('customer:id,name,avatar_path'),
+            'reviewsReceived' => fn ($q) => $q->latest()->with('customer:id,name,avatar_path,role'),
         ]);
 
         // Any account can act as a customer, so anyone who has exchanged
@@ -306,6 +306,8 @@ class TechnicianController extends Controller
 
         return Inertia::render('Technicians/Show', [
             'technician' => $this->detail($technician),
+            // The offer form's options, only for the technician looking at their own profile.
+            'offerForm' => $viewer->is($technician) ? TechnicianOfferController::formProps() : null,
             'canReview' => Review::conversationFor($viewer, $technician) !== null,
             'myReview' => Review::where('customer_id', $viewer->id)
                 ->where('technician_id', $technician->id)
@@ -392,6 +394,7 @@ class TechnicianController extends Controller
                     'id' => $review->customer->id,
                     'name' => $review->customer->name,
                     'avatar_url' => $review->customer->avatar_url,
+                    'role' => $review->customer->role,
                 ],
             ])
             ->values()

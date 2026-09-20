@@ -1,15 +1,19 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
+import Modal from '@/Components/Modal';
 import OfferCard from '@/Components/OfferCard';
+import OfferForm from '@/Components/OfferForm';
+import OfferMenu from '@/Components/OfferMenu';
 import OfferShareActions from '@/Components/OfferShareActions';
 import ReviewForm from '@/Components/ReviewForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useState } from 'react';
 
 // Each of the three columns is a panel. They sit side by side on wide screens,
 // stretched to the height of the page, and stack on small ones.
 const PANEL = 'rounded-lg bg-white p-6 shadow dark:bg-gray-800';
 
-export default function Show({ technician, canReview, myReview }) {
+export default function Show({ technician, canReview, myReview, offerForm }) {
     const { auth } = usePage().props;
     const profile = technician.technician_profile;
     const isOwnProfile = auth.user.id === technician.id;
@@ -17,6 +21,11 @@ export default function Show({ technician, canReview, myReview }) {
     const offers = technician.offers ?? [];
     const reviews = technician.reviews_received ?? [];
     const ratingCount = profile?.rating_count ?? 0;
+
+    // The offer form opens in a panel: blank to create, or filled in to edit.
+    const [creating, setCreating] = useState(false);
+    const [editing, setEditing] = useState(null);
+    const atLimit = offerForm ? offers.length >= offerForm.limits.max_offers : false;
 
     function contact() {
         router.post(route('conversations.start', technician.id));
@@ -78,37 +87,94 @@ export default function Show({ technician, canReview, myReview }) {
                         )}
                     </section>
 
-                    {/* Middle: their offers */}
-                    <section aria-label="Offers" className={`${PANEL} min-w-0 flex-1`}>
-                        <div className="mb-4 flex items-center justify-between gap-4">
-                            <h4 className="font-semibold">Offers</h4>
-                            {isOwnProfile && (
-                                <Link
-                                    href={route('technician.offers.index')}
-                                    className="text-sm text-indigo-600 underline hover:text-indigo-500 dark:text-indigo-400"
+                    {/* Middle: the create box in a card of its own, then their offers with no panel behind them */}
+                    <div className="min-w-0 flex-1 space-y-4">
+                        {isOwnProfile && offerForm && (
+                            <section aria-label="Create an offer" className={PANEL}>
+                                <button
+                                    type="button"
+                                    onClick={() => setCreating(true)}
+                                    disabled={atLimit}
+                                    className="block w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-start text-sm text-gray-500 shadow-sm hover:border-indigo-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400"
                                 >
-                                    Manage offers
-                                </Link>
-                            )}
-                        </div>
-
-                        {offers.length === 0 && (
-                            <p className="text-sm text-gray-500">
-                                {isOwnProfile
-                                    ? 'You have not added any offers yet.'
-                                    : `${technician.name} has not added any offers yet.`}
-                            </p>
+                                    {atLimit
+                                        ? `You have reached the limit of ${offerForm.limits.max_offers} offers`
+                                        : 'Create a new offer'}
+                                </button>
+                            </section>
                         )}
-                        <ul className="space-y-3">
-                            {offers.map((offer) => (
-                                <li key={offer.id}>
-                                    <OfferCard offer={offer}>
-                                        <OfferShareActions offer={offer} technicianId={technician.id} />
-                                    </OfferCard>
-                                </li>
-                            ))}
-                        </ul>
-                    </section>
+
+                        <section aria-label="Offers">
+                            <h4 className="mb-3 px-1 font-semibold">Offers</h4>
+
+                            {offers.length === 0 && (
+                                <p className="text-sm text-gray-500">
+                                    {isOwnProfile
+                                        ? 'You have not added any offers yet.'
+                                        : `${technician.name} has not added any offers yet.`}
+                                </p>
+                            )}
+                            <ul className="space-y-3">
+                                {offers.map((offer) => (
+                                    <li key={offer.id}>
+                                        <OfferCard
+                                            offer={offer}
+                                            className="rounded-lg bg-white p-4 shadow dark:bg-gray-800"
+                                            menu={
+                                                <OfferMenu
+                                                    offer={offer}
+                                                    isOwn={isOwnProfile}
+                                                    onEdit={() => setEditing(offer)}
+                                                />
+                                            }
+                                        >
+                                            <OfferShareActions
+                                                offer={offer}
+                                                technicianId={technician.id}
+                                                showCopy={false}
+                                            />
+                                        </OfferCard>
+                                    </li>
+                                ))}
+                            </ul>
+                        </section>
+                    </div>
+
+                    {isOwnProfile && offerForm && (
+                        <>
+                            <Modal show={creating} onClose={() => setCreating(false)} maxWidth="2xl">
+                                <div className="p-6">
+                                    <h3 className="mb-4 text-lg font-medium text-gray-900 dark:text-gray-100">
+                                        Create a new offer
+                                    </h3>
+                                    <OfferForm
+                                        limits={offerForm.limits}
+                                        categories={offerForm.categories}
+                                        onDone={() => setCreating(false)}
+                                        onCancel={() => setCreating(false)}
+                                    />
+                                </div>
+                            </Modal>
+
+                            <Modal show={editing !== null} onClose={() => setEditing(null)} maxWidth="2xl">
+                                <div className="p-6">
+                                    <h3 className="mb-4 text-lg font-medium text-gray-900 dark:text-gray-100">
+                                        Edit offer
+                                    </h3>
+                                    {editing && (
+                                        <OfferForm
+                                            key={editing.id}
+                                            offer={editing}
+                                            limits={offerForm.limits}
+                                            categories={offerForm.categories}
+                                            onDone={() => setEditing(null)}
+                                            onCancel={() => setEditing(null)}
+                                        />
+                                    )}
+                                </div>
+                            </Modal>
+                        </>
+                    )}
 
                     {/* Right: how they are rated, and the reviews behind it */}
                     <section aria-label="Reviews" className={`${PANEL} w-full lg:w-72 lg:shrink-0 xl:w-1/4`}>
@@ -150,7 +216,17 @@ export default function Show({ technician, canReview, myReview }) {
                                         <Avatar user={review.customer} size="sm" />
                                         <div className="min-w-0">
                                             <p className="text-sm font-medium">
-                                                {review.customer.name} — {review.rating}/5
+                                                {review.customer.role === 'customer' ? (
+                                                    <Link
+                                                        href={route('customers.show', review.customer.id)}
+                                                        className="hover:underline"
+                                                    >
+                                                        {review.customer.name}
+                                                    </Link>
+                                                ) : (
+                                                    review.customer.name
+                                                )}{' '}
+                                                — {review.rating}/5
                                             </p>
                                             {review.comment && (
                                                 <p className="mt-1 break-words text-sm text-gray-600 dark:text-gray-300">
