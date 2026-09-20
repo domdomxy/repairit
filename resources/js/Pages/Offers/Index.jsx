@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import KeywordSearchBar from '@/Components/KeywordSearchBar';
 import OfferListing from '@/Components/OfferListing';
 import Pagination from '@/Components/Pagination';
+import ProfileSidebar from '@/Components/ProfileSidebar';
 import TopRatedTechnicians from '@/Components/TopRatedTechnicians';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
@@ -35,6 +36,8 @@ function buildParams(form) {
 }
 
 export default function Index({ offers, categories, topRated, filters }) {
+    const { auth } = usePage().props;
+
     const [form, setForm] = useState({
         q: filters.q ?? '',
         category: filters.category ?? '',
@@ -42,6 +45,7 @@ export default function Index({ offers, categories, topRated, filters }) {
         availability: filters.availability ?? '',
         media: filters.media ?? '',
         sort: filters.sort ?? '',
+        top_category: filters.top_category ?? '',
     });
 
     function update(key, value) {
@@ -121,9 +125,9 @@ export default function Index({ offers, categories, topRated, filters }) {
 
     return (
         <AuthenticatedLayout>
-            <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <div className="flex w-full flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
                 {/* Search and filters */}
-                <div className="mb-6 space-y-2 rounded-lg bg-white p-4 shadow dark:bg-gray-800">
+                <div className="mb-6 shrink-0 space-y-2 rounded-lg bg-white p-4 shadow dark:bg-gray-800">
                     <KeywordSearchBar
                         value={form.q}
                         onChange={(value) => update('q', value)}
@@ -136,14 +140,21 @@ export default function Index({ offers, categories, topRated, filters }) {
                     </p>
                 </div>
 
-                <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+                <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:items-start">
+                    {/* Account rail: profile, dashboard, theme toggle, support. Stretched
+                        to the row's height, which flex-1 above guarantees is at least the
+                        remaining viewport, on any screen size, without a hardcoded vh figure. */}
+                    <aside className="w-full lg:sticky lg:top-4 lg:w-56 lg:shrink-0 lg:self-stretch">
+                        <ProfileSidebar user={auth.user} className="h-full" />
+                    </aside>
+
                     {/* Results */}
                     <div className="min-w-0 flex-1">
                         {offers.data.length === 0 && (
                             <p className="text-gray-500">No offers match your search.</p>
                         )}
 
-                        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-4">
                             {offers.data.map((offer) => (
                                 <OfferListing key={offer.id} offer={offer} />
                             ))}
@@ -154,7 +165,12 @@ export default function Index({ offers, categories, topRated, filters }) {
 
                     {/* The best rated technicians: beside the offers on wide screens, below them on small ones. */}
                     <aside className="w-full lg:sticky lg:top-4 lg:w-72 lg:shrink-0">
-                        <TopRatedTechnicians technicians={topRated} />
+                        <TopRatedTechnicians
+                            technicians={topRated}
+                            categories={categories}
+                            categoryValue={form.top_category}
+                            onCategoryChange={(value) => update('top_category', value)}
+                        />
                     </aside>
                 </div>
             </div>

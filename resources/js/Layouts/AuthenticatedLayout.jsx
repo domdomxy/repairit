@@ -19,9 +19,9 @@ export default function AuthenticatedLayout({ children }) {
         useState(false);
 
     return (
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+        <div className="flex min-h-screen flex-col bg-gray-100 dark:bg-gray-900">
             <nav className="border-b border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div className="w-full px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 justify-between">
                         <div className="flex shrink-0">
                             <div className="flex shrink-0 items-center">
@@ -68,21 +68,10 @@ export default function AuthenticatedLayout({ children }) {
 
                                     <Dropdown.Content>
                                         <Dropdown.Link
-                                            href={route('dashboard')}
-                                        >
-                                            Dashboard
-                                        </Dropdown.Link>
-                                        <Dropdown.Link
                                             href={route('profile.edit')}
                                         >
                                             Profile
                                         </Dropdown.Link>
-                                        <Dropdown.Link
-                                            href={route('support.index')}
-                                        >
-                                            Support
-                                        </Dropdown.Link>
-                                        <ThemeToggle variant="menu" />
                                         <Dropdown.Link
                                             href={route('logout')}
                                             method="post"
@@ -210,7 +199,7 @@ export default function AuthenticatedLayout({ children }) {
             </nav>
 
             {flash?.success && (
-                <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
+                <div className="w-full px-4 pt-4 sm:px-6 lg:px-8">
                     <div
                         role="status"
                         className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-300"
@@ -220,7 +209,7 @@ export default function AuthenticatedLayout({ children }) {
                 </div>
             )}
 
-            <main>{children}</main>
+            <main className="flex flex-1 flex-col">{children}</main>
         </div>
     );
 }

@@ -7,11 +7,37 @@ const AVAILABILITY_DOT = {
 };
 
 // A short ranked list of the best rated technicians. `technicians` is already
-// sorted; each entry links to the technician's profile.
-export default function TopRatedTechnicians({ technicians, className = '' }) {
+// sorted; each entry links to the technician's profile. The optional category
+// select narrows the ranking to technicians with an offer in that category;
+// pass `categories`, `categoryValue` and `onCategoryChange` together to show it.
+export default function TopRatedTechnicians({
+    technicians,
+    categories,
+    categoryValue,
+    onCategoryChange,
+    className = '',
+}) {
     return (
         <section className={`rounded-lg bg-white p-4 shadow dark:bg-gray-800 ${className}`}>
-            <h3 className="mb-3 font-semibold">Top rated technicians</h3>
+            <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="font-semibold">Top rated technicians</h3>
+
+                {categories && (
+                    <select
+                        aria-label="Filter top rated technicians by category"
+                        value={categoryValue ?? ''}
+                        onChange={(e) => onCategoryChange?.(e.target.value)}
+                        className="rounded-md border-gray-300 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
+                    >
+                        <option value="">All categories</option>
+                        {categories.map((category) => (
+                            <option key={category.slug} value={category.slug}>
+                                {category.name}
+                            </option>
+                        ))}
+                    </select>
+                )}
+            </div>
 
             {technicians.length === 0 ? (
                 <p className="text-sm text-gray-500">No technician has been rated yet.</p>

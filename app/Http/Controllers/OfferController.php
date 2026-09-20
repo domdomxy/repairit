@@ -107,10 +107,10 @@ class OfferController extends Controller
         return Inertia::render('Offers/Index', [
             'offers' => $offers,
             'categories' => Category::orderBy('name')->get(),
-            'topRated' => $this->topRated(),
+            'topRated' => $this->topRated((string) $request->input('top_category')),
             // Cast to an object: an empty PHP array reaches the browser as a JS
             // array, where `filters.sort` is Array.prototype.sort, not "unset".
-            'filters' => (object) $request->only(['q', 'category', 'city', 'availability', 'media', 'sort']),
+            'filters' => (object) $request->only(['q', 'category', 'city', 'availability', 'media', 'sort', 'top_category']),
         ]);
     }
 
@@ -119,17 +119,34 @@ class OfferController extends Controller
      * reviews winning a tie. Technicians nobody has reviewed yet are not
      * "top rated", and suspended ones are left out. Public fields only.
      *
+     * An optional category slug narrows the ranking down to technicians who
+     * have at least one offer tagged with it, independent of the main offers
+     * list's own category filter above.
+     *
      * @return list<array<string, mixed>>
      */
-    private function topRated(): array
+    private function topRated(string $categorySlug = ''): array
     {
-        return User::query()
+        $query = User::query()
             ->join('technician_profiles', 'technician_profiles.user_id', '=', 'users.id')
             ->where('users.role', 'technician')
             ->whereNull('users.suspended_at')
             ->where('technician_profiles.rating_count', '>', 0)
             ->select('users.*')
-            ->with('technicianProfile')
+            ->with('technicianProfile');
+
+        if ($categorySlug !== '') {
+            $query->whereExists(function ($q) use ($categorySlug) {
+                $q->selectRaw('1')
+                    ->from('offers')
+                    ->join('category_offer', 'category_offer.offer_id', '=', 'offers.id')
+                    ->join('categories', 'categories.id', '=', 'category_offer.category_id')
+                    ->whereColumn('offers.technician_id', 'users.id')
+                    ->where('categories.slug', $categorySlug);
+            });
+        }
+
+        return $query
             ->orderByDesc('technician_profiles.rating_avg')
             ->orderByDesc('technician_profiles.rating_count')
             ->orderBy('users.id')
