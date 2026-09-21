@@ -1,5 +1,5 @@
 import InputError from '@/Components/InputError';
-import PrimaryButton from '@/Components/PrimaryButton';
+import { StarIcon } from '@/Components/Icons';
 import { router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 
@@ -9,7 +9,8 @@ const COMMENT_LIMIT = 1000;
  * Create or edit the signed-in person's review: a customer's review of a
  * technician (pass `technicianId`), or a technician's rating of a customer
  * (pass `storeUrl` and `destroyUrl`). Pass `review` ({ rating, comment }) to
- * edit an existing one.
+ * edit an existing one. `onDone` runs once it has been saved or deleted (the
+ * profile pages use it to fold the form away again).
  */
 export default function ReviewForm({
     technicianId,
@@ -17,6 +18,7 @@ export default function ReviewForm({
     storeUrl = null,
     destroyUrl = null,
     placeholder = 'Share how the job went (optional)',
+    onDone = null,
 }) {
     const { data, setData, post, processing, errors, recentlySuccessful } = useForm({
         rating: review?.rating ?? 0,
@@ -30,13 +32,19 @@ export default function ReviewForm({
 
         if (!data.rating) return;
 
-        post(storeUrl ?? route('reviews.store', technicianId), { preserveScroll: true });
+        post(storeUrl ?? route('reviews.store', technicianId), {
+            preserveScroll: true,
+            onSuccess: () => onDone?.(),
+        });
     }
 
     function remove() {
         if (!window.confirm('Delete your review?')) return;
 
-        router.delete(destroyUrl ?? route('reviews.destroy', technicianId), { preserveScroll: true });
+        router.delete(destroyUrl ?? route('reviews.destroy', technicianId), {
+            preserveScroll: true,
+            onSuccess: () => onDone?.(),
+        });
     }
 
     return (
@@ -56,13 +64,13 @@ export default function ReviewForm({
                             onMouseEnter={() => setHovered(value)}
                             aria-label={`${value} ${value === 1 ? 'star' : 'stars'}`}
                             aria-pressed={data.rating === value}
-                            className={`text-3xl leading-none ${
+                            className={`rounded p-0.5 transition hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                                 value <= shown
-                                    ? 'text-yellow-400'
+                                    ? 'text-amber-400'
                                     : 'text-gray-300 dark:text-gray-600'
                             }`}
                         >
-                            ★
+                            <StarIcon className="h-7 w-7" />
                         </button>
                     ))}
                     {data.rating > 0 && (
@@ -88,15 +96,19 @@ export default function ReviewForm({
             </div>
 
             <div className="flex items-center gap-4">
-                <PrimaryButton disabled={processing || !data.rating}>
+                <button
+                    type="submit"
+                    disabled={processing || !data.rating}
+                    className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
                     {review ? 'Update review' : 'Submit review'}
-                </PrimaryButton>
+                </button>
 
                 {review && (
                     <button
                         type="button"
                         onClick={remove}
-                        className="text-sm text-red-600 underline dark:text-red-400"
+                        className="text-sm text-red-600 hover:underline dark:text-red-400"
                     >
                         Delete
                     </button>

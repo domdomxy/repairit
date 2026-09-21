@@ -33,6 +33,14 @@ const VARIANTS = {
         size: 'h-4 w-4',
         labelled: true,
     },
+    // A row in the feed's account rail, styled like its links.
+    sidebar: {
+        base:
+            ROW_BASE +
+            'gap-3 rounded-lg px-3 py-2 text-start text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 ',
+        size: 'h-5 w-5 text-gray-400',
+        labelled: true,
+    },
     // A row in the phone menu, styled like its links.
     responsive:
         {

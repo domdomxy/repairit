@@ -1,4 +1,5 @@
 import Modal from '@/Components/Modal';
+import PlayIcon from '@/Components/PlayIcon';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { useEffect } from 'react';
 
@@ -143,8 +144,8 @@ export default function MediaLightbox({ attachments, index, onIndexChange, onClo
                                 {item.is_video ? (
                                     <>
                                         <video src={item.url} className="h-full w-full object-cover" />
-                                        <span className="absolute inset-0 flex items-center justify-center bg-black/20 text-xs text-white">
-                                            ▶
+                                        <span className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                            <PlayIcon className="h-6 w-6" />
                                         </span>
                                     </>
                                 ) : (

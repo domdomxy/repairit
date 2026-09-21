@@ -1,5 +1,6 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
+import { ChatIcon, MailIcon, PencilIcon, PhoneIcon, PinIcon, StarIcon } from '@/Components/Icons';
 import FeedFilterMenu from '@/Components/FeedFilterMenu';
 import FeedKindBadge from '@/Components/FeedKindBadge';
 import Modal from '@/Components/Modal';
@@ -9,9 +10,10 @@ import OfferMenu from '@/Components/OfferMenu';
 import OfferShareActions from '@/Components/OfferShareActions';
 import RequestCard from '@/Components/RequestCard';
 import RequestForm from '@/Components/RequestForm';
-import ReviewForm from '@/Components/ReviewForm';
-import ReviewReportButton from '@/Components/ReviewReportButton';
+import { Banner, ContactRow, SIDE_PANEL, Section, Stat } from '@/Components/ProfileParts';
+import ReviewsPanel from '@/Components/ReviewsPanel';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { AVAILABILITY } from '@/lib/availability';
 import { useState } from 'react';
 
 // Each of the three columns is a panel. They sit side by side on wide screens,
@@ -38,6 +40,8 @@ export default function Show({ technician, requests, canReview, myReview, offerF
     const offers = technician.offers ?? [];
     const reviews = technician.reviews_received ?? [];
     const ratingCount = profile?.rating_count ?? 0;
+    const availability = AVAILABILITY[profile?.availability_status] ?? null;
+
 
     // The forms open in a panel: blank to create an offer or a request ('offer' | 'request'),
     // or an offer filled in to edit.
@@ -117,59 +121,133 @@ export default function Show({ technician, requests, canReview, myReview, offerF
     }
 
     return (
-        <AuthenticatedLayout>
-            <div className="flex w-full flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
+        <AuthenticatedLayout stickyNav>
+            <div className="flex w-full flex-1 flex-col px-4 pb-8 pt-4 sm:px-6 lg:px-8">
                 <div className="flex flex-1 flex-col gap-6 lg:flex-row">
                     {/* Left: who the technician is */}
                     <section
                         aria-label="Technician information"
-                        className={`${PANEL} w-full lg:w-72 lg:shrink-0 xl:w-1/4`}
+                        className={SIDE_PANEL}
                     >
-                        <div className="flex items-center gap-4">
-                            <Avatar user={technician} size="lg" />
-                            <div className="min-w-0">
-                                <h3 className="break-words text-lg font-semibold">{technician.name}</h3>
-                                {profile?.city && <p className="text-sm text-gray-500">{profile.city}</p>}
+                        <Banner />
+
+                        <div className="px-6 pb-6">
+                            <div className="relative -mt-12 w-fit">
+                                <div className="rounded-full ring-4 ring-white dark:ring-gray-800">
+                                    <Avatar user={technician} size="xl" />
+                                </div>
+                                {availability && (
+                                    <span
+                                        title={availability.label}
+                                        className={`absolute bottom-1 end-1 h-4 w-4 rounded-full ring-2 ring-white dark:ring-gray-800 ${availability.dot}`}
+                                    />
+                                )}
                             </div>
-                        </div>
 
-                        <p className="mt-4 text-sm capitalize">Status: {profile?.availability_status}</p>
+                            <h3 className="mt-3 break-words text-xl font-semibold text-gray-900 dark:text-gray-100">
+                                {technician.name}
+                            </h3>
 
-                        {isOwnProfile ? (
-                            <Link
-                                href={route('technician.profile.edit')}
-                                className="mt-4 block w-full rounded-md bg-indigo-600 px-4 py-2 text-center text-white hover:bg-indigo-700"
-                            >
-                                Edit profile
-                            </Link>
-                        ) : (
-                            <button
-                                onClick={contact}
-                                className="mt-4 w-full rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
-                            >
-                                Message
-                            </button>
-                        )}
+                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                                {availability && (
+                                    <span
+                                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${availability.pill}`}
+                                    >
+                                        <span className={`h-1.5 w-1.5 rounded-full ${availability.dot}`} />
+                                        {availability.label}
+                                    </span>
+                                )}
+                                {profile?.city && (
+                                    <span className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300">
+                                        <PinIcon className="h-4 w-4 text-gray-400" />
+                                        {profile.city}
+                                    </span>
+                                )}
+                            </div>
 
-                        {profile?.bio && <p className="mt-6 break-words text-sm">{profile.bio}</p>}
-
-                        <div className="mt-4 flex flex-wrap gap-2">
-                            {profile?.categories?.map((category) => (
-                                <span
-                                    key={category.id}
-                                    className="rounded-full bg-gray-100 px-2 py-1 text-xs dark:bg-gray-700"
+                            {isOwnProfile ? (
+                                <Link
+                                    href={route('technician.profile.edit')}
+                                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700"
                                 >
-                                    {category.name}
-                                </span>
-                            ))}
-                        </div>
+                                    <PencilIcon />
+                                    Edit profile
+                                </Link>
+                            ) : (
+                                <button
+                                    onClick={contact}
+                                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700"
+                                >
+                                    <ChatIcon />
+                                    Message
+                                </button>
+                            )}
 
-                        {(profile?.show_phone_publicly || profile?.show_email_publicly) && (
-                            <div className="mt-4 space-y-1 break-words text-sm">
-                                {profile.show_phone_publicly && profile.phone && <p>Phone: {profile.phone}</p>}
-                                {profile.show_email_publicly && <p>Email: {technician.email}</p>}
+                            <div className="mt-5 grid grid-cols-3 divide-x divide-gray-100 rounded-lg border border-gray-100 dark:divide-gray-700 dark:border-gray-700">
+                                <Stat label={ratingCount === 1 ? 'Review' : 'Reviews'}>
+                                    {ratingCount > 0 ? (
+                                        <>
+                                            <StarIcon className="h-4 w-4 text-amber-400" />
+                                            {Number(profile.rating_avg).toFixed(1)}
+                                        </>
+                                    ) : (
+                                        '—'
+                                    )}
+                                </Stat>
+                                <Stat label={offers.length === 1 ? 'Offer' : 'Offers'}>{offers.length}</Stat>
+                                <Stat label={(requests ?? []).length === 1 ? 'Request' : 'Requests'}>
+                                    {(requests ?? []).length}
+                                </Stat>
                             </div>
-                        )}
+
+                            <div className="mt-2 divide-y divide-gray-100 dark:divide-gray-700">
+                                {profile?.bio && (
+                                    <Section title="About">
+                                        <p className="whitespace-pre-line break-words text-sm leading-relaxed text-gray-700 dark:text-gray-300">
+                                            {profile.bio}
+                                        </p>
+                                    </Section>
+                                )}
+
+                                {profile?.categories?.length > 0 && (
+                                    <Section title="Specialties">
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {profile.categories.map((category) => (
+                                                <span
+                                                    key={category.id}
+                                                    className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-700 dark:border-gray-600 dark:bg-gray-700/50 dark:text-gray-200"
+                                                >
+                                                    {category.name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </Section>
+                                )}
+
+                                {((profile?.show_phone_publicly && profile.phone) || profile?.show_email_publicly) && (
+                                    <Section title="Contact">
+                                        <div className="space-y-0.5">
+                                            {profile.show_phone_publicly && profile.phone && (
+                                                <ContactRow
+                                                    icon={<PhoneIcon />}
+                                                    label="Phone"
+                                                    value={profile.phone}
+                                                    href={`tel:${profile.phone.replace(/[^\d+]/g, '')}`}
+                                                />
+                                            )}
+                                            {profile.show_email_publicly && technician.email && (
+                                                <ContactRow
+                                                    icon={<MailIcon />}
+                                                    label="Email"
+                                                    value={technician.email}
+                                                    href={`mailto:${technician.email}`}
+                                                />
+                                            )}
+                                        </div>
+                                    </Section>
+                                )}
+                            </div>
+                        </div>
                     </section>
 
                     {/* Middle: the create box in a card of its own, then their posts (offers and requests) with no panel behind them */}
@@ -343,76 +421,26 @@ export default function Show({ technician, requests, canReview, myReview, offerF
                     )}
 
                     {/* Right: how they are rated, and the reviews behind it */}
-                    <section aria-label="Reviews" className={`${PANEL} w-full lg:w-72 lg:shrink-0 xl:w-1/4`}>
-                        <h4 className="font-semibold">Reviews</h4>
-
-                        <p className="mb-4 mt-2 flex flex-wrap items-baseline gap-x-2">
-                            <span className="text-3xl font-semibold">
-                                ⭐ {ratingCount ? profile.rating_avg : '—'}
-                            </span>
-                            <span className="text-sm text-gray-500">
-                                / 5 · {ratingCount} review{ratingCount === 1 ? '' : 's'}
-                            </span>
-                        </p>
-
-                        {!isOwnProfile &&
-                            (canReview ? (
-                                <div className="mb-4 rounded-md border p-4 dark:border-gray-700">
-                                    <h5 className="mb-3 text-sm font-medium">
-                                        {myReview ? 'Your review' : 'Leave a review'}
-                                    </h5>
-                                    <ReviewForm
-                                        key={myReview ? 'edit' : 'new'}
-                                        technicianId={technician.id}
-                                        review={myReview}
-                                    />
-                                </div>
-                            ) : (
-                                <p className="mb-4 text-sm text-gray-500">
-                                    Once you and {technician.name} have exchanged messages, you can leave a
-                                    review.
-                                </p>
-                            ))}
-
-                        {reviews.length === 0 && <p className="text-sm text-gray-500">No reviews yet.</p>}
-                        <ul className="space-y-3">
-                            {reviews.map((review) => (
-                                <li key={review.id} className="rounded-md border p-3 dark:border-gray-700">
-                                    <div className="flex items-start gap-3">
-                                        <Avatar user={review.customer} size="sm" />
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-medium">
-                                                {review.customer.role === 'customer' ? (
-                                                    <Link
-                                                        href={route('customers.show', review.customer.id)}
-                                                        className="hover:underline"
-                                                    >
-                                                        {review.customer.name}
-                                                    </Link>
-                                                ) : (
-                                                    review.customer.name
-                                                )}{' '}
-                                                — {review.rating}/5
-                                            </p>
-                                            {review.comment && (
-                                                <p className="mt-1 break-words text-sm text-gray-600 dark:text-gray-300">
-                                                    {review.comment}
-                                                </p>
-                                            )}
-                                            {/* Anyone but its author can report it */}
-                                            {review.customer.id !== auth.user.id && (
-                                                <ReviewReportButton
-                                                    action={route('reviews.report', review.id)}
-                                                    reasons={reportReasons}
-                                                    authorName={review.customer.name}
-                                                />
-                                            )}
-                                        </div>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    </section>
+                    <ReviewsPanel
+                        average={profile?.rating_avg}
+                        count={ratingCount}
+                        reviews={reviews.map((review) => ({
+                            id: review.id,
+                            rating: review.rating,
+                            comment: review.comment,
+                            author: review.customer,
+                            authorHref:
+                                review.customer.role === 'customer' ? route('customers.show', review.customer.id) : null,
+                        }))}
+                        currentUserId={auth.user.id}
+                        canRespond={!isOwnProfile}
+                        canReview={canReview}
+                        lockedText={`Once you and ${technician.name} have exchanged messages, you can leave a review.`}
+                        myReview={myReview}
+                        formProps={{ technicianId: technician.id }}
+                        reportRoute={(id) => route('reviews.report', id)}
+                        reportReasons={reportReasons}
+                    />
                 </div>
             </div>
         </AuthenticatedLayout>

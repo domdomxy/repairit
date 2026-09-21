@@ -1,17 +1,39 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { useEcho } from '@laravel/echo-react';
 import Avatar from '@/Components/Avatar';
 import ConversationInfo from '@/Components/ConversationInfo';
 import ConversationMenu from '@/Components/ConversationMenu';
 import MediaStackRow from '@/Components/MediaStackRow';
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
+import SendLocationModal from '@/Components/SendLocationModal';
 import MessageRow from '@/Components/MessageRow';
 import MessagesShell from '@/Components/MessagesShell';
+import { formatChatSeparator, needsChatSeparator } from '@/lib/dates';
 import { formatSize } from '@/lib/files';
 
 // Same lists the server shows inline; anything else is a plain file chip.
 const PREVIEWABLE_IMAGE = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const PREVIEWABLE_VIDEO = ['video/mp4', 'video/quicktime', 'video/webm', 'video/ogg'];
+
+const iconClass = 'h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400';
+
+function PaperclipIcon() {
+    return (
+        <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m21.4 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+        </svg>
+    );
+}
+
+function PinIcon() {
+    return (
+        <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+            <circle cx="12" cy="10" r="3" />
+        </svg>
+    );
+}
 
 // One chosen file in the composer, with a thumbnail when it is a picture or clip.
 function PendingFile({ file, error, onRemove }) {
@@ -69,6 +91,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
     const [fileProblems, setFileProblems] = useState([]);
     const [locationError, setLocationError] = useState(null);
     const [sendingLocation, setSendingLocation] = useState(false);
+    const [pickingLocation, setPickingLocation] = useState(false);
     const bottomRef = useRef(null);
     const fileInput = useRef(null);
 
@@ -133,7 +156,21 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
             i += 1;
         }
 
-        return result;
+        // Mark a long pause (or a new day) with a time label above the message
+        // that follows it, and the very first message of the conversation.
+        let previous = null;
+
+        return result.map((group) => {
+            const first = group.type === 'stack' ? group.messages[0] : group.message;
+            const last = group.type === 'stack' ? group.messages[group.messages.length - 1] : group.message;
+            const separator = needsChatSeparator(previous?.created_at, first.created_at)
+                ? formatChatSeparator(first.created_at)
+                : null;
+
+            previous = last;
+
+            return { ...group, separator };
+        });
     }, [messages]);
 
     // Keeps the list's preview and order up to date. "async" so it can't
@@ -240,44 +277,22 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
         setData('attachments', next);
     }
 
-    // Reads the device's location from the browser, then sends it like any
-    // other message. The browser handles the actual permission prompt; this
-    // only runs once someone has granted it.
-    function shareLocation() {
-        setLocationError(null);
-
-        if (!navigator.geolocation) {
-            setLocationError("Your browser doesn't support sharing your location.");
-            return;
-        }
-
+    // Sends a chosen point as a location message.
+    function postLocation({ lat, lng, label = null }) {
         setSendingLocation(true);
 
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                router.post(
-                    route('messages.location.store', conversation.id),
-                    {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude,
-                    },
-                    {
-                        preserveScroll: true,
-                        onSuccess: (page) => setMessages(page.props.messages),
-                        onError: () => setLocationError('Your location could not be sent.'),
-                        onFinish: () => setSendingLocation(false),
-                    },
-                );
+        router.post(
+            route('messages.location.store', conversation.id),
+            { lat, lng, ...(label ? { label } : {}) },
+            {
+                preserveScroll: true,
+                onSuccess: (page) => {
+                    setMessages(page.props.messages);
+                    setPickingLocation(false);
+                },
+                onError: () => setLocationError('Your location could not be sent.'),
+                onFinish: () => setSendingLocation(false),
             },
-            (error) => {
-                setSendingLocation(false);
-                setLocationError(
-                    error.code === error.PERMISSION_DENIED
-                        ? "Location access was denied. Allow it in your browser's settings to share it here."
-                        : "Couldn't get your location. Please try again.",
-                );
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
         );
     }
 
@@ -369,36 +384,41 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                 </p>
             )}
 
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-                {groups.map((group) =>
-                    group.type === 'stack' ? (
-                        <MediaStackRow
-                            key={group.key}
-                            messages={group.messages}
-                            isMine={group.messages[0].sender_id === auth.user.id}
-                            author={people[group.messages[0].sender_id]}
-                            otherName={otherParty.name}
-                            reported={group.messages.some((message) =>
-                                moderation.reported_message_ids.includes(message.id),
-                            )}
-                            reasons={moderation.reasons}
-                            onMessagesChange={setMessages}
-                            onImageLoad={scrollToBottom}
-                        />
-                    ) : (
-                        <MessageRow
-                            key={group.key}
-                            message={group.message}
-                            isMine={group.message.sender_id === auth.user.id}
-                            author={people[group.message.sender_id]}
-                            otherName={otherParty.name}
-                            reported={moderation.reported_message_ids.includes(group.message.id)}
-                            reasons={moderation.reasons}
-                            onMessagesChange={setMessages}
-                            onImageLoad={scrollToBottom}
-                        />
-                    ),
-                )}
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden p-4">
+                {groups.map((group) => (
+                    <Fragment key={group.key}>
+                        {group.separator && (
+                            <p className="py-2 text-center text-xs text-gray-400 dark:text-gray-500">
+                                {group.separator}
+                            </p>
+                        )}
+                        {group.type === 'stack' ? (
+                            <MediaStackRow
+                                messages={group.messages}
+                                isMine={group.messages[0].sender_id === auth.user.id}
+                                author={people[group.messages[0].sender_id]}
+                                otherName={otherParty.name}
+                                reported={group.messages.some((message) =>
+                                    moderation.reported_message_ids.includes(message.id),
+                                )}
+                                reasons={moderation.reasons}
+                                onMessagesChange={setMessages}
+                                onImageLoad={scrollToBottom}
+                            />
+                        ) : (
+                            <MessageRow
+                                message={group.message}
+                                isMine={group.message.sender_id === auth.user.id}
+                                author={people[group.message.sender_id]}
+                                otherName={otherParty.name}
+                                reported={moderation.reported_message_ids.includes(group.message.id)}
+                                reasons={moderation.reasons}
+                                onMessagesChange={setMessages}
+                                onImageLoad={scrollToBottom}
+                            />
+                        )}
+                    </Fragment>
+                ))}
                 <div ref={bottomRef} />
             </div>
 
@@ -440,25 +460,42 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                         onChange={pickFiles}
                         className="hidden"
                     />
-                    <button
-                        type="button"
-                        onClick={() => fileInput.current?.click()}
-                        title="Attach files"
-                        aria-label="Attach files"
-                        className="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-md"
-                    >
-                        📎
-                    </button>
-                    <button
-                        type="button"
-                        onClick={shareLocation}
-                        disabled={sendingLocation}
-                        title="Share your location"
-                        aria-label="Share your location"
-                        className="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-md disabled:opacity-50"
-                    >
-                        {sendingLocation ? '…' : '📍'}
-                    </button>
+                    <Menu as="div" className="relative">
+                        <MenuButton
+                            title="Attach"
+                            aria-label="Attach a file or a location"
+                            disabled={sendingLocation}
+                            className="h-full rounded-md bg-gray-100 px-3 py-2 text-lg leading-none text-gray-700 hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                        >
+                            {sendingLocation ? '…' : '+'}
+                        </MenuButton>
+                        <MenuItems
+                            anchor="top start"
+                            className="z-50 w-56 rounded-md bg-white py-1 shadow-lg ring-1 ring-black/5 [--anchor-gap:8px] focus:outline-none dark:bg-gray-700"
+                        >
+                            <MenuItem>
+                                <button
+                                    type="button"
+                                    onClick={() => fileInput.current?.click()}
+                                    className="flex w-full items-center gap-2 px-4 py-2 text-start text-sm text-gray-700 data-[focus]:bg-gray-100 dark:text-gray-300 dark:data-[focus]:bg-gray-800"
+                                >
+                                    <PaperclipIcon /> Attach files
+                                </button>
+                            </MenuItem>
+                            <MenuItem>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setLocationError(null);
+                                        setPickingLocation(true);
+                                    }}
+                                    className="flex w-full items-center gap-2 px-4 py-2 text-start text-sm text-gray-700 data-[focus]:bg-gray-100 dark:text-gray-300 dark:data-[focus]:bg-gray-800"
+                                >
+                                    <PinIcon /> Share location
+                                </button>
+                            </MenuItem>
+                        </MenuItems>
+                    </Menu>
                     <input
                         type="text"
                         value={data.body}
@@ -477,6 +514,14 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                     </button>
                 </div>
             </form>
+
+            <SendLocationModal
+                show={pickingLocation}
+                sending={sendingLocation}
+                error={locationError}
+                onClose={() => setPickingLocation(false)}
+                onSend={postLocation}
+            />
         </>
     );
 }

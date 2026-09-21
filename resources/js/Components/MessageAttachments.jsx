@@ -1,4 +1,5 @@
 import Modal from '@/Components/Modal';
+import PlayIcon from '@/Components/PlayIcon';
 import { formatSize } from '@/lib/files';
 import { useState } from 'react';
 
@@ -36,11 +37,8 @@ export default function MessageAttachments({ attachments, onImageLoad, className
                                         onLoadedData={onImageLoad}
                                         className={media.length > 1 ? 'h-28 w-full rounded-md object-cover' : 'max-h-60 rounded-md'}
                                     />
-                                    <span
-                                        aria-hidden="true"
-                                        className="absolute inset-0 flex items-center justify-center bg-black/10 text-3xl text-white drop-shadow"
-                                    >
-                                        ▶
+                                    <span className="absolute inset-0 flex items-center justify-center bg-black/10">
+                                        <PlayIcon className={media.length > 1 ? 'h-10 w-10' : 'h-14 w-14'} />
                                     </span>
                                 </>
                             ) : (

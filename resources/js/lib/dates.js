@@ -38,3 +38,42 @@ export function relativeTime(iso) {
 
     return `${Math.floor(seconds / 86400)}d ago`;
 }
+
+// A pause this long between two messages (or a new calendar day) is marked
+// with a centred time label in the conversation.
+export const CHAT_GAP_MS = 60 * 60 * 1000;
+
+export function needsChatSeparator(previousIso, iso) {
+    if (!previousIso) return true;
+
+    const previous = new Date(previousIso);
+    const current = new Date(iso);
+
+    return current - previous >= CHAT_GAP_MS || previous.toDateString() !== current.toDateString();
+}
+
+/**
+ * The label above a group of messages, like Instagram's: "11:59 AM" today,
+ * "Yesterday 11:59 AM", "Wed 11:59 AM" within the last week, then
+ * "Sep 3, 11:59 AM" (with the year when it isn't this one).
+ */
+export function formatChatSeparator(iso) {
+    const date = new Date(iso);
+    const now = new Date();
+    const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+    const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const daysAgo = Math.round((startOfDay(now) - startOfDay(date)) / 86400000);
+
+    if (daysAgo <= 0) return time;
+    if (daysAgo === 1) return `Yesterday ${time}`;
+    if (daysAgo < 7) return `${date.toLocaleDateString([], { weekday: 'short' })} ${time}`;
+
+    const day = date.toLocaleDateString([], {
+        month: 'short',
+        day: 'numeric',
+        ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
+    });
+
+    return `${day}, ${time}`;
+}

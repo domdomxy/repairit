@@ -1,12 +1,12 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
+import { PencilIcon, PinIcon, StarIcon } from '@/Components/Icons';
 import Modal from '@/Components/Modal';
 import RequestCard from '@/Components/RequestCard';
 import RequestForm from '@/Components/RequestForm';
-import ReviewForm from '@/Components/ReviewForm';
-import ReviewReportButton from '@/Components/ReviewReportButton';
+import { Banner, SIDE_PANEL, Section, Stat } from '@/Components/ProfileParts';
+import ReviewsPanel from '@/Components/ReviewsPanel';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { formatDate } from '@/lib/dates';
 import { useState } from 'react';
 
 // Same three panels as a technician's profile, side by side on wide screens
@@ -26,45 +26,85 @@ export default function Show({ customer, requests, requestForm, canReview, myRev
     const [creating, setCreating] = useState(false);
 
     return (
-        <AuthenticatedLayout>
+        <AuthenticatedLayout stickyNav>
             <Head title={customer.name} />
 
-            <div className="flex w-full flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
+            <div className="flex w-full flex-1 flex-col px-4 pb-8 pt-4 sm:px-6 lg:px-8">
                 <div className="flex flex-1 flex-col gap-6 lg:flex-row">
                     {/* Left: who the customer is */}
-                    <section aria-label="Customer information" className={`${PANEL} w-full lg:w-72 lg:shrink-0 xl:w-1/4`}>
-                        <div className="flex items-center gap-4">
-                            <Avatar user={customer} size="lg" />
-                            <div className="min-w-0">
-                                <h3 className="break-words text-lg font-semibold">{customer.name}</h3>
-                                <p className="text-sm text-gray-500">Customer</p>
-                                {customer.city && <p className="text-sm text-gray-500">{customer.city}</p>}
+                    <section aria-label="Customer information" className={SIDE_PANEL}>
+                        <Banner />
+
+                        <div className="px-6 pb-6">
+                            <div className="relative -mt-12 w-fit">
+                                <div className="rounded-full ring-4 ring-white dark:ring-gray-800">
+                                    <Avatar user={customer} size="xl" />
+                                </div>
+                            </div>
+
+                            <h3 className="mt-3 break-words text-xl font-semibold text-gray-900 dark:text-gray-100">
+                                {customer.name}
+                            </h3>
+
+                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                                <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200">
+                                    Customer
+                                </span>
+                                {customer.city && (
+                                    <span className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300">
+                                        <PinIcon className="h-4 w-4 text-gray-400" />
+                                        {customer.city}
+                                    </span>
+                                )}
+                            </div>
+
+                            {isOwnProfile && (
+                                <Link
+                                    href={route('customer.profile.edit')}
+                                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700"
+                                >
+                                    <PencilIcon />
+                                    Edit profile
+                                </Link>
+                            )}
+
+                            <div className="mt-5 grid grid-cols-3 divide-x divide-gray-100 rounded-lg border border-gray-100 dark:divide-gray-700 dark:border-gray-700">
+                                <Stat label={ratingCount === 1 ? 'Review' : 'Reviews'}>
+                                    {ratingCount > 0 ? (
+                                        <>
+                                            <StarIcon className="h-4 w-4 text-amber-400" />
+                                            {Number(customer.rating_avg).toFixed(1)}
+                                        </>
+                                    ) : (
+                                        '—'
+                                    )}
+                                </Stat>
+                                <Stat label={requests.length === 1 ? 'Request' : 'Requests'}>{requests.length}</Stat>
+                                <Stat label="Member since">
+                                    {customer.member_since ? new Date(customer.member_since).getFullYear() : '—'}
+                                </Stat>
+                            </div>
+
+                            <div className="mt-2 divide-y divide-gray-100 dark:divide-gray-700">
+                                {customer.bio && (
+                                    <Section title="About">
+                                        <p className="whitespace-pre-line break-words text-sm leading-relaxed text-gray-700 dark:text-gray-300">
+                                            {customer.bio}
+                                        </p>
+                                    </Section>
+                                )}
+
+                                {isOwnProfile && !customer.bio && !customer.city && (
+                                    <Section title="About">
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                                            Nothing here yet. Add a short bio and your city by editing your profile so
+                                            technicians know who they are talking to.
+                                        </p>
+                                    </Section>
+                                )}
+
                             </div>
                         </div>
-
-                        {customer.bio && <p className="mt-4 whitespace-pre-line break-words text-sm">{customer.bio}</p>}
-
-                        {isOwnProfile && !customer.bio && !customer.city && (
-                            <p className="mt-4 text-sm text-gray-500">
-                                Nothing here yet. Add a short bio and your city by editing your profile so
-                                technicians know who they are talking to.
-                            </p>
-                        )}
-
-                        {customer.member_since && (
-                            <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">
-                                Member since {formatDate(customer.member_since)}
-                            </p>
-                        )}
-
-                        {isOwnProfile && (
-                            <Link
-                                href={route('customer.profile.edit')}
-                                className="mt-4 block w-full rounded-md bg-indigo-600 px-4 py-2 text-center text-white hover:bg-indigo-700"
-                            >
-                                Edit profile
-                            </Link>
-                        )}
                     </section>
 
                     {/* Middle: the create box in a card of its own (on your own profile), then their requests with no panel behind them */}
@@ -122,72 +162,30 @@ export default function Show({ customer, requests, requestForm, canReview, myRev
                     )}
 
                     {/* Right: how technicians rate them */}
-                    <section aria-label="Reviews" className={`${PANEL} w-full lg:w-72 lg:shrink-0 xl:w-1/4`}>
-                        <h4 className="font-semibold">Reviews</h4>
-
-                        <p className="mb-4 mt-2 flex flex-wrap items-baseline gap-x-2">
-                            <span className="text-3xl font-semibold">⭐ {ratingCount ? customer.rating_avg : '—'}</span>
-                            <span className="text-sm text-gray-500">
-                                / 5 · {ratingCount} review{ratingCount === 1 ? '' : 's'}
-                            </span>
-                        </p>
-
-                        {!isOwnProfile &&
-                            isTechnician &&
-                            (canReview ? (
-                                <div className="mb-4 rounded-md border p-4 dark:border-gray-700">
-                                    <h5 className="mb-3 text-sm font-medium">
-                                        {myReview ? 'Your review' : `Rate ${customer.name}`}
-                                    </h5>
-                                    <ReviewForm
-                                        key={myReview ? 'edit' : 'new'}
-                                        review={myReview}
-                                        storeUrl={route('customer-reviews.store', customer.id)}
-                                        destroyUrl={route('customer-reviews.destroy', customer.id)}
-                                        placeholder="Share how working with them went (optional)"
-                                    />
-                                </div>
-                            ) : (
-                                <p className="mb-4 text-sm text-gray-500">
-                                    Once you and {customer.name} have exchanged messages, you can rate them.
-                                </p>
-                            ))}
-
-                        {reviews.length === 0 && <p className="text-sm text-gray-500">No reviews yet.</p>}
-                        <ul className="space-y-3">
-                            {reviews.map((review) => (
-                                <li key={review.id} className="rounded-md border p-3 dark:border-gray-700">
-                                    <div className="flex items-start gap-3">
-                                        <Avatar user={review.technician} size="sm" />
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-medium">
-                                                <Link
-                                                    href={route('technicians.show', review.technician.id)}
-                                                    className="hover:underline"
-                                                >
-                                                    {review.technician.name}
-                                                </Link>{' '}
-                                                — {review.rating}/5
-                                            </p>
-                                            {review.comment && (
-                                                <p className="mt-1 break-words text-sm text-gray-600 dark:text-gray-300">
-                                                    {review.comment}
-                                                </p>
-                                            )}
-                                            {/* Anyone but its author can report it */}
-                                            {review.technician.id !== auth.user.id && (
-                                                <ReviewReportButton
-                                                    action={route('customer-reviews.report', review.id)}
-                                                    reasons={reportReasons}
-                                                    authorName={review.technician.name}
-                                                />
-                                            )}
-                                        </div>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    </section>
+                    <ReviewsPanel
+                        average={customer.rating_avg}
+                        count={ratingCount}
+                        reviews={reviews.map((review) => ({
+                            id: review.id,
+                            rating: review.rating,
+                            comment: review.comment,
+                            author: review.technician,
+                            authorHref: route('technicians.show', review.technician.id),
+                        }))}
+                        currentUserId={auth.user.id}
+                        canRespond={!isOwnProfile && isTechnician}
+                        canReview={canReview}
+                        lockedText={`Once you and ${customer.name} have exchanged messages, you can rate them.`}
+                        myReview={myReview}
+                        addLabel="Add review"
+                        formProps={{
+                            storeUrl: route('customer-reviews.store', customer.id),
+                            destroyUrl: route('customer-reviews.destroy', customer.id),
+                            placeholder: 'Share how working with them went (optional)',
+                        }}
+                        reportRoute={(id) => route('customer-reviews.report', id)}
+                        reportReasons={reportReasons}
+                    />
                 </div>
             </div>
         </AuthenticatedLayout>

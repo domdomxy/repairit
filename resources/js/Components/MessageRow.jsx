@@ -1,9 +1,6 @@
 import Avatar from '@/Components/Avatar';
-import DangerButton from '@/Components/DangerButton';
 import MessageAttachments from '@/Components/MessageAttachments';
-import Modal from '@/Components/Modal';
 import ReportModal from '@/Components/ReportModal';
-import SecondaryButton from '@/Components/SecondaryButton';
 import SharedLocationCard from '@/Components/SharedLocationCard';
 import SharedOfferCard from '@/Components/SharedOfferCard';
 import SharedQuoteCard from '@/Components/SharedQuoteCard';
@@ -32,18 +29,24 @@ export default function MessageRow({
     const [draft, setDraft] = useState('');
     const [editError, setEditError] = useState(null);
     const [saving, setSaving] = useState(false);
-    const [deleting, setDeleting] = useState(false);
     const [reporting, setReporting] = useState(false);
 
     const files = message.attachments ?? [];
     const images = files.filter((file) => file.is_image);
     const otherFiles = files.filter((file) => !file.is_image);
-    // A quote says it was edited on its own card, so that alone makes no bubble.
-    const hasBubble = !!message.body || otherFiles.length > 0 || (!!message.edited_at && !message.quote);
+    // A bubble needs text or a non-media file; "edited" is shown under it, not as a bubble of its own.
+    const hasBubble = !!message.body || otherFiles.length > 0;
     // A shared offer, request, or location is not text, so there is nothing to
-    // edit; a quote is edited from its own card.
+    // edit; a quote is edited from its own card; and a message that carries
+    // files (or pictures/clips) is sent as it is - delete it and send again.
     const canEdit =
-        isMine && !message.deleted && !message.offer && !message.request && !message.quote && !message.location;
+        isMine &&
+        !message.deleted &&
+        !message.offer &&
+        !message.request &&
+        !message.quote &&
+        !message.location &&
+        files.length === 0;
 
     function startEdit() {
         setDraft(message.body ?? '');
@@ -74,10 +77,7 @@ export default function MessageRow({
         router.delete(route('messages.destroy', message.id), {
             data: { scope },
             preserveScroll: true,
-            onSuccess: (page) => {
-                onMessagesChange(page.props.messages);
-                setDeleting(false);
-            },
+            onSuccess: (page) => onMessagesChange(page.props.messages),
         });
     }
 
@@ -91,14 +91,14 @@ export default function MessageRow({
         <Menu>
             <MenuButton
                 aria-label="Message options"
-                className="mb-1 shrink-0 rounded-full px-1.5 text-lg leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:opacity-100 data-[open]:bg-gray-100 data-[open]:opacity-100 dark:hover:bg-gray-700 dark:hover:text-gray-200 dark:data-[open]:bg-gray-700 sm:opacity-0 sm:group-hover:opacity-100"
+                className="shrink-0 self-center rounded-full px-1.5 text-lg leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:opacity-100 data-[open]:bg-gray-100 data-[open]:opacity-100 dark:hover:bg-gray-700 dark:hover:text-gray-200 dark:data-[open]:bg-gray-700 sm:opacity-0 sm:group-hover:opacity-100"
             >
                 ⋯
             </MenuButton>
 
             <MenuItems
                 anchor={isMine ? 'bottom end' : 'bottom start'}
-                className="z-50 w-40 rounded-md bg-white py-1 shadow-lg ring-1 ring-black/5 [--anchor-gap:6px] focus:outline-none dark:bg-gray-700"
+                className="z-50 w-48 rounded-md bg-white py-1 shadow-lg ring-1 ring-black/5 [--anchor-gap:6px] focus:outline-none dark:bg-gray-700"
             >
                 {canEdit && (
                     <MenuItem>
@@ -108,10 +108,21 @@ export default function MessageRow({
                     </MenuItem>
                 )}
                 <MenuItem>
-                    <button type="button" onClick={() => setDeleting(true)} className={menuItem}>
-                        Delete
+                    <button type="button" onClick={() => remove('me')} className={menuItem}>
+                        Delete for me
                     </button>
                 </MenuItem>
+                {isMine && !message.deleted && (
+                    <MenuItem>
+                        <button
+                            type="button"
+                            onClick={() => remove('everyone')}
+                            className={`${menuItem} text-red-600 dark:text-red-400`}
+                        >
+                            Delete for everyone
+                        </button>
+                    </MenuItem>
+                )}
                 {!isMine && (
                     <MenuItem disabled={reported}>
                         {reported ? (
@@ -132,7 +143,7 @@ export default function MessageRow({
     const sentAt = (
         <span
             title={formatDateTime(message.created_at)}
-            className="mb-1.5 hidden shrink-0 whitespace-nowrap text-xs text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 sm:block dark:text-gray-500"
+            className="hidden shrink-0 self-center whitespace-nowrap text-xs text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 sm:block dark:text-gray-500"
         >
             {formatMessageTime(message.created_at)}
         </span>
@@ -203,15 +214,17 @@ export default function MessageRow({
                                 {otherFiles.length > 0 && (
                                     <MessageAttachments attachments={otherFiles} onImageLoad={onImageLoad} />
                                 )}
-                                {message.edited_at && (
-                                    <p
-                                        className={`text-[11px] ${isMine ? 'text-indigo-200' : 'text-gray-500 dark:text-gray-400'}`}
-                                        title={`Edited ${formatDateTime(message.edited_at)}`}
-                                    >
-                                        edited
-                                    </p>
-                                )}
                             </div>
+                        )}
+
+                        {/* Under the bubble, not inside it. A quote says it was edited on its own card. */}
+                        {message.edited_at && !message.quote && (
+                            <p
+                                className="-mt-1 px-1 text-[11px] text-gray-500 dark:text-gray-400"
+                                title={`Edited ${formatDateTime(message.edited_at)}`}
+                            >
+                                edited
+                            </p>
                         )}
                     </div>
                 )}
@@ -219,36 +232,6 @@ export default function MessageRow({
 
             {!isMine && menuButton}
             {!isMine && sentAt}
-
-            <Modal show={deleting} onClose={() => setDeleting(false)} maxWidth="md">
-                <div className="p-6">
-                    <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Delete this message?</h2>
-
-                    <dl className="mt-3 space-y-3 text-sm text-gray-600 dark:text-gray-400">
-                        <div>
-                            <dt className="font-medium text-gray-800 dark:text-gray-200">Delete for me</dt>
-                            <dd>It disappears from your chat only. {otherName} can still see it.</dd>
-                        </div>
-                        {isMine && !message.deleted && (
-                            <div>
-                                <dt className="font-medium text-gray-800 dark:text-gray-200">Delete for everyone</dt>
-                                <dd>
-                                    It is replaced by &ldquo;This message was deleted&rdquo; for both of you. If the
-                                    conversation is reported, an admin can still read it.
-                                </dd>
-                            </div>
-                        )}
-                    </dl>
-
-                    <div className="mt-6 flex flex-wrap justify-end gap-3">
-                        <SecondaryButton onClick={() => setDeleting(false)}>Cancel</SecondaryButton>
-                        <SecondaryButton onClick={() => remove('me')}>Delete for me</SecondaryButton>
-                        {isMine && !message.deleted && (
-                            <DangerButton onClick={() => remove('everyone')}>Delete for everyone</DangerButton>
-                        )}
-                    </div>
-                </div>
-            </Modal>
 
             <ReportModal
                 show={reporting}

@@ -279,6 +279,7 @@ class MessageController extends Controller
         // A shared request is a card, and a quote is changed from its own card.
         abort_if($message->request_excerpt !== null, 403, 'A shared request or quote cannot be edited here.');
         abort_if($message->location_lat !== null, 403, 'A shared location cannot be edited.');
+        abort_if($message->attachments()->exists(), 403, 'A message with attachments cannot be edited.');
 
         $validated = $request->validate([
             'body' => ['nullable', 'string', 'max:5000'],
@@ -286,8 +287,8 @@ class MessageController extends Controller
 
         $body = $validated['body'] ?? null;
 
-        // A message must keep something to show: text, or the files it carries.
-        if ($body === null && ! $message->attachments()->exists()) {
+        // Only text messages get here, so an emptied one has nothing left to show.
+        if ($body === null) {
             throw ValidationException::withMessages([
                 'body' => 'A message needs some text. To remove it, delete it instead.',
             ]);

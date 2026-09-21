@@ -68,6 +68,8 @@ export default function LocationPicker({
     latitude,
     longitude,
     errors = {},
+    autoLocate = false,
+    hint = 'Click the map or drag the pin to fine-tune your position. Customers who search by distance find you through this pin.',
     onChange,
 }) {
     const mapElement = useRef(null);
@@ -209,11 +211,21 @@ export default function LocationPicker({
             choosePoint(event.latlng.lat, event.latlng.lng);
         });
 
+        // Inside a modal the box can still be animating in when the map is
+        // built, so let Leaflet re-measure once it has settled.
+        const resize = setTimeout(() => map.current?.invalidateSize(), 350);
+
         return () => {
+            clearTimeout(resize);
             map.current.remove();
             map.current = null;
             marker.current = null;
         };
+    }, []);
+
+    // Optionally start from where the device says it is.
+    useEffect(() => {
+        if (autoLocate && !hasPin) locateMe();
     }, []);
 
     // Keep the pin in step with the coordinates held by the form.
@@ -320,8 +332,7 @@ export default function LocationPicker({
             />
 
             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Click the map or drag the pin to fine-tune your position. Customers who search by
-                distance find you through this pin.
+                {hint}
             </p>
 
             <InputError message={errors.latitude || errors.longitude} className="mt-2" />

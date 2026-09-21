@@ -83,7 +83,7 @@ test('only the sender can edit a message', function () {
     expect($message->fresh()->body)->toBe('Mine');
 });
 
-test('a message cannot be edited to nothing unless it carries files', function () {
+test('a message cannot be edited to nothing', function () {
     [$customer, , $conversation] = moderationSetup();
     $message = moderationMessage($conversation, $customer, 'Text');
 
@@ -92,6 +92,10 @@ test('a message cannot be edited to nothing unless it carries files', function (
         ->assertSessionHasErrors('body');
 
     expect($message->fresh()->body)->toBe('Text');
+});
+
+test('a message that carries files cannot be edited', function () {
+    [$customer, , $conversation] = moderationSetup();
 
     $withFile = $conversation->messages()->create(['sender_id' => $customer->id, 'body' => 'Caption']);
     $withFile->attachments()->create([
@@ -102,9 +106,12 @@ test('a message cannot be edited to nothing unless it carries files', function (
         'size' => 10240,
     ]);
 
-    $this->actingAs($customer)->patch(route('messages.update', $withFile), ['body' => ''])->assertRedirect();
+    $this->actingAs($customer)
+        ->patch(route('messages.update', $withFile), ['body' => 'Changed caption'])
+        ->assertForbidden();
 
-    expect($withFile->fresh()->body)->toBeNull();
+    expect($withFile->fresh()->body)->toBe('Caption')
+        ->and($withFile->fresh()->edited_at)->toBeNull();
 });
 
 test('a message deleted for everyone can no longer be edited', function () {
