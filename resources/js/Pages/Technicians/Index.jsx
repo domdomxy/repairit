@@ -3,6 +3,7 @@ import { Link, router } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
 import KeywordSearchBar from '@/Components/KeywordSearchBar';
 import TechnicianMap from '@/Components/TechnicianMap';
+import { findPlace } from '@/lib/geocode';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
 function formatMeters(meters) {
@@ -78,6 +79,16 @@ export default function Index({ technicians, mapPoints, categories, filters }) {
     // The map is opt-in: it opens on the right, above the results, when asked for.
     const [showMap, setShowMap] = useState(false);
     const [accuracy, setAccuracy] = useState(null); // metres, only known right after "Use my location"
+    // Where the location came from when it was not the browser's: 'map' (picked or
+    // dragged on the map) or 'address' (typed). The person's correction, so no accuracy.
+    const [placedBy, setPlacedBy] = useState(null);
+    const [address, setAddress] = useState('');
+    const [finding, setFinding] = useState(false);
+    const [findError, setFindError] = useState('');
+
+    // The browser's location is often a rough guess (a whole district, or a
+    // network's position). Past this it is worth correcting by hand.
+    const ROUGH_METRES = 1000;
 
     function update(key, value) {
         setForm((current) => ({ ...current, [key]: value }));
@@ -127,7 +138,11 @@ export default function Index({ technicians, mapPoints, categories, filters }) {
                     sort: 'distance',
                 }));
                 setAccuracy(Math.round(position.coords.accuracy));
+                setPlacedBy(null);
+                setFindError('');
                 setLocating(false);
+                // A rough fix is a good reason to open the map, to put it right.
+                if (position.coords.accuracy > ROUGH_METRES) setShowMap(true);
             },
             () => {
                 alert('Could not get your location.');
@@ -148,12 +163,48 @@ export default function Index({ technicians, mapPoints, categories, filters }) {
                 : { ...current, type: next, category: '', city: '', availability: '', lat: '', lng: '', sort: '' }
         );
         setAccuracy(null);
+        setPlacedBy(null);
+        setFindError('');
         setShowMap(false);
     }
 
     function clearLocation() {
         setForm((current) => ({ ...current, lat: '', lng: '', sort: '' }));
         setAccuracy(null);
+        setPlacedBy(null);
+        setFindError('');
+    }
+
+    // The searcher set their location by hand: on the map, or from an address.
+    function placeLocation(lat, lng, by) {
+        setForm((current) => ({ ...current, lat: lat.toFixed(7), lng: lng.toFixed(7), sort: 'distance' }));
+        setAccuracy(null);
+        setPlacedBy(by);
+        setFindError('');
+    }
+
+    async function findAddress(event) {
+        event.preventDefault();
+
+        if (address.trim() === '' || finding) return;
+
+        setFinding(true);
+        setFindError('');
+
+        try {
+            const place = await findPlace(address);
+
+            if (place === null) {
+                setFindError('No match found. Try adding the city, or click the map.');
+            } else {
+                placeLocation(place.lat, place.lng, 'address');
+                setShowMap(true);
+            }
+        } catch {
+            setFindError("Couldn't reach the address search. Try again in a moment, or click the map.");
+        } finally {
+            setFinding(false);
+        }
     }
 
     const scope = SCOPES.find((option) => option.value === form.type);
@@ -252,6 +303,26 @@ export default function Index({ technicians, mapPoints, categories, filters }) {
                                         {locating ? 'Locating…' : '📍 Use my location'}
                                     </button>
 
+                                    {/* Or say where: the browser's location is not always right. */}
+                                    <form onSubmit={findAddress} className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={address}
+                                            onChange={(e) => setAddress(e.target.value)}
+                                            placeholder="Or type an address or city"
+                                            aria-label="Address or city to search from"
+                                            className="min-w-0 flex-1 rounded-md border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-700"
+                                        />
+                                        <button
+                                            type="submit"
+                                            disabled={finding || address.trim() === ''}
+                                            className="shrink-0 rounded-md bg-gray-100 px-3 py-2 text-sm disabled:opacity-50 dark:bg-gray-700"
+                                        >
+                                            {finding ? '…' : 'Find'}
+                                        </button>
+                                    </form>
+                                    {findError && <p className="text-sm text-amber-600 dark:text-amber-400">{findError}</p>}
+
                                     {hasLocation && (
                                         <div className="flex items-end justify-between gap-3">
                                             <div>
@@ -298,7 +369,28 @@ export default function Index({ technicians, mapPoints, categories, filters }) {
                                         <p className="text-gray-500">
                                             {latNum.toFixed(5)}, {lngNum.toFixed(5)}
                                             {accuracy !== null && ` · accurate to about ${formatMeters(accuracy)}`}
+                                            {placedBy === 'map' && ' · set on the map'}
+                                            {placedBy === 'address' && ' · from your address'}
                                         </p>
+                                        {accuracy !== null && accuracy > ROUGH_METRES && (
+                                            <p className="text-amber-600 dark:text-amber-400">
+                                                This may be off. Click the map or drag the blue dot to put it where you are.
+                                            </p>
+                                        )}
+                                        {!showMap && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowMap(true)}
+                                                className="block text-indigo-600 underline"
+                                            >
+                                                Not right? Adjust on the map
+                                            </button>
+                                        )}
+                                        {showMap && (
+                                            <p className="text-xs text-gray-500">
+                                                Click the map or drag the blue dot to change it.
+                                            </p>
+                                        )}
                                         <a
                                             href={`https://www.openstreetmap.org/?mlat=${latNum}&mlon=${lngNum}#map=15/${latNum}/${lngNum}`}
                                             target="_blank"
@@ -329,6 +421,7 @@ export default function Index({ technicians, mapPoints, categories, filters }) {
                                     points={mapPoints}
                                     origin={showLocationPanel ? { lat: latNum, lng: lngNum } : null}
                                     radiusKm={showLocationPanel && Number(form.radius) > 0 ? Number(form.radius) : null}
+                                    onPick={(lat, lng) => placeLocation(lat, lng, 'map')}
                                     className="h-80 w-full"
                                 />
                             </div>

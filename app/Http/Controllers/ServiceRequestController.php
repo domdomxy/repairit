@@ -3,17 +3,25 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Models\Offer;
 use App\Models\Quote;
+use App\Models\RequestMedia;
 use App\Models\ServiceRequest;
 use App\Models\User;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
 
 /**
  * Repair requests: a customer describes something they need fixed and
@@ -57,8 +65,24 @@ class ServiceRequestController extends Controller
 
         $this->ensureRoomForAnotherOpenRequest($user->serviceRequests()->open()->count(), 'title');
 
-        $serviceRequest = $user->serviceRequests()->create(Arr::only($data, ['title', 'description', 'budget', 'city']));
-        $serviceRequest->categories()->sync($data['categories'] ?? []);
+        $stored = [];
+
+        // The files are stored before the rows are written, and removed again
+        // if writing fails, so a failed save never leaves files behind.
+        try {
+            $serviceRequest = DB::transaction(function () use ($request, $user, $data, &$stored) {
+                $serviceRequest = $user->serviceRequests()->create(Arr::only($data, ['title', 'description', 'budget', 'city']));
+                $serviceRequest->categories()->sync($data['categories'] ?? []);
+
+                $this->attachFiles($serviceRequest, $request->file('media', []), $stored);
+
+                return $serviceRequest;
+            });
+        } catch (Throwable $e) {
+            Storage::disk(Offer::MEDIA_DISK)->delete($stored);
+
+            throw $e;
+        }
 
         // Posted from a panel on another page (the feed, the customer's profile): stay there, as adding an offer does.
         $response = $request->boolean('from_panel') ? back() : redirect()->route('requests.show', $serviceRequest);
@@ -71,7 +95,7 @@ class ServiceRequestController extends Controller
         $viewer = $request->user();
         $isOwner = $serviceRequest->customer_id === $viewer->id;
 
-        $serviceRequest->load(['customer:id,name,avatar_path,role,suspended_at', 'categories'])->loadCount('quotes');
+        $serviceRequest->load(['customer:id,name,avatar_path,role,suspended_at', 'categories', 'media'])->loadCount('quotes');
 
         abort_if(! $isOwner && $serviceRequest->customer->isSuspended(), 404);
 
@@ -113,7 +137,7 @@ class ServiceRequestController extends Controller
     {
         $this->ensureOwner($request, $serviceRequest);
 
-        $serviceRequest->load(['customer:id,name,avatar_path,role', 'categories']);
+        $serviceRequest->load(['customer:id,name,avatar_path,role', 'categories', 'media']);
 
         return Inertia::render('Requests/Form', [
             'serviceRequest' => $serviceRequest->toCard(),
@@ -127,10 +151,31 @@ class ServiceRequestController extends Controller
     {
         $this->ensureOwner($request, $serviceRequest);
 
-        $data = $this->validated($request);
+        // Only files that really belong to this request can be removed.
+        $removing = $serviceRequest->media()
+            ->whereIn('id', array_filter(Arr::wrap($request->input('remove_media', [])), 'is_numeric'))
+            ->get();
 
-        $serviceRequest->update(Arr::only($data, ['title', 'description', 'budget', 'city']));
-        $serviceRequest->categories()->sync($data['categories'] ?? []);
+        $data = $this->validated($request, keptFiles: $serviceRequest->media()->count() - $removing->count());
+        $stored = [];
+
+        try {
+            DB::transaction(function () use ($request, $serviceRequest, $data, $removing, &$stored) {
+                $serviceRequest->update(Arr::only($data, ['title', 'description', 'budget', 'city']));
+                $serviceRequest->categories()->sync($data['categories'] ?? []);
+
+                $this->attachFiles($serviceRequest, $request->file('media', []), $stored);
+
+                RequestMedia::whereKey($removing->modelKeys())->delete();
+            });
+        } catch (Throwable $e) {
+            Storage::disk(Offer::MEDIA_DISK)->delete($stored);
+
+            throw $e;
+        }
+
+        // Only now, once the rows are gone, are the old files deleted.
+        Storage::disk(Offer::MEDIA_DISK)->delete($removing->pluck('path')->all());
 
         return redirect()->route('requests.show', $serviceRequest)->with('success', 'Your request was updated.');
     }
@@ -139,8 +184,12 @@ class ServiceRequestController extends Controller
     {
         $this->ensureOwner($request, $serviceRequest);
 
-        // Its quotes and category tags go with it (cascade).
+        $paths = $serviceRequest->media()->pluck('path')->all();
+
+        // Its quotes, category tags and media rows go with it (cascade); the files don't.
         $serviceRequest->delete();
+
+        Storage::disk(Offer::MEDIA_DISK)->delete($paths);
 
         return redirect()->route('requests.mine')->with('success', 'Your request was deleted.');
     }
@@ -168,6 +217,28 @@ class ServiceRequestController extends Controller
         $serviceRequest->update(['status' => ServiceRequest::STATUS_OPEN]);
 
         return back()->with('success', 'Your request is open again.');
+    }
+
+    /**
+     * Stream a picture or video of a request to any signed-in user. Files live
+     * on the private disk, so this route is the only way to reach them (see
+     * TechnicianOfferController::media for why it is a file response). The
+     * requests of suspended customers are hidden, except from their owner.
+     */
+    public function media(Request $request, RequestMedia $media): BinaryFileResponse
+    {
+        $customer = $media->serviceRequest->customer;
+
+        abort_if($customer->isSuspended() && $customer->id !== $request->user()->id, 404);
+
+        $disk = Storage::disk(Offer::MEDIA_DISK);
+        abort_unless($disk->exists($media->path), 404);
+
+        return response()->file($disk->path($media->path), [
+            'Content-Type' => $media->mime,
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, max-age=86400',
+        ]);
     }
 
     /**
@@ -203,7 +274,7 @@ class ServiceRequestController extends Controller
         }
 
         $requests = $query
-            ->with(['customer:id,name,avatar_path,role', 'categories'])
+            ->with(['customer:id,name,avatar_path,role', 'categories', 'media'])
             ->withCount('quotes')
             // Lets a technician see which requests they have already answered.
             ->withExists(['quotes as has_my_quote' => fn ($q) => $q->where('technician_id', $user->id)])
@@ -224,9 +295,14 @@ class ServiceRequestController extends Controller
         ]);
     }
 
-    /** @return array<string, mixed> */
-    private function validated(Request $request): array
+    /**
+     * @param  int  $keptFiles  Files the request keeps, which count against the per-request maximum.
+     * @return array<string, mixed>
+     */
+    private function validated(Request $request, int $keptFiles = 0): array
     {
+        $limits = Offer::limits();
+
         return $request->validate([
             'title' => ['required', 'string', 'max:'.ServiceRequest::TITLE_MAX],
             'description' => ['required', 'string', 'max:'.ServiceRequest::DESCRIPTION_MAX],
@@ -234,10 +310,76 @@ class ServiceRequestController extends Controller
             'city' => ['nullable', 'string', 'max:'.ServiceRequest::CITY_MAX],
             'categories' => ['nullable', 'array', 'max:'.ServiceRequest::MAX_CATEGORIES],
             'categories.*' => ['integer', 'distinct', Rule::exists('categories', 'id')],
+            'media' => [
+                'nullable',
+                'array',
+                'max:'.max($limits['max_files'] - $keptFiles, 0),
+                // Keeps one save from carrying an enormous upload.
+                function (string $attribute, mixed $value, Closure $fail) use ($limits) {
+                    $bytes = collect($value)
+                        ->filter(fn ($file) => $file instanceof UploadedFile)
+                        ->sum(fn (UploadedFile $file) => $file->getSize());
+
+                    if ($bytes > $limits['max_total_kb'] * 1024) {
+                        $fail('The files together may not be larger than '.$this->megabytes($limits['max_total_kb']).'.');
+                    }
+                },
+            ],
+            'media.*' => [
+                'bail',
+                'file',
+                // Checked against the file's real content type, not just its name.
+                'mimetypes:'.implode(',', array_keys(Offer::MEDIA_MIMES)),
+                function (string $attribute, mixed $value, Closure $fail) use ($limits) {
+                    $isVideo = (Offer::MEDIA_MIMES[$value->getMimeType()] ?? null) === 'video';
+                    $maxKb = $isVideo ? $limits['video_max_kb'] : $limits['image_max_kb'];
+
+                    if ($value->getSize() > $maxKb * 1024) {
+                        $fail(($isVideo ? 'Videos' : 'Pictures').' may not be larger than '.$this->megabytes($maxKb).'.');
+                    }
+                },
+            ],
         ], [
             'categories.max' => 'Pick at most '.ServiceRequest::MAX_CATEGORIES.' categories.',
             'categories.*.exists' => 'Pick categories from the list.',
+            'media.max' => 'A request can have up to '.$limits['max_files'].' pictures and videos in total.',
+            'media.*.uploaded' => 'A file could not be uploaded. It may be too large.',
+            'media.*.mimetypes' => 'Use JPG, PNG, WebP or GIF pictures, or MP4, WebM or MOV videos.',
         ]);
+    }
+
+    /**
+     * Store the uploaded files and add a row for each. The paths are collected
+     * in $stored so the caller can delete them if the save fails.
+     *
+     * @param  array<int, UploadedFile>  $files
+     * @param  array<int, string>  $stored
+     */
+    private function attachFiles(ServiceRequest $serviceRequest, array $files, array &$stored): void
+    {
+        foreach ($files as $file) {
+            $path = $file->store("request-media/{$serviceRequest->customer_id}", Offer::MEDIA_DISK);
+
+            abort_if($path === false, 500, 'A file could not be saved.');
+
+            $stored[] = $path;
+
+            $name = $file->getClientOriginalName();
+
+            $serviceRequest->media()->create([
+                'path' => $path,
+                // Keep the end of an over-long name so the extension survives.
+                'name' => mb_strlen($name) > 200 ? mb_substr($name, -200) : $name,
+                'mime' => $file->getMimeType(),
+                'size' => $file->getSize(),
+            ]);
+        }
+    }
+
+    /** 5120 -> "5 MB", 1536 -> "1.5 MB". */
+    private function megabytes(int $kb): string
+    {
+        return round($kb / 1024, 1).' MB';
     }
 
     /** @throws ValidationException */
@@ -267,7 +409,7 @@ class ServiceRequestController extends Controller
     {
         return $owner->serviceRequests()
             ->when($viewer->isNot($owner), fn ($query) => $query->open())
-            ->with(['customer:id,name,avatar_path,role', 'categories'])
+            ->with(['customer:id,name,avatar_path,role', 'categories', 'media'])
             ->withCount('quotes')
             // Lets a technician see which requests they have already answered.
             ->withExists(['quotes as has_my_quote' => fn ($query) => $query->where('technician_id', $viewer->id)])
@@ -295,10 +437,13 @@ class ServiceRequestController extends Controller
         ];
     }
 
-    /** @return array{title_max: int, description_max: int, budget_max: int, city_max: int, max_categories: int, price_max: int, time_max: int, message_max: int} */
+    /** @return array<string, int|list<string>> */
     private static function limits(): array
     {
-        return [
+        // A request's pictures and videos follow the same rules as an offer's.
+        return Offer::limits() + [
+            'image_extensions' => Offer::IMAGE_EXTENSIONS,
+            'video_extensions' => Offer::VIDEO_EXTENSIONS,
             'title_max' => ServiceRequest::TITLE_MAX,
             'description_max' => ServiceRequest::DESCRIPTION_MAX,
             'budget_max' => ServiceRequest::BUDGET_MAX,

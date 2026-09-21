@@ -10,7 +10,9 @@ import { useInbox } from '@/lib/inbox';
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
-export default function AuthenticatedLayout({ children }) {
+// `stickyNav` keeps the top bar in view while the page scrolls, for pages that
+// pin side columns under it (they sit 5.0625rem from the top: bar + gap).
+export default function AuthenticatedLayout({ children, stickyNav = false }) {
     const { auth, flash, notifications } = usePage().props;
     const user = auth.user;
     const { unread: unreadMessages } = useInbox();
@@ -20,7 +22,11 @@ export default function AuthenticatedLayout({ children }) {
 
     return (
         <div className="flex min-h-screen flex-col bg-gray-100 dark:bg-gray-900">
-            <nav className="border-b border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800">
+            <nav
+                className={`border-b border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800 ${
+                    stickyNav ? 'sticky top-0 z-40' : ''
+                }`}
+            >
                 <div className="w-full px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 justify-between">
                         <div className="flex shrink-0">

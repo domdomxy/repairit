@@ -34,6 +34,18 @@ class FeedController extends Controller
     /** The "type" filter: only the requests, or only the offers. Anything else shows both. */
     private const TYPES = ['requests', 'offers'];
 
+    /**
+     * The feed's filter menu (one choice at a time, like a group's "Most
+     * relevant" menu). "newest" is what an unset or unknown value means.
+     *
+     * - requests / offers: only that kind of post
+     * - rated: offers only, best rated technician first
+     * - relevant: both kinds, the ones that fit the viewer first
+     *
+     * "rated" and "relevant" can also be narrowed to one category.
+     */
+    private const FILTERS = ['newest', 'requests', 'offers', 'rated', 'relevant'];
+
     /** "images" and "videos" are matched on the content type checked at upload. */
     private const MEDIA_FILTERS = ['any', 'image', 'video'];
 
@@ -61,7 +73,7 @@ class FeedController extends Controller
             'offerForm' => $user->role === 'technician' ? TechnicianOfferController::formProps() : null,
             // Cast to an object: an empty PHP array reaches the browser as a JS
             // array, where `filters.sort` is Array.prototype.sort, not "unset".
-            'filters' => (object) $request->only(['q', 'type', 'category', 'city', 'availability', 'media', 'sort', 'top_category']),
+            'filters' => (object) $request->only(['filter', 'q', 'type', 'category', 'city', 'availability', 'media', 'sort', 'top_category']),
         ]);
     }
 
@@ -73,12 +85,12 @@ class FeedController extends Controller
      */
     private function rows(Request $request): QueryBuilder
     {
-        $type = in_array($request->input('type'), self::TYPES, true) ? $request->input('type') : '';
+        [$type, $sort] = $this->typeAndSort($request);
 
-        // Availability and pictures/videos belong to a technician and their
-        // offers, so a request can never match them: asking for one leaves the
-        // requests out.
-        $offerOnlyFilter = $request->filled('availability') || in_array($request->input('media'), self::MEDIA_FILTERS, true);
+        // Availability belongs to a technician, so a request can never match
+        // it: asking for it leaves the requests out. (Pictures and videos can
+        // be on either kind of post.)
+        $offerOnlyFilter = $request->filled('availability');
 
         $queries = [];
 
@@ -104,7 +116,9 @@ class FeedController extends Controller
         $rows = DB::query()->fromSub($union, 'feed');
 
         // The kind is the last tie-breaker: an offer and a request can share an id.
-        match ($request->input('sort')) {
+        match ($sort) {
+            // Best fit for the viewer first, then the newest of those.
+            'relevant' => $rows->orderByDesc('feed_relevance')->orderByDesc('feed_created_at')->orderByDesc('feed_id')->orderBy('feed_kind'),
             'oldest' => $rows->orderBy('feed_created_at')->orderBy('feed_id')->orderBy('feed_kind'),
             // Requests have no rating (null sorts last here): they come after every offer.
             'rating' => $rows->orderByDesc('feed_rating_avg')
@@ -119,6 +133,93 @@ class FeedController extends Controller
     }
 
     /**
+     * The kind of post and the ordering the request asks for. The filter menu
+     * (`filter`) wins; the older `type` and `sort` parameters still work so
+     * links from before the menu keep their meaning.
+     *
+     * @return array{0: string, 1: string}  [type ('requests', 'offers' or ''), sort]
+     */
+    private function typeAndSort(Request $request): array
+    {
+        $filter = $request->input('filter');
+
+        if (in_array($filter, self::FILTERS, true)) {
+            return match ($filter) {
+                'requests' => ['requests', 'newest'],
+                'offers' => ['offers', 'newest'],
+                // Requests have no rating, so ranking by it only makes sense for offers.
+                'rated' => ['offers', 'rating'],
+                'relevant' => ['', 'relevant'],
+                default => ['', 'newest'],
+            };
+        }
+
+        $type = in_array($request->input('type'), self::TYPES, true) ? $request->input('type') : '';
+
+        return [$type, (string) $request->input('sort')];
+    }
+
+    /**
+     * What makes a post relevant to the person looking: its categories are ones
+     * they work in (a technician's specialties) or have asked for before (their
+     * own requests), and it is in their city. Category weighs more than city.
+     *
+     * @return array{categories: list<int>, city: string}
+     */
+    private function viewerInterests(User $user): array
+    {
+        $specialties = $user->role === 'technician' && $user->technicianProfile
+            ? DB::table('category_technician')
+                ->where('technician_profile_id', $user->technicianProfile->id)
+                ->pluck('category_id')
+            : collect();
+
+        $asked = DB::table('category_service_request')
+            ->join('service_requests', 'service_requests.id', '=', 'category_service_request.service_request_id')
+            ->where('service_requests.customer_id', $user->id)
+            ->pluck('category_service_request.category_id');
+
+        $city = trim((string) ($user->technicianProfile?->city ?: $user->city));
+
+        return [
+            'categories' => $specialties->merge($asked)->map(fn ($id) => (int) $id)->unique()->values()->all(),
+            'city' => mb_strtolower($city),
+        ];
+    }
+
+    /**
+     * The SQL for the "relevance" column of a feed row (always present, so the
+     * two kinds of row line up in the union): 0 unless the feed is being
+     * ordered by relevance. Returns [expression, bindings].
+     *
+     * @return array{0: string, 1: list<string>}
+     */
+    private function relevanceSql(Request $request, string $pivotTable, string $pivotKey, string $postTable, string $cityColumn): array
+    {
+        if ($this->typeAndSort($request)[1] !== 'relevant') {
+            return ['0', []];
+        }
+
+        $interests = $this->viewerInterests($request->user());
+        $parts = [];
+        $bindings = [];
+
+        if ($interests['categories'] !== []) {
+            // The ids are integers cast above, so they are safe to inline.
+            $ids = implode(',', $interests['categories']);
+
+            $parts[] = "CASE WHEN EXISTS (SELECT 1 FROM {$pivotTable} WHERE {$pivotTable}.{$pivotKey} = {$postTable}.id AND {$pivotTable}.category_id IN ({$ids})) THEN 2 ELSE 0 END";
+        }
+
+        if ($interests['city'] !== '') {
+            $parts[] = "CASE WHEN LOWER({$cityColumn}) = ? THEN 1 ELSE 0 END";
+            $bindings[] = $interests['city'];
+        }
+
+        return [$parts === [] ? '0' : implode(' + ', $parts), $bindings];
+    }
+
+    /**
      * The offers that match, as feed rows. Same shape as the technician
      * search: the profile table is joined once, so every filter and the sort
      * share a single reference to it. The inner join also drops offers of
@@ -127,12 +228,14 @@ class FeedController extends Controller
      */
     private function offerRows(Request $request): Builder
     {
+        [$relevance, $relevanceBindings] = $this->relevanceSql($request, 'category_offer', 'offer_id', 'offers', 'technician_profiles.city');
+
         $query = Offer::query()
             ->join('users', 'users.id', '=', 'offers.technician_id')
             ->join('technician_profiles', 'technician_profiles.user_id', '=', 'users.id')
             ->where('users.role', 'technician')
             ->whereNull('users.suspended_at')
-            ->selectRaw("'offer' as feed_kind, offers.id as feed_id, offers.created_at as feed_created_at, technician_profiles.rating_avg as feed_rating_avg, technician_profiles.rating_count as feed_rating_count");
+            ->selectRaw("'offer' as feed_kind, offers.id as feed_id, offers.created_at as feed_created_at, technician_profiles.rating_avg as feed_rating_avg, technician_profiles.rating_count as feed_rating_count, ({$relevance}) as feed_relevance", $relevanceBindings);
 
         // Free text: matches the title, the description or the technician's name.
         $term = trim((string) $request->input('q'));
@@ -193,10 +296,12 @@ class FeedController extends Controller
      */
     private function requestRows(Request $request): Builder
     {
+        [$relevance, $relevanceBindings] = $this->relevanceSql($request, 'category_service_request', 'service_request_id', 'service_requests', 'service_requests.city');
+
         $query = ServiceRequest::query()
             ->open()
             ->fromActiveCustomers()
-            ->selectRaw("'request' as feed_kind, service_requests.id as feed_id, service_requests.created_at as feed_created_at, null as feed_rating_avg, null as feed_rating_count");
+            ->selectRaw("'request' as feed_kind, service_requests.id as feed_id, service_requests.created_at as feed_created_at, null as feed_rating_avg, null as feed_rating_count, ({$relevance}) as feed_relevance", $relevanceBindings);
 
         // Free text: matches the title or the description.
         $term = trim((string) $request->input('q'));
@@ -220,6 +325,21 @@ class FeedController extends Controller
             $query->whereRaw("service_requests.city LIKE ? ESCAPE '!'", [$this->likePattern((string) $request->input('city'))]);
         }
 
+        // Only requests that come with pictures and/or videos.
+        $media = $request->input('media');
+
+        if (in_array($media, self::MEDIA_FILTERS, true)) {
+            $query->whereExists(function ($q) use ($media) {
+                $q->selectRaw('1')
+                    ->from('request_media')
+                    ->whereColumn('request_media.service_request_id', 'service_requests.id');
+
+                if ($media !== 'any') {
+                    $q->where('request_media.mime', 'like', $media.'/%');
+                }
+            });
+        }
+
         return $query;
     }
 
@@ -240,7 +360,7 @@ class FeedController extends Controller
             ->keyBy('id');
 
         $requests = ServiceRequest::query()
-            ->with(['customer:id,name,avatar_path,role', 'categories'])
+            ->with(['customer:id,name,avatar_path,role', 'categories', 'media'])
             ->withCount('quotes')
             // Lets a technician see which requests they have already answered.
             ->withExists(['quotes as has_my_quote' => fn ($q) => $q->where('technician_id', $viewer->id)])

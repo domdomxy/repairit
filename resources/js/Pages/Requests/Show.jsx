@@ -1,5 +1,6 @@
 import Avatar from '@/Components/Avatar';
 import InputError from '@/Components/InputError';
+import OfferMediaGrid from '@/Components/OfferMediaGrid';
 import QuoteForm from '@/Components/QuoteForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { formatDate, relativeTime } from '@/lib/dates';
@@ -216,6 +217,8 @@ export default function Show({ serviceRequest, isOwner, quotes, myQuote, canQuot
                     )}
 
                     <p className="whitespace-pre-line break-words text-sm">{serviceRequest.description}</p>
+
+                    <OfferMediaGrid media={serviceRequest.media} />
 
                     {isOwner && (
                         <div className="flex flex-wrap gap-2 border-t pt-4 dark:border-gray-700">

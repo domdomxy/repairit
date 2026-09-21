@@ -190,7 +190,7 @@ test('free text, category and city apply to offers and requests alike', function
         ->and(feedPosts($this, ['q' => '_']))->toBe([]);
 });
 
-test('availability and media filters belong to offers, so they leave requests out', function () {
+test('availability belongs to offers, so it leaves requests out; pictures and videos can be on either', function () {
     $viewer = feedCustomer();
     $available = feedTechnician([], ['availability_status' => 'available']);
     $busy = feedTechnician([], ['availability_status' => 'busy']);
@@ -198,11 +198,15 @@ test('availability and media filters belong to offers, so they leave requests ou
     $withPicture->media()->create(['path' => 'offer-media/x/1', 'name' => 'a.jpg', 'mime' => 'image/jpeg', 'size' => 10]);
     feedOffer($busy, 'Busy one');
     feedRequest(feedCustomer(), 'Cracked screen');
+    $requestWithVideo = feedRequest(feedCustomer(), 'Broken tap, filmed');
+    $requestWithVideo->media()->create(['path' => 'request-media/x/1', 'name' => 'tap.mp4', 'mime' => 'video/mp4', 'size' => 10]);
 
     $this->actingAs($viewer);
 
     expect(feedPosts($this, ['availability' => 'available']))->toBe(['offer: With picture'])
         ->and(feedPosts($this, ['media' => 'image']))->toBe(['offer: With picture'])
+        ->and(feedPosts($this, ['media' => 'video']))->toBe(['request: Broken tap, filmed'])
+        ->and(feedPosts($this, ['media' => 'any']))->toEqualCanonicalizing(['offer: With picture', 'request: Broken tap, filmed'])
         // Nothing is both a request and posted by an available technician.
         ->and(feedPosts($this, ['type' => 'requests', 'availability' => 'available']))->toBe([]);
 });
@@ -231,6 +235,79 @@ test('with no filters set, they still reach the page as an object', function () 
     // props in an HTML attribute, so the quotes are escaped.
     expect($this->actingAs(feedCustomer())->get(route('feed.index'))->assertOk()->getContent())
         ->toContain('&quot;filters&quot;:{}');
+});
+
+// --- the filter menu -------------------------------------------------------
+
+test('the filter menu picks requests only, offers only, or the newest of both', function () {
+    $viewer = feedCustomer();
+    feedOffer(feedTechnician(), 'Boiler service');
+    feedRequest(feedCustomer(), 'Cracked screen');
+
+    $this->actingAs($viewer);
+
+    expect(feedPosts($this, ['filter' => 'requests']))->toBe(['request: Cracked screen'])
+        ->and(feedPosts($this, ['filter' => 'offers']))->toBe(['offer: Boiler service'])
+        ->and(feedPosts($this, ['filter' => 'newest']))->toHaveCount(2)
+        ->and(feedPosts($this, ['filter' => 'nonsense']))->toHaveCount(2)
+        // The menu wins over the older parameters.
+        ->and(feedPosts($this, ['filter' => 'offers', 'type' => 'requests']))->toBe(['offer: Boiler service']);
+});
+
+test('"most rated" lists offers only, best rated technician first, and can be narrowed to a category', function () {
+    $viewer = feedCustomer();
+    $phones = Category::create(['name' => 'Phones', 'slug' => 'phones']);
+    $good = feedTechnician([], ['rating_avg' => 4.8, 'rating_count' => 5]);
+    $average = feedTechnician([], ['rating_avg' => 3.5, 'rating_count' => 2]);
+
+    feedOffer($average, 'Average phones')->categories()->sync([$phones->id]);
+    feedOffer($good, 'Good boilers');
+    feedOffer($good, 'Good phones')->categories()->sync([$phones->id]);
+    feedRequest(feedCustomer(), 'A request');
+
+    $this->actingAs($viewer);
+
+    expect(feedPosts($this, ['filter' => 'rated']))->toEqualCanonicalizing(['offer: Good boilers', 'offer: Good phones', 'offer: Average phones'])
+        ->and(collect(feedPosts($this, ['filter' => 'rated']))->last())->toBe('offer: Average phones')
+        ->and(feedPosts($this, ['filter' => 'rated', 'category' => 'phones']))->toBe(['offer: Good phones', 'offer: Average phones']);
+});
+
+test('"most relevant" puts posts in the viewer\'s categories first, then their city, then the newest', function () {
+    $phones = Category::create(['name' => 'Phones', 'slug' => 'phones']);
+    $plumbing = Category::create(['name' => 'Plumbing', 'slug' => 'plumbing']);
+
+    // A technician who fixes phones, in Sfax.
+    $viewer = feedTechnician(['city' => 'Sfax'], ['city' => 'Sfax']);
+    $viewer->technicianProfile->categories()->sync([$phones->id]);
+
+    $customer = feedCustomer();
+    $newest = feedRequest($customer, 'Newest pipe, elsewhere', ['city' => 'Tunis']);
+    $newest->categories()->sync([$plumbing->id]);
+    $local = feedRequest($customer, 'Local pipe', ['city' => 'Sfax']);
+    $local->categories()->sync([$plumbing->id]);
+    $matching = feedRequest($customer, 'Old phone, elsewhere', ['city' => 'Tunis']);
+    $matching->categories()->sync([$phones->id]);
+
+    feedAt($matching, now()->subDays(2));
+    feedAt($local, now()->subDay());
+    feedAt($newest, now());
+
+    $this->actingAs($viewer);
+
+    expect(feedPosts($this, ['filter' => 'relevant']))
+        ->toBe(['request: Old phone, elsewhere', 'request: Local pipe', 'request: Newest pipe, elsewhere'])
+        ->and(feedPosts($this, ['filter' => 'relevant', 'category' => 'plumbing']))
+        ->toBe(['request: Local pipe', 'request: Newest pipe, elsewhere']);
+});
+
+test('"most relevant" works for a viewer with no city and no history: it falls back to newest first', function () {
+    $viewer = feedCustomer();
+    $old = feedRequest(feedCustomer(), 'Old one');
+    $new = feedOffer(feedTechnician(), 'New one');
+
+    feedAt($old, now()->subDay());
+
+    expect(feedPosts($this->actingAs($viewer), ['filter' => 'relevant']))->toBe(['offer: New one', 'request: Old one']);
 });
 
 // --- who can post what -----------------------------------------------------

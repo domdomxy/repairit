@@ -1,5 +1,6 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
+import MediaPicker from '@/Components/MediaPicker';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
@@ -24,13 +25,18 @@ export default function RequestForm({
 }) {
     const editing = serviceRequest !== null;
 
-    const { data, setData, post, put, processing, errors } = useForm({
+    const { data, setData, post, processing, progress, errors } = useForm({
+        // PHP only reads uploaded files from a real POST, so an edit is sent as
+        // a POST that Laravel treats as a PUT.
+        ...(editing ? { _method: 'put' } : {}),
         ...(inPanel ? { from_panel: true } : {}),
         title: serviceRequest?.title ?? '',
         description: serviceRequest?.description ?? '',
         budget: serviceRequest?.budget ?? '',
         city: serviceRequest?.city ?? defaultCity ?? '',
         categories: serviceRequest?.categories?.map((category) => category.id) ?? [],
+        media: [],
+        remove_media: [],
     });
 
     function toggleCategory(id) {
@@ -44,9 +50,9 @@ export default function RequestForm({
         e.preventDefault();
 
         if (editing) {
-            put(route('requests.update', serviceRequest.id), { onSuccess: () => onDone?.() });
+            post(route('requests.update', serviceRequest.id), { forceFormData: true, onSuccess: () => onDone?.() });
         } else {
-            post(route('requests.store'), { preserveScroll: true, onSuccess: () => onDone?.() });
+            post(route('requests.store'), { forceFormData: true, preserveScroll: true, onSuccess: () => onDone?.() });
         }
     }
 
@@ -142,8 +148,21 @@ export default function RequestForm({
                 </div>
             </div>
 
+            <MediaPicker
+                files={data.media}
+                onFilesChange={(files) => setData('media', files)}
+                saved={serviceRequest?.media ?? []}
+                removeIds={data.remove_media}
+                onRemoveIdsChange={(ids) => setData('remove_media', ids)}
+                limits={limits}
+                errors={errors}
+                noun="request"
+            />
+
             <div className="flex items-center gap-3">
-                <PrimaryButton disabled={processing}>{editing ? 'Save changes' : 'Post request'}</PrimaryButton>
+                <PrimaryButton disabled={processing}>
+                    {processing && progress ? `Uploading ${progress.percentage}%` : editing ? 'Save changes' : 'Post request'}
+                </PrimaryButton>
                 {onCancel ? (
                     <SecondaryButton onClick={onCancel} disabled={processing}>
                         Cancel

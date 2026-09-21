@@ -24,6 +24,16 @@ function dotIcon(status) {
     });
 }
 
+// The searcher's own spot: a bigger blue dot, so it is easy to grab and drag.
+const originIcon = L.divIcon({
+    className: '',
+    html: '<span class="block h-5 w-5 rounded-full border-2 border-white bg-indigo-600 shadow-lg"></span>',
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+});
+
+const round = (value) => Number(value.toFixed(7));
+
 // Built from DOM nodes with textContent, so a name or city can never inject markup.
 function popupFor(point) {
     const box = document.createElement('div');
@@ -60,21 +70,55 @@ function popupFor(point) {
  *
  * `origin` ({ lat, lng }) is the searcher's own location when they set one,
  * shown with the search radius (`radiusKm`) around it.
+ *
+ * With `onPick(lat, lng)` the searcher can also set that location by hand, for
+ * when the browser's is off: clicking the map puts it there, and its dot can be
+ * dragged. The map then stays where the person left it instead of re-framing.
  */
-export default function TechnicianMap({ points, origin = null, radiusKm = null, className = '' }) {
+export default function TechnicianMap({ points, origin = null, radiusKm = null, onPick = null, className = '' }) {
     const element = useRef(null);
     const map = useRef(null);
     const layer = useRef(null);
+    const onPickRef = useRef(onPick);
+    // The last spot chosen on this map, so the map can tell its own picks from a new location.
+    const picked = useRef(null);
+
+    onPickRef.current = onPick;
+
+    function pick(lat, lng) {
+        picked.current = { lat: round(lat), lng: round(lng) };
+        onPickRef.current?.(picked.current.lat, picked.current.lng);
+    }
 
     useEffect(() => {
         map.current = L.map(element.current).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
 
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        // Two base maps to switch between (the control in the corner): the street
+        // map, and satellite photos with place names on top (a "hybrid" view).
+        const streets = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        }).addTo(map.current);
+        });
+
+        const esriAttribution = 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community';
+        const photos = L.tileLayer(
+            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            { maxZoom: 19, attribution: esriAttribution },
+        );
+        const names = L.tileLayer(
+            'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+            { maxZoom: 19 },
+        );
+        const satellite = L.layerGroup([photos, names]);
+
+        streets.addTo(map.current);
+        L.control.layers({ Map: streets, Satellite: satellite }, null, { position: 'topright', collapsed: true }).addTo(map.current);
 
         layer.current = L.layerGroup().addTo(map.current);
+
+        map.current.on('click', (event) => {
+            if (onPickRef.current) pick(event.latlng.lat, event.latlng.lng);
+        });
 
         return () => {
             map.current.remove();
@@ -98,9 +142,19 @@ export default function TechnicianMap({ points, origin = null, radiusKm = null, 
         if (origin) {
             const here = [origin.lat, origin.lng];
 
-            L.circleMarker(here, { radius: 7, color: '#4f46e5', fillColor: '#4f46e5', fillOpacity: 1 })
-                .bindTooltip('Your location')
-                .addTo(layer.current);
+            const dot = L.marker(here, {
+                icon: originIcon,
+                draggable: Boolean(onPick),
+                zIndexOffset: 1000,
+                title: 'Your location',
+            }).addTo(layer.current);
+
+            dot.bindTooltip(onPick ? 'Your location: drag to move' : 'Your location');
+            dot.on('dragend', () => {
+                const { lat, lng } = dot.getLatLng();
+
+                pick(lat, lng);
+            });
 
             if (radiusKm) {
                 const circle = L.circle(here, { radius: radiusKm * 1000, color: '#4f46e5', weight: 1, fillOpacity: 0.05 }).addTo(
@@ -112,7 +166,16 @@ export default function TechnicianMap({ points, origin = null, radiusKm = null, 
             }
         }
 
-        if (bounds.length > 0) {
+        // A spot the person just picked here is where they are looking already.
+        const pickedHere =
+            origin !== null &&
+            picked.current !== null &&
+            picked.current.lat === origin.lat &&
+            picked.current.lng === origin.lng;
+
+        if (!pickedHere) picked.current = null;
+
+        if (bounds.length > 0 && !pickedHere) {
             map.current.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
         }
     }, [points, origin?.lat, origin?.lng, radiusKm]);

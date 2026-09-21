@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
-import KeywordSearchBar from '@/Components/KeywordSearchBar';
+import Avatar from '@/Components/Avatar';
+import FeedFilterMenu from '@/Components/FeedFilterMenu';
 import Modal from '@/Components/Modal';
 import OfferForm from '@/Components/OfferForm';
 import OfferListing from '@/Components/OfferListing';
@@ -11,37 +12,33 @@ import RequestForm from '@/Components/RequestForm';
 import TopRatedTechnicians from '@/Components/TopRatedTechnicians';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
-const TYPE_OPTIONS = [
-    { value: 'requests', label: 'Requests' },
-    { value: 'offers', label: 'Offers' },
+// The filter menu under the composer. One choice at a time; "newest" is the
+// default and is left out of the URL.
+const FILTER_OPTIONS = [
+    { value: 'newest', label: 'Newest posts', description: 'Show recent posts first' },
+    { value: 'requests', label: 'Requests', description: "Only customers' repair requests" },
+    { value: 'offers', label: 'Offers', description: "Only technicians' offers" },
+    { value: 'rated', label: 'Most rated', description: 'Offers from the best rated technicians first' },
+    { value: 'relevant', label: 'Most relevant', description: 'Posts in your categories and your city first' },
 ];
 
-const AVAILABILITY_OPTIONS = [
-    { value: 'available', label: 'Available' },
-    { value: 'busy', label: 'Busy' },
-    { value: 'offline', label: 'Offline' },
-];
+// These two can be narrowed to one category.
+const CATEGORY_FILTERS = ['rated', 'relevant'];
 
-const MEDIA_OPTIONS = [
-    { value: 'any', label: 'Pictures or videos' },
-    { value: 'image', label: 'Pictures' },
-    { value: 'video', label: 'Videos' },
-];
+// Where the menu starts: the `filter` in the URL, or the older `type` and
+// `sort` parameters that links from before the menu still carry.
+function initialFilter(filters) {
+    if (FILTER_OPTIONS.some((option) => option.value === filters.filter)) return filters.filter;
+    if (filters.type === 'requests' || filters.type === 'offers') return filters.type;
 
-const SORT_OPTIONS = [
-    { value: 'newest', label: 'Newest first' },
-    { value: 'oldest', label: 'Oldest first' },
-    { value: 'rating', label: "Highest rated technician" },
-];
-
-// The search bar's select filters use 'all' for "not set"; the URL and the
-// controller use an empty value, so these convert between the two.
-const toBarValue = (value) => (value === '' || value == null ? 'all' : value);
-const fromBarValue = (value) => (value === 'all' ? '' : value);
+    return 'newest';
+}
 
 // Only send filters that are set, so the URL stays clean.
 function buildParams(form) {
-    return Object.fromEntries(Object.entries(form).filter(([, value]) => value !== '' && value !== null));
+    return Object.fromEntries(
+        Object.entries(form).filter(([key, value]) => value !== '' && value !== null && !(key === 'filter' && value === 'newest')),
+    );
 }
 
 // A panel over the feed to write a new post. It can only be closed with its
@@ -85,13 +82,8 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
     const [panel, setPanel] = useState(null);
 
     const [form, setForm] = useState({
-        q: filters.q ?? '',
-        type: filters.type ?? '',
+        filter: initialFilter(filters),
         category: filters.category ?? '',
-        city: filters.city ?? '',
-        availability: filters.availability ?? '',
-        media: filters.media ?? '',
-        sort: filters.sort ?? '',
         top_category: filters.top_category ?? '',
     });
 
@@ -99,8 +91,8 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
         setForm((current) => ({ ...current, [key]: value }));
     }
 
-    // Results follow the bar as it changes: typing or picking a filter searches
-    // after a short pause, so there is no Search button to press. The last-sent
+    // Results follow the menu as it changes: picking a filter loads it after a
+    // short pause, so there is no button to press. The last-sent
     // query is remembered so the first render, and any change that ends up
     // producing the same query, never triggers a request.
     const lastSent = useRef(null);
@@ -127,91 +119,70 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
         return () => clearTimeout(timer);
     }, [form]);
 
-    const searchFilters = [
-        {
-            key: 'type',
-            keyword: 'type',
-            description: 'Only requests or only offers',
-            options: TYPE_OPTIONS,
-            value: toBarValue(form.type),
-            onChange: (value) => update('type', fromBarValue(value)),
-        },
-        {
-            key: 'category',
-            keyword: 'category',
-            description: 'Posts tagged with a repair category',
-            options: categories.map((category) => ({ value: category.slug, label: category.name })),
-            value: toBarValue(form.category),
-            onChange: (value) => update('category', fromBarValue(value)),
-        },
-        {
-            key: 'city',
-            keyword: 'city',
-            description: "Filter by the city of the request or of the technician",
-            kind: 'text',
-            value: form.city,
-            onChange: (value) => update('city', value),
-        },
-        {
-            key: 'availability',
-            keyword: 'availability',
-            description: "Only offers of technicians with this availability",
-            options: AVAILABILITY_OPTIONS,
-            value: toBarValue(form.availability),
-            onChange: (value) => update('availability', fromBarValue(value)),
-        },
-        {
-            key: 'media',
-            keyword: 'has',
-            description: 'Only offers with pictures or videos',
-            options: MEDIA_OPTIONS,
-            value: toBarValue(form.media),
-            onChange: (value) => update('media', fromBarValue(value)),
-        },
-        {
-            key: 'sort',
-            keyword: 'sort',
-            description: 'Order the results',
-            options: SORT_OPTIONS,
-            value: toBarValue(form.sort),
-            onChange: (value) => update('sort', fromBarValue(value)),
-        },
-    ];
+    // Picking another choice from the menu drops the category, which only
+    // "Most rated" and "Most relevant" have.
+    function chooseFilter(value) {
+        setForm((current) => ({
+            ...current,
+            filter: value,
+            category: CATEGORY_FILTERS.includes(value) ? current.category : '',
+        }));
+    }
+
+    // Only technicians have offers of their own, so they are the ones whose
+    // main post is an offer; everybody else posts a request.
+    const mainPanel = offerForm ? 'offer' : requestForm ? 'request' : null;
+    const canPost = mainPanel !== null;
+
+    const filterOptions = FILTER_OPTIONS.map((option) =>
+        option.value === 'relevant'
+            ? {
+                  ...option,
+                  description:
+                      auth.user.role === 'technician'
+                          ? 'Posts in your specialties and your city first'
+                          : 'Posts in your city and like your past requests first',
+              }
+            : option,
+    );
 
     // What the results are called: "3 offers found" once filtered down to a type.
-    const noun = { offers: 'offer', requests: 'request' }[filters.type] ?? 'post';
+    const shown = filters.filter ?? filters.type;
+    const noun = { offers: 'offer', rated: 'offer', requests: 'request' }[shown] ?? 'post';
 
     return (
-        <AuthenticatedLayout>
+        <AuthenticatedLayout stickyNav>
             <Head title="Feed" />
 
             <div className="flex w-full flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">
                 <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:items-start">
-                    {/* Account rail: profile, dashboard, theme toggle, support. Stretched
-                        to the row's height, which flex-1 above guarantees is at least the
-                        remaining viewport, on any screen size, without a hardcoded vh figure. */}
-                    <aside className="w-full lg:sticky lg:top-4 lg:w-56 lg:shrink-0 lg:self-stretch">
+                    {/* Account rail: profile, dashboard, theme toggle, support. Pinned
+                        under the top bar on wide screens: the page scrolls, these two stay put,
+                        so only the feed moves. */}
+                    <aside className="w-full lg:h-[calc(100vh-6.0625rem)] lg:w-72 lg:sticky lg:top-[5.0625rem] lg:max-h-[calc(100vh-6.0625rem)] lg:shrink-0 lg:overflow-y-auto">
                         <ProfileSidebar user={auth.user} className="h-full" />
                     </aside>
 
                     {/* Search and results. The search is its own card above the posts. */}
                     <div className="min-w-0 flex-1 space-y-4">
-                        <div className="space-y-2 rounded-lg bg-white p-4 shadow dark:bg-gray-800">
-                            <KeywordSearchBar
-                                value={form.q}
-                                onChange={(value) => update('q', value)}
-                                filters={searchFilters}
-                                placeholder="Search the feed by title, description or technician"
-                                className="w-full"
-                            />
-                            <div className="flex flex-wrap items-center justify-between gap-3">
-                                <p className="text-sm text-gray-500">
-                                    {feed.total} {noun}
-                                    {feed.total === 1 ? '' : 's'} found
-                                </p>
+                        {/* The composer: the feed's only way to post. Admins post nothing, so they don't get one. */}
+                        {canPost && (
+                            <div className="space-y-3 rounded-lg bg-white p-4 shadow dark:bg-gray-800">
+                                <div className="flex items-center gap-3">
+                                    <Avatar user={auth.user} size="md" />
+                                    <button
+                                        type="button"
+                                        onClick={() => setPanel(mainPanel)}
+                                        className="min-w-0 flex-1 truncate rounded-full bg-gray-100 px-4 py-2.5 text-start text-gray-500 transition hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
+                                    >
+                                        {mainPanel === 'offer'
+                                            ? 'Share an offer or ask for a repair…'
+                                            : 'What needs fixing?'}
+                                    </button>
+                                </div>
 
                                 {/* Customers post requests; technicians choose between a request and an offer. */}
-                                <div className="flex flex-wrap items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3 dark:border-gray-700">
                                     {requestForm && (
                                         <button type="button" onClick={() => setPanel('request')} className={NEW_POST_BUTTON}>
                                             + New request
@@ -224,9 +195,37 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
                                     )}
                                 </div>
                             </div>
+                        )}
+
+                        {/* The filter menu, and the category for the two choices that have one. */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <FeedFilterMenu options={filterOptions} value={form.filter} onChange={chooseFilter} />
+
+                                {CATEGORY_FILTERS.includes(form.filter) && (
+                                    <select
+                                        aria-label="Filter by category"
+                                        value={form.category}
+                                        onChange={(e) => update('category', e.target.value)}
+                                        className="rounded-md border-gray-300 py-1 text-sm dark:border-gray-600 dark:bg-gray-900"
+                                    >
+                                        <option value="">All categories</option>
+                                        {categories.map((category) => (
+                                            <option key={category.slug} value={category.slug}>
+                                                {category.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
+
+                            <p className="text-sm text-gray-500">
+                                {feed.total} {noun}
+                                {feed.total === 1 ? '' : 's'} found
+                            </p>
                         </div>
 
-                        {feed.data.length === 0 && <p className="text-gray-500">No {noun}s match your search.</p>}
+                        {feed.data.length === 0 && <p className="text-gray-500">No {noun}s match this filter.</p>}
 
                         <div className="grid grid-cols-1 gap-4">
                             {feed.data.map((post) =>
@@ -252,7 +251,7 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
                     </div>
 
                     {/* The best rated technicians: beside the feed on wide screens, below it on small ones. */}
-                    <aside className="w-full lg:sticky lg:top-4 lg:w-80 lg:shrink-0">
+                    <aside className="w-full lg:w-80 lg:sticky lg:top-[5.0625rem] lg:max-h-[calc(100vh-6.0625rem)] lg:shrink-0 lg:overflow-y-auto">
                         <TopRatedTechnicians
                             technicians={topRated}
                             categories={categories}

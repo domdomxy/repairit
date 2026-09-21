@@ -103,6 +103,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/reviews/{review}/report', [ReportController::class, 'storeReview'])->middleware('throttle:10,1,reports')->name('reviews.report');
     Route::post('/customer-reviews/{customerReview}/report', [ReportController::class, 'storeCustomerReview'])->middleware('throttle:10,1,reports')->name('customer-reviews.report');
     Route::get('/offer-media/{media}', [TechnicianOfferController::class, 'media'])->name('offers.media');
+    Route::get('/request-media/{media}', [ServiceRequestController::class, 'media'])->name('requests.media');
     // Repair requests: what customers need fixed, for technicians to answer with a quote.
     // "mine" and "new" must stay above /requests/{serviceRequest}, or they would be read as an id.
     Route::get('/requests', [ServiceRequestController::class, 'index'])->name('requests.index');

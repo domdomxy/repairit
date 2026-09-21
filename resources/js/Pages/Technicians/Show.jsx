@@ -1,5 +1,6 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
+import FeedFilterMenu from '@/Components/FeedFilterMenu';
 import FeedKindBadge from '@/Components/FeedKindBadge';
 import Modal from '@/Components/Modal';
 import OfferCard from '@/Components/OfferCard';
@@ -17,11 +18,13 @@ import { useState } from 'react';
 // stretched to the height of the page, and stack on small ones.
 const PANEL = 'rounded-lg bg-white p-6 shadow dark:bg-gray-800';
 
-// The posts of the middle column: everything, or only the requests or the offers.
+// The filter menu over the posts of the middle column, the same one the feed has.
+// (No "most rated" here: every post on this page is by the same technician.)
 const FILTERS = [
-    { value: 'all', label: 'All' },
-    { value: 'requests', label: 'Requests' },
-    { value: 'offers', label: 'Offers' },
+    { value: 'newest', label: 'Newest posts', description: 'Show recent posts first' },
+    { value: 'oldest', label: 'Oldest posts', description: 'Show the oldest posts first' },
+    { value: 'requests', label: 'Requests', description: 'Only requests' },
+    { value: 'offers', label: 'Offers', description: 'Only offers' },
 ];
 
 const NEW_POST_BUTTON =
@@ -42,17 +45,72 @@ export default function Show({ technician, requests, canReview, myReview, offerF
     const [editing, setEditing] = useState(null);
     const atLimit = offerForm ? offers.length >= offerForm.limits.max_offers : false;
 
-    // Offers and requests are listed together, newest first, and can be filtered by kind.
-    const [filter, setFilter] = useState('all');
-    const posts = [
+    // Offers and requests are listed together, and can be searched, narrowed to
+    // one kind or one category, and ordered. All of it happens here in the
+    // browser: the page already carries every post of this technician.
+    const [filter, setFilter] = useState('newest');
+    const [search, setSearch] = useState('');
+    const [category, setCategory] = useState('');
+
+    const allPosts = [
         ...offers.map((offer) => ({ kind: 'offer', ...offer })),
         ...(requests ?? []).map((request) => ({ kind: 'request', ...request })),
-    ]
-        .filter((post) => filter === 'all' || `${post.kind}s` === filter)
-        .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id);
-    const noun = filter === 'all' ? 'posts' : filter;
+    ];
+
+    // The categories these posts are actually tagged with, for the category select.
+    const postCategories = [
+        ...new Map(allPosts.flatMap((post) => post.categories ?? []).map((item) => [item.slug, item])).values(),
+    ].sort((a, b) => a.name.localeCompare(b.name));
+
+    const term = search.trim().toLowerCase();
+    const searching = term !== '' || category !== '';
+
+    const matches = (post) =>
+        term === '' ||
+        [post.title, post.description, post.city, ...(post.categories ?? []).map((item) => item.name)]
+            .filter(Boolean)
+            .some((text) => text.toLowerCase().includes(term));
+
+    const byDate = (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id;
+
+    const posts = allPosts
+        .filter((post) => filter !== 'requests' || post.kind === 'request')
+        .filter((post) => filter !== 'offers' || post.kind === 'offer')
+        .filter((post) => category === '' || (post.categories ?? []).some((item) => item.slug === category))
+        .filter(matches)
+        .sort((a, b) => (filter === 'oldest' ? -byDate(a, b) : byDate(a, b)));
+
+    const noun = filter === 'requests' ? 'requests' : filter === 'offers' ? 'offers' : 'posts';
     // Only when both kinds are listed does the list need to say which is which.
-    const showKind = filter === 'all';
+    const showKind = filter !== 'requests' && filter !== 'offers';
+
+    // The search bar sits beside the buttons that create a post when there are
+    // any (the technician's own profile), and above the filters otherwise.
+    const canCreate = isOwnProfile && (offerForm || requestForm);
+    const searchBox = (
+        <div className="relative min-w-[12rem] flex-1">
+            <svg
+                className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                aria-hidden="true"
+            >
+                <circle cx="9" cy="9" r="6" />
+                <path d="M14 14l4 4" />
+            </svg>
+            <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search these posts by title, description or category"
+                aria-label="Search the posts"
+                className="w-full rounded-md border-gray-300 bg-white py-2 ps-9 text-sm dark:border-gray-600 dark:bg-gray-900"
+            />
+        </div>
+    );
 
     function contact() {
         router.post(route('conversations.start', technician.id));
@@ -116,10 +174,10 @@ export default function Show({ technician, requests, canReview, myReview, offerF
 
                     {/* Middle: the create box in a card of its own, then their posts (offers and requests) with no panel behind them */}
                     <div className="min-w-0 flex-1 space-y-4">
-                        {isOwnProfile && (offerForm || requestForm) && (
+                        {canCreate && (
                             <section aria-label="Create a post" className={PANEL}>
                                 <div className="flex flex-wrap items-center justify-between gap-3">
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">Create a new post</p>
+                                    {searchBox}
 
                                     {/* A technician chooses between a request and an offer. */}
                                     <div className="flex flex-wrap items-center gap-2">
@@ -151,33 +209,45 @@ export default function Show({ technician, requests, canReview, myReview, offerF
                         )}
 
                         <section aria-label="Posts">
-                            <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
-                                <h4 className="font-semibold">Posts</h4>
+                            <div className="mb-3 space-y-3 px-1">
+                                {!canCreate && searchBox}
 
-                                <div role="group" aria-label="Filter the posts" className="flex gap-1">
-                                    {FILTERS.map(({ value, label }) => (
-                                        <button
-                                            key={value}
-                                            type="button"
-                                            onClick={() => setFilter(value)}
-                                            aria-pressed={filter === value}
-                                            className={`rounded-full px-3 py-1 text-sm transition ${
-                                                filter === value
-                                                    ? 'bg-indigo-600 text-white'
-                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-                                            }`}
-                                        >
-                                            {label}
-                                        </button>
-                                    ))}
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <FeedFilterMenu options={FILTERS} value={filter} onChange={setFilter} />
+
+                                        {postCategories.length > 0 && (
+                                            <select
+                                                aria-label="Filter the posts by category"
+                                                value={category}
+                                                onChange={(e) => setCategory(e.target.value)}
+                                                className="rounded-md border-gray-300 py-1 text-sm dark:border-gray-600 dark:bg-gray-900"
+                                            >
+                                                <option value="">All categories</option>
+                                                {postCategories.map((item) => (
+                                                    <option key={item.slug} value={item.slug}>
+                                                        {item.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
+
+                                    <p className="text-sm text-gray-500">
+                                        <span className="font-semibold text-gray-900 dark:text-gray-100">Posts</span> ·{' '}
+                                        {posts.length} {noun.slice(0, -1)}
+                                        {posts.length === 1 ? '' : 's'} found
+                                    </p>
                                 </div>
                             </div>
 
                             {posts.length === 0 && (
                                 <p className="text-sm text-gray-500">
-                                    {isOwnProfile
-                                        ? `You have no ${noun} yet.`
-                                        : `${technician.name} has no ${noun} yet.`}
+                                    {searching
+                                        ? `No ${noun} match your search.`
+                                        : isOwnProfile
+                                          ? `You have no ${noun} yet.`
+                                          : `${technician.name} has no ${noun} yet.`}
                                 </p>
                             )}
                             <ul className="space-y-3">

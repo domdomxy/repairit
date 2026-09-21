@@ -9,6 +9,36 @@ import { Link } from '@inertiajs/react';
 // matters more than the name. In the feed, `showKind` marks it as a request
 // among the offers, and `className` gives it the look of the offers' cards.
 // On the customer's own profile, `showAuthor` is off: the page already says who.
+// Pictures and videos attached to the request show as a strip of small tiles;
+// they are full size on the request's own page.
+const THUMBS = 4;
+
+function Thumbnails({ media }) {
+    const shown = media.slice(0, THUMBS);
+    const more = media.length - shown.length;
+
+    return (
+        <ul className="flex gap-2" aria-label={`${media.length} attachment${media.length === 1 ? '' : 's'}`}>
+            {shown.map((item, index) => (
+                <li key={item.id} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-gray-100 dark:bg-gray-700">
+                    {item.type === 'video' ? (
+                        <span className="flex h-full w-full items-center justify-center bg-black text-white" aria-label="Video">
+                            ▶
+                        </span>
+                    ) : (
+                        <img src={item.url} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    )}
+                    {more > 0 && index === shown.length - 1 && (
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-sm font-semibold text-white">
+                            +{more}
+                        </span>
+                    )}
+                </li>
+            ))}
+        </ul>
+    );
+}
+
 export default function RequestCard({
     request,
     scope = 'all',
@@ -56,6 +86,8 @@ export default function RequestCard({
                     {request.description}
                 </p>
             </div>
+
+            {request.media?.length > 0 && <Thumbnails media={request.media} />}
 
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap gap-1">

@@ -57,6 +57,12 @@ class ServiceRequest extends Model
         return $this->belongsToMany(Category::class, 'category_service_request')->orderBy('categories.name');
     }
 
+    /** The pictures and videos of this request, oldest first. Load them with `with('media')`. */
+    public function media(): HasMany
+    {
+        return $this->hasMany(RequestMedia::class)->orderBy('id');
+    }
+
     public function quotes(): HasMany
     {
         return $this->hasMany(Quote::class);
@@ -80,7 +86,7 @@ class ServiceRequest extends Model
 
     /**
      * The card sent to the browser: the request and who posted it, public
-     * fields only (never the email). Load `customer` and `categories` first,
+     * fields only (never the email). Load `customer`, `categories` and `media` first,
      * and count `quotes` for the number shown on the card.
      *
      * @return array<string, mixed>
@@ -96,6 +102,7 @@ class ServiceRequest extends Model
             'status' => $this->status,
             'created_at' => $this->created_at?->toIso8601String(),
             'quotes_count' => (int) ($this->quotes_count ?? 0),
+            'media' => $this->media->values()->all(),
             'categories' => $this->categories
                 ->map(fn (Category $category) => ['id' => $category->id, 'name' => $category->name, 'slug' => $category->slug])
                 ->values()
