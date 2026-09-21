@@ -7,10 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 /**
  * A repair request: something a customer needs fixed, described for
- * technicians to answer with a {@see Quote}. Anyone signed in can see an open
+ * technicians to answer with a {@see Quote}. It has no title: the description
+ * is the post. Anyone signed in can see an open
  * request; the quotes are private to the customer and the technician who
  * wrote each one.
  */
@@ -18,8 +20,6 @@ class ServiceRequest extends Model
 {
     /** Most open requests one person can have at a time. */
     public const MAX_OPEN_PER_CUSTOMER = 10;
-
-    public const TITLE_MAX = 120;
 
     public const DESCRIPTION_MAX = 2000;
 
@@ -35,7 +35,6 @@ class ServiceRequest extends Model
     public const STATUS_CLOSED = 'closed';
 
     protected $fillable = [
-        'title',
         'description',
         'budget',
         'city',
@@ -68,6 +67,15 @@ class ServiceRequest extends Model
         return $this->hasMany(Quote::class);
     }
 
+    /**
+     * The start of the description on one line, to name the request where the
+     * whole text would be too long (a notification, a confirmation, a report).
+     */
+    public function excerpt(int $limit = 60): string
+    {
+        return Str::limit(trim((string) preg_replace('/\s+/u', ' ', $this->description)), $limit);
+    }
+
     public function isOpen(): bool
     {
         return $this->status === self::STATUS_OPEN;
@@ -95,8 +103,8 @@ class ServiceRequest extends Model
     {
         return [
             'id' => $this->id,
-            'title' => $this->title,
             'description' => $this->description,
+            'excerpt' => $this->excerpt(),
             'budget' => $this->budget,
             'city' => $this->city,
             'status' => $this->status,

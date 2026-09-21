@@ -63,7 +63,7 @@ class ServiceRequestController extends Controller
         $user = $request->user();
         $data = $this->validated($request);
 
-        $this->ensureRoomForAnotherOpenRequest($user->serviceRequests()->open()->count(), 'title');
+        $this->ensureRoomForAnotherOpenRequest($user->serviceRequests()->open()->count(), 'description');
 
         $stored = [];
 
@@ -71,7 +71,7 @@ class ServiceRequestController extends Controller
         // if writing fails, so a failed save never leaves files behind.
         try {
             $serviceRequest = DB::transaction(function () use ($request, $user, $data, &$stored) {
-                $serviceRequest = $user->serviceRequests()->create(Arr::only($data, ['title', 'description', 'budget', 'city']));
+                $serviceRequest = $user->serviceRequests()->create(Arr::only($data, ['description', 'budget', 'city']));
                 $serviceRequest->categories()->sync($data['categories'] ?? []);
 
                 $this->attachFiles($serviceRequest, $request->file('media', []), $stored);
@@ -161,7 +161,7 @@ class ServiceRequestController extends Controller
 
         try {
             DB::transaction(function () use ($request, $serviceRequest, $data, $removing, &$stored) {
-                $serviceRequest->update(Arr::only($data, ['title', 'description', 'budget', 'city']));
+                $serviceRequest->update(Arr::only($data, ['description', 'budget', 'city']));
                 $serviceRequest->categories()->sync($data['categories'] ?? []);
 
                 $this->attachFiles($serviceRequest, $request->file('media', []), $stored);
@@ -177,7 +177,10 @@ class ServiceRequestController extends Controller
         // Only now, once the rows are gone, are the old files deleted.
         Storage::disk(Offer::MEDIA_DISK)->delete($removing->pluck('path')->all());
 
-        return redirect()->route('requests.show', $serviceRequest)->with('success', 'Your request was updated.');
+        // Edited from a panel on another page (the feed): stay there, as posting from one does.
+        $response = $request->boolean('from_panel') ? back() : redirect()->route('requests.show', $serviceRequest);
+
+        return $response->with('success', 'Your request was updated.');
     }
 
     public function destroy(Request $request, ServiceRequest $serviceRequest): RedirectResponse
@@ -191,7 +194,10 @@ class ServiceRequestController extends Controller
 
         Storage::disk(Offer::MEDIA_DISK)->delete($paths);
 
-        return redirect()->route('requests.mine')->with('success', 'Your request was deleted.');
+        // Deleted from the feed (`from_panel`): stay there. On the request's own page it no longer exists, so leave for the list.
+        $response = $request->boolean('from_panel') ? back() : redirect()->route('requests.mine');
+
+        return $response->with('success', 'Your request was deleted.');
     }
 
     /** Stop taking quotes, without deleting anything. */
@@ -251,16 +257,11 @@ class ServiceRequestController extends Controller
     {
         $user = $request->user();
 
-        // Free text: matches the title or the description.
+        // Free text: matches the description.
         $term = trim((string) $request->input('q'));
 
         if ($term !== '') {
-            $like = $this->likePattern($term);
-
-            $query->where(function ($q) use ($like) {
-                $q->whereRaw("service_requests.title LIKE ? ESCAPE '!'", [$like])
-                    ->orWhereRaw("service_requests.description LIKE ? ESCAPE '!'", [$like]);
-            });
+            $query->whereRaw("service_requests.description LIKE ? ESCAPE '!'", [$this->likePattern($term)]);
         }
 
         if ($request->filled('category')) {
@@ -304,7 +305,6 @@ class ServiceRequestController extends Controller
         $limits = Offer::limits();
 
         return $request->validate([
-            'title' => ['required', 'string', 'max:'.ServiceRequest::TITLE_MAX],
             'description' => ['required', 'string', 'max:'.ServiceRequest::DESCRIPTION_MAX],
             'budget' => ['nullable', 'string', 'max:'.ServiceRequest::BUDGET_MAX],
             'city' => ['nullable', 'string', 'max:'.ServiceRequest::CITY_MAX],
@@ -444,7 +444,6 @@ class ServiceRequestController extends Controller
         return Offer::limits() + [
             'image_extensions' => Offer::IMAGE_EXTENSIONS,
             'video_extensions' => Offer::VIDEO_EXTENSIONS,
-            'title_max' => ServiceRequest::TITLE_MAX,
             'description_max' => ServiceRequest::DESCRIPTION_MAX,
             'budget_max' => ServiceRequest::BUDGET_MAX,
             'city_max' => ServiceRequest::CITY_MAX,

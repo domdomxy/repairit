@@ -16,13 +16,13 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Reported messages, conversations, offers and reviews, as an admin works through them.
+ * Reported messages, conversations, offers, repair requests and reviews, as an admin works through them.
  *
  * A report is the only way an admin gets to read a private conversation. The
  * page shows all of it, including messages that were deleted (for one person or
  * for both) and what edited messages said before they were changed. A report
- * about an offer shows the offer instead, and one about a review shows the
- * review as it was reported: neither has a conversation.
+ * about an offer or a request shows that post instead, and one about a review
+ * shows the review as it was reported: none of them has a conversation.
  */
 class ReportController extends Controller
 {
@@ -82,13 +82,17 @@ class ReportController extends Controller
             'conversation',
             'offer.categories',
             'offer.media',
+            'serviceRequest.customer:id,name,avatar_path,role',
+            'serviceRequest.categories',
+            'serviceRequest.media',
             'review',
             'customerReview',
             'reviewSubject:id,name,email,role,suspended_at,avatar_path',
         ]);
-        // An offer report has no conversation, and the offer may have been deleted since.
+        // An offer or request report has no conversation, and the post may have been deleted since.
         $conversation = $report->conversation;
         $offer = $report->offer;
+        $serviceRequest = $report->serviceRequest?->loadCount('quotes');
 
         // Reading a private conversation is recorded, once per admin and report,
         // so the activity log shows who looked at what.
@@ -102,6 +106,7 @@ class ReportController extends Controller
             $looked = match ($report->type()) {
                 'review' => 'looked at the review',
                 'offer' => 'looked at the offer',
+                'request' => 'looked at the request',
                 default => 'read the conversation',
             };
 
@@ -175,9 +180,14 @@ class ReportController extends Controller
                 'title' => $offer?->title ?? $report->offer_title,
                 'card' => $offer?->toCard(),
             ] : null,
+            // The reported request as it is now; without a card once the request is deleted (the title is kept).
+            'serviceRequest' => $report->isRequestReport() ? [
+                'excerpt' => $serviceRequest?->excerpt(120) ?? $report->request_excerpt,
+                'card' => $serviceRequest?->toCard(),
+            ] : null,
             // The reported review: what it said when it was reported, and whether it still stands.
             'review' => $report->isReviewReport() ? $this->reviewPayload($report) : null,
-            // Other reports about the same conversation, offer or review, so nothing is judged in isolation.
+            // Other reports about the same conversation, offer, request or review, so nothing is judged in isolation.
             'related' => $this->relatedTo($report)
                 ->with('reporter:id,name')
                 ->latest()
@@ -259,7 +269,7 @@ class ReportController extends Controller
         return back()->with('success', 'Review removed.');
     }
 
-    /** The other reports about the same conversation, offer or review. */
+    /** The other reports about the same conversation, offer, request or review. */
     private function relatedTo(Report $report): Builder
     {
         return Report::query()
@@ -273,8 +283,12 @@ class ReportController extends Controller
                 fn ($query) => $query->when(
                     $report->conversation_id !== null,
                     fn ($query) => $query->where('conversation_id', $report->conversation_id),
-                    // An offer that has been deleted no longer links its reports together.
-                    fn ($query) => $query->where('offer_id', $report->offer_id ?? 0),
+                    // An offer or request that has been deleted no longer links its reports together.
+                    fn ($query) => $query->when(
+                        $report->isRequestReport(),
+                        fn ($query) => $query->where('service_request_id', $report->service_request_id ?? 0),
+                        fn ($query) => $query->where('offer_id', $report->offer_id ?? 0),
+                    ),
                 ),
             );
     }

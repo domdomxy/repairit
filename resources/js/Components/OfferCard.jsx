@@ -1,4 +1,4 @@
-import OfferMediaGrid from '@/Components/OfferMediaGrid';
+import PostMedia from '@/Components/PostMedia';
 
 // The price of an offer as a small pill. Nothing when the offer has no price.
 export function OfferPrice({ price }) {
@@ -67,7 +67,7 @@ export default function OfferCard({
 
             {!listing && <OfferCategories categories={offer.categories} />}
 
-            <OfferMediaGrid media={offer.media} />
+            <PostMedia media={offer.media} />
 
             {children}
         </div>

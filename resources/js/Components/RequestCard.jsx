@@ -1,53 +1,29 @@
 import Avatar from '@/Components/Avatar';
 import FeedKindBadge from '@/Components/FeedKindBadge';
+import PostMedia from '@/Components/PostMedia';
 import { relativeTime } from '@/lib/dates';
 import { Link } from '@inertiajs/react';
 
 // A repair request as a card in a list: who is asking, what for, roughly how
 // much they would spend and how many quotes it has. The whole card opens the
-// request. `scope` is 'mine' on the customer's own list, where the status
+// request (its text is a link stretched over the card), so the `menu` at the
+// top right (RequestMenu: copy link, edit, delete, report) sits above that link.
+// `scope` is 'mine' on the customer's own list, where the status
 // matters more than the name. In the feed, `showKind` marks it as a request
 // among the offers, and `className` gives it the look of the offers' cards.
 // On the customer's own profile, `showAuthor` is off: the page already says who.
-// Pictures and videos attached to the request show as a strip of small tiles;
-// they are full size on the request's own page.
-const THUMBS = 4;
-
-function Thumbnails({ media }) {
-    const shown = media.slice(0, THUMBS);
-    const more = media.length - shown.length;
-
-    return (
-        <ul className="flex gap-2" aria-label={`${media.length} attachment${media.length === 1 ? '' : 's'}`}>
-            {shown.map((item, index) => (
-                <li key={item.id} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-gray-100 dark:bg-gray-700">
-                    {item.type === 'video' ? (
-                        <span className="flex h-full w-full items-center justify-center bg-black text-white" aria-label="Video">
-                            ▶
-                        </span>
-                    ) : (
-                        <img src={item.url} alt="" loading="lazy" className="h-full w-full object-cover" />
-                    )}
-                    {more > 0 && index === shown.length - 1 && (
-                        <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-sm font-semibold text-white">
-                            +{more}
-                        </span>
-                    )}
-                </li>
-            ))}
-        </ul>
-    );
-}
-
+// Pictures and videos attached to the request are stacked as a collage (PostMedia),
+// the same as an offer's; a click on one opens them in a viewer to browse.
 export default function RequestCard({
     request,
     scope = 'all',
     showKind = false,
     showAuthor = true,
+    menu = null,
     className = 'rounded-lg bg-white shadow transition hover:shadow-md dark:bg-gray-800',
 }) {
     return (
-        <Link href={route('requests.show', request.id)} className={`block space-y-3 p-4 ${className}`}>
+        <div className={`relative space-y-3 p-4 ${className}`}>
             <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                     {showAuthor && <Avatar user={request.customer} size="sm" />}
@@ -65,7 +41,8 @@ export default function RequestCard({
                     </p>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
+                {/* Above the stretched link of the text, or the menu could not be clicked. */}
+                <div className="relative z-10 flex shrink-0 items-center gap-2">
                     {showKind && <FeedKindBadge kind="request" />}
                     {request.has_my_quote && (
                         <span className="rounded-full bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200">
@@ -77,17 +54,23 @@ export default function RequestCard({
                             Closed
                         </span>
                     )}
+                    {menu}
                 </div>
             </div>
 
-            <div>
-                <h3 className="break-words font-semibold">{request.title}</h3>
-                <p className="mt-1 line-clamp-3 whitespace-pre-line break-words text-sm text-gray-600 dark:text-gray-300">
+            {/* A request has no title: what the customer wrote is the post. */}
+            <p className="line-clamp-4 whitespace-pre-line break-words text-gray-900 dark:text-gray-100">
+                <Link href={route('requests.show', request.id)} className="after:absolute after:inset-0">
                     {request.description}
-                </p>
-            </div>
+                </Link>
+            </p>
 
-            {request.media?.length > 0 && <Thumbnails media={request.media} />}
+            {/* Above the stretched link: a click on a picture opens the viewer, not the request. */}
+            {request.media?.length > 0 && (
+                <div className="relative z-10">
+                    <PostMedia media={request.media} />
+                </div>
+            )}
 
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap gap-1">
@@ -112,6 +95,6 @@ export default function RequestCard({
                     </span>
                 </div>
             </div>
-        </Link>
+        </div>
     );
 }

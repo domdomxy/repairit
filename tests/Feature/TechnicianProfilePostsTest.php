@@ -16,11 +16,11 @@ function tppTechnician(array $user = [], array $profile = []): User
     return $technician;
 }
 
-function tppRequest(User $owner, string $title, array $attributes = []): ServiceRequest
+/** A request has no title: `$text` is what the customer wrote, and how these tests tell requests apart. */
+function tppRequest(User $owner, string $text, array $attributes = []): ServiceRequest
 {
     return $owner->serviceRequests()->create([
-        'title' => $title,
-        'description' => 'It stopped working yesterday.',
+        'description' => $text,
         ...$attributes,
     ]);
 }
@@ -33,7 +33,7 @@ test('the profile lists the requests the technician posted, open ones for visito
 
     $titles = fn (User $viewer) => collect(
         $this->actingAs($viewer)->get(route('technicians.show', $technician))->viewData('page')['props']['requests'],
-    )->pluck('title')->all();
+    )->pluck('description')->all();
 
     expect($titles(User::factory()->create(['role' => 'customer'])))->toBe(['Need a part'])
         ->and($titles($technician))->toEqualCanonicalizing(['Need a part', 'Closed one']);
@@ -47,7 +47,7 @@ test('only the technician themself gets the panels to post an offer or a request
         ->assertInertia(fn (Assert $page) => $page
             ->where('requestForm.defaultCity', 'Sfax')
             ->has('requestForm.categories')
-            ->has('requestForm.limits.title_max')
+            ->has('requestForm.limits.description_max')
             ->has('offerForm.limits.max_offers'));
 
     foreach ([User::factory()->create(['role' => 'customer']), tppTechnician()] as $viewer) {
@@ -78,7 +78,7 @@ test('another technician sees which of the requests they already sent a quote to
     $this->actingAs($other)
         ->get(route('technicians.show', $owner))
         ->assertInertia(function (Assert $page) {
-            $requests = collect($page->toArray()['props']['requests'])->keyBy('title');
+            $requests = collect($page->toArray()['props']['requests'])->keyBy('description');
 
             expect($requests['Answered']['has_my_quote'])->toBeTrue()
                 ->and($requests['Waiting']['has_my_quote'])->toBeFalse();
@@ -103,7 +103,7 @@ test('a request posted from the technician profile sends them back to it', funct
 
     $this->actingAs($technician)
         ->from(route('technicians.show', $technician))
-        ->post(route('requests.store'), ['title' => 'Need a part', 'description' => 'For a boiler.', 'from_panel' => true])
+        ->post(route('requests.store'), ['description' => 'For a boiler.', 'from_panel' => true])
         ->assertSessionHasNoErrors()
         ->assertRedirect(route('technicians.show', $technician));
 

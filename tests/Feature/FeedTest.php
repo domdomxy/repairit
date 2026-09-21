@@ -27,11 +27,11 @@ function feedOffer(User $technician, string $title, array $attributes = []): Off
     return Offer::create(['technician_id' => $technician->id, 'title' => $title, ...$attributes]);
 }
 
-function feedRequest(User $customer, string $title, array $attributes = []): ServiceRequest
+/** A request has no title: `$text` is what the customer wrote, and how these tests tell requests apart. */
+function feedRequest(User $customer, string $text, array $attributes = []): ServiceRequest
 {
     return $customer->serviceRequests()->create([
-        'title' => $title,
-        'description' => 'It stopped working yesterday.',
+        'description' => $text,
         ...$attributes,
     ]);
 }
@@ -41,7 +41,7 @@ function feedAt(Offer|ServiceRequest $post, $when): void
     $post->forceFill(['created_at' => $when])->save();
 }
 
-/** What the feed lists for a search, in order, as "kind: title". */
+/** What the feed lists for a search, in order, as "kind: title" (a request's text for its title). */
 function feedPosts($test, array $query = []): array
 {
     $posts = [];
@@ -51,7 +51,7 @@ function feedPosts($test, array $query = []): array
         ->assertInertia(function (Assert $page) use (&$posts) {
             $page->component('Feed/Index');
             $posts = collect($page->toArray()['props']['feed']['data'])
-                ->map(fn ($post) => $post['kind'].': '.$post['title'])
+                ->map(fn ($post) => $post['kind'].': '.($post['title'] ?? $post['description']))
                 ->all();
         });
 
@@ -145,7 +145,7 @@ test('a technician sees which requests they already sent a quote to', function (
     $this->actingAs($technician)
         ->get(route('feed.index'))
         ->assertInertia(function (Assert $page) {
-            $posts = collect($page->toArray()['props']['feed']['data'])->keyBy('title');
+            $posts = collect($page->toArray()['props']['feed']['data'])->keyBy(fn ($post) => $post['title'] ?? $post['description']);
 
             expect($posts['Answered']['has_my_quote'])->toBeTrue()
                 ->and($posts['Answered']['quotes_count'])->toBe(1)
@@ -331,7 +331,7 @@ test('a request posted from the feed sends the person back to the feed', functio
 
     $this->actingAs($customer)
         ->from(route('feed.index', ['type' => 'requests']))
-        ->post(route('requests.store'), ['title' => 'Cracked screen', 'description' => 'Dropped it.', 'from_panel' => true])
+        ->post(route('requests.store'), ['description' => 'Dropped it.', 'from_panel' => true])
         ->assertSessionHasNoErrors()
         ->assertRedirect(route('feed.index', ['type' => 'requests']))
         ->assertSessionHas('success');
@@ -341,7 +341,7 @@ test('a request posted from the feed sends the person back to the feed', functio
 
 test('a request posted from its own form still goes to the request', function () {
     $response = $this->actingAs(feedCustomer())
-        ->post(route('requests.store'), ['title' => 'Cracked screen', 'description' => 'Dropped it.']);
+        ->post(route('requests.store'), ['description' => 'Dropped it.']);
 
     $response->assertRedirect(route('requests.show', ServiceRequest::sole()));
 });
@@ -352,4 +352,61 @@ test('the old offers address sends people to the feed, filters included', functi
     $this->actingAs(feedCustomer())
         ->get('/offers?q=boiler&category=plumbing')
         ->assertRedirect(route('feed.index', ['q' => 'boiler', 'category' => 'plumbing']));
+});
+
+test('a request edited from the feed sends the person back to the feed', function () {
+    $customer = feedCustomer();
+    $serviceRequest = feedRequest($customer, 'Cracked screen');
+
+    $this->actingAs($customer)
+        ->from(route('feed.index', ['type' => 'requests']))
+        ->put(route('requests.update', $serviceRequest), [
+            'description' => 'Cracked screen and dead battery',
+            'from_panel' => true,
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('feed.index', ['type' => 'requests']))
+        ->assertSessionHas('success');
+
+    expect($serviceRequest->refresh()->description)->toBe('Cracked screen and dead battery');
+});
+
+test('a request deleted from the feed sends the person back to the feed', function () {
+    $customer = feedCustomer();
+    $serviceRequest = feedRequest($customer, 'Cracked screen');
+
+    $this->actingAs($customer)
+        ->from(route('feed.index'))
+        ->delete(route('requests.destroy', ['serviceRequest' => $serviceRequest->id, 'from_panel' => 1]))
+        ->assertRedirect(route('feed.index'))
+        ->assertSessionHas('success');
+
+    expect(ServiceRequest::count())->toBe(0);
+});
+
+test('only the owner can edit or delete a request from the feed', function () {
+    $owner = feedCustomer();
+    $serviceRequest = feedRequest($owner, 'Cracked screen');
+    $stranger = feedTechnician();
+
+    $this->actingAs($stranger)
+        ->put(route('requests.update', $serviceRequest), ['description' => 'Hijacked', 'from_panel' => true])
+        ->assertForbidden();
+    $this->actingAs($stranger)
+        ->delete(route('requests.destroy', ['serviceRequest' => $serviceRequest->id, 'from_panel' => 1]))
+        ->assertForbidden();
+
+    expect($serviceRequest->refresh()->description)->toBe('Cracked screen');
+});
+
+test('a technician can delete their own offer from the feed and stays there', function () {
+    $technician = feedTechnician();
+    $offer = feedOffer($technician, 'Boiler service');
+
+    $this->actingAs($technician)
+        ->from(route('feed.index'))
+        ->delete(route('technician.offers.destroy', $offer))
+        ->assertRedirect(route('feed.index'));
+
+    expect(Offer::count())->toBe(0);
 });

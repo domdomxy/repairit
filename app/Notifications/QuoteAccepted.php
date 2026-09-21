@@ -34,7 +34,7 @@ class QuoteAccepted extends Notification implements ShouldQueue
         return [
             'kind' => 'quote',
             'title' => "{$this->quote->serviceRequest->customer->name} chose your quote",
-            'body' => $this->quote->serviceRequest->title,
+            'body' => $this->quote->serviceRequest->excerpt(),
             'quote_id' => $this->quote->id,
             'url' => route('requests.show', $this->quote->service_request_id, absolute: false),
         ];

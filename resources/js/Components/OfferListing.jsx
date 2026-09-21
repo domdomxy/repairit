@@ -46,8 +46,9 @@ function TechnicianHeader({ technician, menu, showKind }) {
 // itself, and what can be done with it: send it in the chat, or copy its link
 // or report it from the menu. The price sits with the actions at the bottom.
 // `offer.technician` is the public card the server sends with each offer.
-// In the feed, `showKind` marks it as an offer among the requests.
-export default function OfferListing({ offer, reportReasons, showKind = false }) {
+// In the feed, `showKind` marks it as an offer among the requests, and
+// `onEdit` / `onDelete` let its technician manage it from the menu.
+export default function OfferListing({ offer, reportReasons, showKind = false, onEdit, onDelete }) {
     return (
         <div className="rounded-md bg-white dark:bg-gray-800">
             <OfferCard
@@ -56,7 +57,7 @@ export default function OfferListing({ offer, reportReasons, showKind = false })
                 header={
                     <TechnicianHeader
                         technician={offer.technician}
-                        menu={<OfferMenu offer={offer} reasons={reportReasons} />}
+                        menu={<OfferMenu offer={offer} reasons={reportReasons} onEdit={onEdit} onDelete={onDelete} />}
                         showKind={showKind}
                     />
                 }

@@ -2,6 +2,7 @@ import Avatar from '@/Components/Avatar';
 import InputError from '@/Components/InputError';
 import MessageAttachments from '@/Components/MessageAttachments';
 import OfferCard from '@/Components/OfferCard';
+import RequestCard from '@/Components/RequestCard';
 import ReportStatusBadge from '@/Components/ReportStatusBadge';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { formatDateTime } from '@/lib/dates';
@@ -164,7 +165,7 @@ function ReportedReview({ report, review }) {
     );
 }
 
-export default function Show({ report, messages, offer, review, related }) {
+export default function Show({ report, messages, offer, serviceRequest, review, related }) {
     const [note, setNote] = useState('');
     const [errors, setErrors] = useState({});
     const [processing, setProcessing] = useState(false);
@@ -232,6 +233,25 @@ export default function Show({ report, messages, offer, review, related }) {
 
                     {review ? (
                         <ReportedReview report={report} review={review} />
+                    ) : serviceRequest ? (
+                        <section className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
+                            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+                                <h3 className="text-xs font-semibold uppercase text-gray-500">Reported request</h3>
+                                <p className="text-xs text-gray-500">As it is now, which may differ from when it was reported.</p>
+                            </div>
+
+                            {serviceRequest.card ? (
+                                <RequestCard
+                                    request={serviceRequest.card}
+                                    className="rounded-md border dark:border-gray-700"
+                                />
+                            ) : (
+                                <p className="text-sm text-gray-500">
+                                    <span className="font-medium text-gray-900 dark:text-gray-100">“{serviceRequest.excerpt}”</span>{' '}
+                                    has been deleted since.
+                                </p>
+                            )}
+                        </section>
                     ) : offer ? (
                         <section className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
                             <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
@@ -357,7 +377,14 @@ export default function Show({ report, messages, offer, review, related }) {
                     {related.length > 0 && (
                         <section className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
                             <h3 className="text-xs font-semibold uppercase text-gray-500">
-                                Other reports about this {report.type === 'review' ? 'review' : offer ? 'offer' : 'conversation'}
+                                Other reports about this{' '}
+                                {report.type === 'review'
+                                    ? 'review'
+                                    : serviceRequest
+                                      ? 'request'
+                                      : offer
+                                        ? 'offer'
+                                        : 'conversation'}
                             </h3>
                             <ul className="mt-2 divide-y divide-gray-100 text-sm dark:divide-gray-700">
                                 {related.map((other) => (

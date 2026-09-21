@@ -6,9 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * A user reporting a message, a whole conversation, an offer or a review.
- * Admins can read the full conversation of a reported chat, including messages
- * that were deleted. An offer or review report has no conversation.
+ * A user reporting a message, a whole conversation, an offer, a repair request
+ * or a review. Admins can read the full conversation of a reported chat,
+ * including messages that were deleted. An offer, request or review report has
+ * no conversation.
  */
 class Report extends Model
 {
@@ -30,6 +31,8 @@ class Report extends Model
         'message_id',
         'offer_id',
         'offer_title',
+        'service_request_id',
+        'request_excerpt',
         'review_id',
         'customer_review_id',
         'review_kind',
@@ -78,6 +81,11 @@ class Report extends Model
         return $this->belongsTo(Offer::class);
     }
 
+    public function serviceRequest(): BelongsTo
+    {
+        return $this->belongsTo(ServiceRequest::class);
+    }
+
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by_id');
@@ -112,17 +120,24 @@ class Report extends Model
         return $this->review_kind !== null;
     }
 
-    /** Offer reports have no conversation (the offer itself may be gone by now); nor do review reports, which are told apart first. */
-    public function isOfferReport(): bool
+    /** A request report keeps the start of what the request said, so it stays one after the request is deleted. */
+    public function isRequestReport(): bool
     {
-        return $this->conversation_id === null && ! $this->isReviewReport();
+        return $this->conversation_id === null && $this->request_excerpt !== null;
     }
 
-    /** What was reported: 'review', 'offer', 'message' or 'conversation'. */
+    /** Offer reports have no conversation (the offer itself may be gone by now); nor do review and request reports, which are told apart first. */
+    public function isOfferReport(): bool
+    {
+        return $this->conversation_id === null && ! $this->isReviewReport() && ! $this->isRequestReport();
+    }
+
+    /** What was reported: 'review', 'request', 'offer', 'message' or 'conversation'. */
     public function type(): string
     {
         return match (true) {
             $this->isReviewReport() => 'review',
+            $this->isRequestReport() => 'request',
             $this->isOfferReport() => 'offer',
             $this->isMessageReport() => 'message',
             default => 'conversation',
@@ -134,6 +149,7 @@ class Report extends Model
     {
         return match ($this->type()) {
             'review' => 'a review',
+            'request' => 'a request',
             'offer' => 'an offer',
             'message' => 'a message',
             default => 'a conversation',

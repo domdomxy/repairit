@@ -20,11 +20,11 @@ function cprTechnician(): User
     return $technician;
 }
 
-function cprRequest(User $customer, string $title, array $attributes = []): ServiceRequest
+/** A request has no title: `$text` is what the customer wrote, and how these tests tell requests apart. */
+function cprRequest(User $customer, string $text, array $attributes = []): ServiceRequest
 {
     return $customer->serviceRequests()->create([
-        'title' => $title,
-        'description' => 'It stopped working yesterday.',
+        'description' => $text,
         ...$attributes,
     ]);
 }
@@ -38,7 +38,7 @@ function cprTitles($test, User $customer): array
         ->assertOk()
         ->assertInertia(function (Assert $page) use (&$titles) {
             $page->component('Customers/Show');
-            $titles = collect($page->toArray()['props']['requests'])->pluck('title')->all();
+            $titles = collect($page->toArray()['props']['requests'])->pluck('description')->all();
         });
 
     return $titles;
@@ -68,7 +68,7 @@ test('the customer also sees their closed requests, and gets the panel to post a
         ->assertInertia(fn (Assert $page) => $page
             ->where('requestForm.defaultCity', 'Sousse')
             ->has('requestForm.categories')
-            ->has('requestForm.limits.title_max'));
+            ->has('requestForm.limits.description_max'));
 });
 
 test('other people get no panel to post requests on someone else\'s profile', function () {
@@ -91,7 +91,7 @@ test('a technician sees which of the requests they already sent a quote to', fun
     $this->actingAs($technician)
         ->get(route('customers.show', $customer))
         ->assertInertia(function (Assert $page) {
-            $requests = collect($page->toArray()['props']['requests'])->keyBy('title');
+            $requests = collect($page->toArray()['props']['requests'])->keyBy('description');
 
             expect($requests['Answered']['has_my_quote'])->toBeTrue()
                 ->and($requests['Answered']['quotes_count'])->toBe(1)
@@ -131,7 +131,7 @@ test('a request posted from the profile panel sends the customer back to their p
 
     $this->actingAs($customer)
         ->from(route('customers.show', $customer))
-        ->post(route('requests.store'), ['title' => 'Cracked screen', 'description' => 'Dropped it.', 'from_panel' => true])
+        ->post(route('requests.store'), ['description' => 'Dropped it.', 'from_panel' => true])
         ->assertSessionHasNoErrors()
         ->assertRedirect(route('customers.show', $customer))
         ->assertSessionHas('success');

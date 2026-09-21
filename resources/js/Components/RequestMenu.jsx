@@ -1,5 +1,5 @@
 import Dropdown from '@/Components/Dropdown';
-import { copyOfferLink } from '@/Components/OfferShareActions';
+import { copyText } from '@/Components/OfferShareActions';
 import ReportModal from '@/Components/ReportModal';
 import { usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
@@ -7,14 +7,28 @@ import { useEffect, useRef, useState } from 'react';
 const ITEM =
     'block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 transition hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-300 dark:hover:bg-gray-800 dark:focus:bg-gray-800';
 
-// The "..." menu at the top right of an offer: copy its link, edit or delete it
-// (your own, when `onEdit` / `onDelete` are given) or report it (somebody
-// else's, when report `reasons` are given). `offer.technician` is the public card the server sends
-// with each listed offer; on a profile page, where there is none, pass `isOwn`.
-export default function OfferMenu({ offer, reasons, isOwn: isOwnProp, onEdit, onDelete }) {
+// Copies the link to a request. When nothing works the link is shown instead, so
+// it can be copied by hand. Resolves to whether it ended up on the clipboard.
+async function copyRequestLink(request) {
+    const url = route('requests.show', request.id);
+
+    if (await copyText(url)) {
+        return true;
+    }
+
+    window.prompt('Copy this link:', url);
+
+    return false;
+}
+
+// The "..." menu at the top right of a repair request, the same one an offer
+// has: copy its link, edit or delete it (your own, when `onEdit` / `onDelete`
+// are given) or report it (somebody else's, when report `reasons` are given).
+// `request.customer` is the public card the server sends with each request.
+export default function RequestMenu({ request, reasons, onEdit, onDelete }) {
     const { auth } = usePage().props;
-    const isOwn = isOwnProp ?? auth.user.id === offer.technician.id;
-    const canReport = !isOwn && Boolean(reasons) && Boolean(offer.technician);
+    const isOwn = auth.user.id === request.customer.id;
+    const canReport = !isOwn && Boolean(reasons);
 
     const [copied, setCopied] = useState(false);
     const [reporting, setReporting] = useState(false);
@@ -25,7 +39,7 @@ export default function OfferMenu({ offer, reasons, isOwn: isOwnProp, onEdit, on
     // The menu closes as soon as an item is picked, so the confirmation is
     // shown next to the button for a moment instead of inside the menu.
     async function copyLink() {
-        if (!(await copyOfferLink(offer))) return;
+        if (!(await copyRequestLink(request))) return;
 
         setCopied(true);
         clearTimeout(timer.current);
@@ -42,7 +56,7 @@ export default function OfferMenu({ offer, reasons, isOwn: isOwnProp, onEdit, on
                 <Dropdown.Trigger>
                     <button
                         type="button"
-                        aria-label="Offer options"
+                        aria-label="Request options"
                         className="rounded-md px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
                     >
                         ⋯
@@ -56,13 +70,13 @@ export default function OfferMenu({ offer, reasons, isOwn: isOwnProp, onEdit, on
 
                     {isOwn && onEdit && (
                         <button type="button" onClick={onEdit} className={ITEM}>
-                            Edit offer
+                            Edit request
                         </button>
                     )}
 
                     {isOwn && onDelete && (
                         <button type="button" onClick={onDelete} className={`${ITEM} text-red-600 dark:text-red-400`}>
-                            Delete offer
+                            Delete request
                         </button>
                     )}
 
@@ -72,7 +86,7 @@ export default function OfferMenu({ offer, reasons, isOwn: isOwnProp, onEdit, on
                             onClick={() => setReporting(true)}
                             className={`${ITEM} text-red-600 dark:text-red-400`}
                         >
-                            Report offer
+                            Report request
                         </button>
                     )}
                 </Dropdown.Content>
@@ -82,9 +96,9 @@ export default function OfferMenu({ offer, reasons, isOwn: isOwnProp, onEdit, on
                 <ReportModal
                     show={reporting}
                     onClose={() => setReporting(false)}
-                    title="Report this offer"
-                    description={`Tell the admins what is wrong with "${offer.title}" by ${offer.technician.name}. ${offer.technician.name} is not told who reported it.`}
-                    action={route('offers.report', offer.id)}
+                    title="Report this request"
+                    description={`Tell the admins what is wrong with this request by ${request.customer.name}. ${request.customer.name} is not told who reported it.`}
+                    action={route('requests.report', request.id)}
                     reasons={reasons}
                 />
             )}

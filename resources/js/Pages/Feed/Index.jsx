@@ -9,6 +9,7 @@ import Pagination from '@/Components/Pagination';
 import ProfileSidebar from '@/Components/ProfileSidebar';
 import RequestCard from '@/Components/RequestCard';
 import RequestForm from '@/Components/RequestForm';
+import RequestMenu from '@/Components/RequestMenu';
 import TopRatedTechnicians from '@/Components/TopRatedTechnicians';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
@@ -72,14 +73,18 @@ const NEW_POST_BUTTON =
     'rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700';
 
 // The feed: technicians' offers and customers' repair requests, posted
-// together. `requestForm` and `offerForm` carry what the two "new" panels need;
-// they are null for the roles that cannot post that kind (only technicians post
-// offers, and admins post nothing).
+// together. `requestForm` and `offerForm` carry what the two "new" panels (and
+// the "edit" ones, from a post's own menu) need; they are null for the roles
+// that cannot post that kind (only technicians post offers, and admins post
+// nothing).
 export default function Index({ feed, categories, topRated, filters, reportReasons, requestForm, offerForm }) {
     const { auth } = usePage().props;
 
     // Which "new" panel is open, if any: 'request' or 'offer'.
     const [panel, setPanel] = useState(null);
+
+    // The post being edited from its menu, if any: { kind: 'request' | 'offer', post }.
+    const [editing, setEditing] = useState(null);
 
     const [form, setForm] = useState({
         filter: initialFilter(filters),
@@ -127,6 +132,20 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
             filter: value,
             category: CATEGORY_FILTERS.includes(value) ? current.category : '',
         }));
+    }
+
+    // Deleting from a post's menu. The person stays on the feed (`from_panel`
+    // keeps the request's delete from sending them to their own list).
+    function deleteRequest(post) {
+        if (!window.confirm('Delete this request and its quotes? This cannot be undone.')) return;
+
+        router.delete(route('requests.destroy', { serviceRequest: post.id, from_panel: 1 }), { preserveScroll: true });
+    }
+
+    function deleteOffer(post) {
+        if (!window.confirm(`Delete "${post.title}"? Its pictures and videos will be deleted too.`)) return;
+
+        router.delete(route('technician.offers.destroy', post.id), { preserveScroll: true });
     }
 
     // Only technicians have offers of their own, so they are the ones whose
@@ -234,6 +253,14 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
                                         key={`request-${post.id}`}
                                         request={post}
                                         showKind
+                                        menu={
+                                            <RequestMenu
+                                                request={post}
+                                                reasons={reportReasons}
+                                                onEdit={() => setEditing({ kind: 'request', post })}
+                                                onDelete={() => deleteRequest(post)}
+                                            />
+                                        }
                                         className="rounded-md border bg-white transition hover:border-indigo-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-indigo-500"
                                     />
                                 ) : (
@@ -242,6 +269,8 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
                                         offer={post}
                                         reportReasons={reportReasons}
                                         showKind
+                                        onEdit={() => setEditing({ kind: 'offer', post })}
+                                        onDelete={() => deleteOffer(post)}
                                     />
                                 ),
                             )}
@@ -280,6 +309,27 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
                 </CreatePanel>
             )}
 
+            {requestForm && (
+                <CreatePanel
+                    show={editing?.kind === 'request'}
+                    onClose={() => setEditing(null)}
+                    title="Edit request"
+                    description="Change what you wrote, or add and remove pictures and videos. Technicians see the new version."
+                >
+                    {editing?.kind === 'request' && (
+                        <RequestForm
+                            key={editing.post.id}
+                            serviceRequest={editing.post}
+                            categories={requestForm.categories}
+                            limits={requestForm.limits}
+                            inPanel
+                            onDone={() => setEditing(null)}
+                            onCancel={() => setEditing(null)}
+                        />
+                    )}
+                </CreatePanel>
+            )}
+
             {offerForm && (
                 <CreatePanel
                     show={panel === 'offer'}
@@ -293,6 +343,26 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
                         onDone={() => setPanel(null)}
                         onCancel={() => setPanel(null)}
                     />
+                </CreatePanel>
+            )}
+
+            {offerForm && (
+                <CreatePanel
+                    show={editing?.kind === 'offer'}
+                    onClose={() => setEditing(null)}
+                    title="Edit offer"
+                    description="Change what customers see in the feed and on your public profile."
+                >
+                    {editing?.kind === 'offer' && (
+                        <OfferForm
+                            key={editing.post.id}
+                            offer={editing.post}
+                            categories={offerForm.categories}
+                            limits={offerForm.limits}
+                            onDone={() => setEditing(null)}
+                            onCancel={() => setEditing(null)}
+                        />
+                    )}
                 </CreatePanel>
             )}
         </AuthenticatedLayout>

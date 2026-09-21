@@ -99,6 +99,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/offers/{offer}/share', [MessageController::class, 'shareOffer'])->middleware('throttle:20,1')->name('offers.share');
     // Report an offer to the admins.
     Route::post('/offers/{offer}/report', [ReportController::class, 'storeOffer'])->middleware('throttle:10,1,reports')->name('offers.report');
+    // Report a repair request to the admins.
+    Route::post('/requests/{serviceRequest}/report', [ReportController::class, 'storeRequest'])->middleware('throttle:10,1,reports')->name('requests.report');
     // Report a review: one a customer wrote about a technician, or one a technician wrote about a customer.
     Route::post('/reviews/{review}/report', [ReportController::class, 'storeReview'])->middleware('throttle:10,1,reports')->name('reviews.report');
     Route::post('/customer-reviews/{customerReview}/report', [ReportController::class, 'storeCustomerReview'])->middleware('throttle:10,1,reports')->name('customer-reviews.report');

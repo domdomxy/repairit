@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 // Puts text on the clipboard. The modern API needs a secure page (https or
 // localhost), so a hidden text field and the old copy command are the fallback.
-async function copyText(text) {
+export async function copyText(text) {
     try {
         if (navigator.clipboard?.writeText) {
             await navigator.clipboard.writeText(text);

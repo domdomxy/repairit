@@ -8,10 +8,10 @@ import { Link, useForm } from '@inertiajs/react';
 
 // The form to post a repair request, or (with `serviceRequest`) to edit one.
 //
-// Used on its own page and in the "new request" panels of the feed and of the
-// customer's profile. `inPanel` tells the server the request is posted from
-// such a panel, so the person stays on that page instead of being sent to the
-// request's own page. Cancel is a link to `cancelHref` on the page, and
+// Used on its own page and in the "new request" and "edit request" panels of
+// the feed and of the profiles. `inPanel` tells the server the request is saved
+// from such a panel, so the person stays on that page instead of being sent to
+// the request's own page. Cancel is a link to `cancelHref` on the page, and
 // `onCancel` in the panel; `onDone` runs once the request is saved.
 export default function RequestForm({
     serviceRequest = null,
@@ -30,7 +30,6 @@ export default function RequestForm({
         // a POST that Laravel treats as a PUT.
         ...(editing ? { _method: 'put' } : {}),
         ...(inPanel ? { from_panel: true } : {}),
-        title: serviceRequest?.title ?? '',
         description: serviceRequest?.description ?? '',
         budget: serviceRequest?.budget ?? '',
         city: serviceRequest?.city ?? defaultCity ?? '',
@@ -50,7 +49,12 @@ export default function RequestForm({
         e.preventDefault();
 
         if (editing) {
-            post(route('requests.update', serviceRequest.id), { forceFormData: true, onSuccess: () => onDone?.() });
+            post(route('requests.update', serviceRequest.id), {
+                forceFormData: true,
+                // In a panel the page behind it stays where it is.
+                preserveScroll: inPanel,
+                onSuccess: () => onDone?.(),
+            });
         } else {
             post(route('requests.store'), { forceFormData: true, preserveScroll: true, onSuccess: () => onDone?.() });
         }
@@ -59,29 +63,15 @@ export default function RequestForm({
     return (
         <form onSubmit={submit} className="space-y-6">
             <div>
-                <InputLabel htmlFor="title" value="What needs fixing?" />
-                <TextInput
-                    id="title"
-                    className="mt-1 block w-full"
-                    value={data.title}
-                    onChange={(e) => setData('title', e.target.value)}
-                    maxLength={limits.title_max}
-                    placeholder="e.g. Cracked phone screen"
-                    required
-                    isFocused
-                />
-                <InputError message={errors.title} className="mt-2" />
-            </div>
-
-            <div>
-                <InputLabel htmlFor="description" value="Details" />
+                <InputLabel htmlFor="description" value="What needs fixing?" />
                 <textarea
                     id="description"
                     rows={6}
+                    autoFocus
                     value={data.description}
                     onChange={(e) => setData('description', e.target.value)}
                     maxLength={limits.description_max}
-                    placeholder="What is broken, the make and model, what happened, when you need it done..."
+                    placeholder="e.g. My phone screen cracked. It is a Samsung A52, and I need it fixed this week."
                     required
                     className="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
                 />

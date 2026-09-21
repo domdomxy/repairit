@@ -28,7 +28,6 @@ function srTechnician(array $attributes = []): User
 function srRequest(User $customer, array $attributes = []): ServiceRequest
 {
     return $customer->serviceRequests()->create([
-        'title' => 'Cracked phone screen',
         'description' => 'The screen cracked when I dropped it.',
         ...$attributes,
     ]);
@@ -53,7 +52,6 @@ test('a customer can post a repair request with categories', function () {
 
     $this->actingAs($customer)
         ->post(route('requests.store'), [
-            'title' => 'Cracked phone screen',
             'description' => 'It cracked when I dropped it.',
             'budget' => 'Up to 100 TND',
             'city' => 'Tunis',
@@ -65,7 +63,7 @@ test('a customer can post a repair request with categories', function () {
     $serviceRequest = ServiceRequest::sole();
 
     expect($serviceRequest->customer_id)->toBe($customer->id)
-        ->and($serviceRequest->title)->toBe('Cracked phone screen')
+        ->and($serviceRequest->description)->toBe('It cracked when I dropped it.')
         ->and($serviceRequest->budget)->toBe('Up to 100 TND')
         ->and($serviceRequest->city)->toBe('Tunis')
         ->and($serviceRequest->status)->toBe('open')
@@ -74,36 +72,36 @@ test('a customer can post a repair request with categories', function () {
 
 test('anybody signed in can post a request', function () {
     $this->actingAs(srTechnician())
-        ->post(route('requests.store'), ['title' => 'Leaking tap', 'description' => 'Kitchen tap drips all night.'])
+        ->post(route('requests.store'), ['description' => 'Kitchen tap drips all night.'])
         ->assertSessionHasNoErrors();
 
     expect(ServiceRequest::count())->toBe(1);
 });
 
 test('guests cannot post or browse requests', function () {
-    $this->post(route('requests.store'), ['title' => 'Leaking tap', 'description' => 'Drips.'])->assertRedirect(route('login'));
+    $this->post(route('requests.store'), ['description' => 'Drips.'])->assertRedirect(route('login'));
     $this->get(route('requests.index'))->assertRedirect(route('login'));
 });
 
-test('a request needs a title and details, and only real categories', function () {
+test('a request needs a description, and only real categories', function () {
     $customer = srCustomer();
 
     $this->actingAs($customer)
-        ->post(route('requests.store'), ['title' => '', 'description' => ''])
-        ->assertSessionHasErrors(['title', 'description']);
+        ->post(route('requests.store'), ['description' => ''])
+        ->assertSessionHasErrors('description');
 
     $this->actingAs($customer)
-        ->post(route('requests.store'), ['title' => 'x', 'description' => 'y', 'categories' => [999]])
+        ->post(route('requests.store'), ['description' => 'y', 'categories' => [999]])
         ->assertSessionHasErrors('categories.0');
 
     $this->actingAs($customer)
-        ->post(route('requests.store'), ['title' => 'x', 'description' => str_repeat('a', 2001)])
+        ->post(route('requests.store'), ['description' => str_repeat('a', 2001)])
         ->assertSessionHasErrors('description');
 
     $many = collect(range(1, 6))->map(fn ($i) => srCategory("Category {$i}")->id)->all();
 
     $this->actingAs($customer)
-        ->post(route('requests.store'), ['title' => 'x', 'description' => 'y', 'categories' => $many])
+        ->post(route('requests.store'), ['description' => 'y', 'categories' => $many])
         ->assertSessionHasErrors('categories');
 
     expect(ServiceRequest::count())->toBe(0);
@@ -113,12 +111,12 @@ test('nobody can have more than ten open requests', function () {
     $customer = srCustomer();
 
     foreach (range(1, ServiceRequest::MAX_OPEN_PER_CUSTOMER) as $i) {
-        srRequest($customer, ['title' => "Request {$i}"]);
+        srRequest($customer, ['description' => "Request {$i}"]);
     }
 
     $this->actingAs($customer)
-        ->post(route('requests.store'), ['title' => 'One more', 'description' => 'Please'])
-        ->assertSessionHasErrors('title');
+        ->post(route('requests.store'), ['description' => 'Please'])
+        ->assertSessionHasErrors('description');
 
     expect(ServiceRequest::count())->toBe(10);
 
@@ -126,7 +124,7 @@ test('nobody can have more than ten open requests', function () {
     ServiceRequest::first()->update(['status' => 'closed']);
 
     $this->actingAs($customer)
-        ->post(route('requests.store'), ['title' => 'One more', 'description' => 'Please'])
+        ->post(route('requests.store'), ['description' => 'Please'])
         ->assertSessionHasNoErrors();
 
     expect(ServiceRequest::count())->toBe(11);
@@ -136,11 +134,11 @@ test('nobody can have more than ten open requests', function () {
 
 test('the open requests page lists open requests of active customers only, without their email', function () {
     $customer = srCustomer();
-    $open = srRequest($customer, ['title' => 'Open one']);
-    srRequest($customer, ['title' => 'Closed one', 'status' => 'closed']);
+    $open = srRequest($customer, ['description' => 'Open one']);
+    srRequest($customer, ['description' => 'Closed one', 'status' => 'closed']);
 
     $suspended = srCustomer();
-    srRequest($suspended, ['title' => 'From a suspended customer']);
+    srRequest($suspended, ['description' => 'From a suspended customer']);
     $suspended->forceFill(['suspended_at' => now()])->save();
 
     $this->actingAs(srTechnician())
@@ -161,10 +159,10 @@ test('requests can be searched and filtered by category and city', function () {
     $phones = srCategory('Phones');
     $plumbing = srCategory('Plumbing');
 
-    $phone = srRequest($customer, ['title' => 'Cracked phone screen', 'city' => 'Tunis']);
+    $phone = srRequest($customer, ['description' => 'Cracked phone screen', 'city' => 'Tunis']);
     $phone->categories()->sync([$phones->id]);
 
-    $tap = srRequest($customer, ['title' => 'Leaking tap', 'description' => 'Drips all night', 'city' => 'Sfax']);
+    $tap = srRequest($customer, ['description' => 'Leaking tap, drips all night', 'city' => 'Sfax']);
     $tap->categories()->sync([$plumbing->id]);
 
     $technician = srTechnician();
@@ -186,26 +184,26 @@ test('requests can be searched and filtered by category and city', function () {
 
 test('a technician sees which requests they already answered', function () {
     $technician = srTechnician();
-    $answered = srRequest(srCustomer(), ['title' => 'Answered']);
-    srRequest(srCustomer(), ['title' => 'Not answered']);
+    $answered = srRequest(srCustomer(), ['description' => 'Answered']);
+    srRequest(srCustomer(), ['description' => 'Not answered']);
     srQuote($answered, $technician);
 
     $this->actingAs($technician)
         ->get(route('requests.index'))
         ->assertInertia(fn (Assert $page) => $page
             ->has('requests.data', 2)
-            ->where('requests.data.0.title', 'Not answered')
+            ->where('requests.data.0.description', 'Not answered')
             ->where('requests.data.0.has_my_quote', false)
-            ->where('requests.data.1.title', 'Answered')
+            ->where('requests.data.1.description', 'Answered')
             ->where('requests.data.1.has_my_quote', true)
             ->where('requests.data.1.quotes_count', 1));
 });
 
 test('my requests lists only mine, open or closed', function () {
     $customer = srCustomer();
-    $mine = srRequest($customer, ['title' => 'Mine']);
-    $closed = srRequest($customer, ['title' => 'Mine, closed', 'status' => 'closed']);
-    srRequest(srCustomer(), ['title' => 'Someone else\'s']);
+    $mine = srRequest($customer, ['description' => 'Mine']);
+    $closed = srRequest($customer, ['description' => 'Mine, closed', 'status' => 'closed']);
+    srRequest(srCustomer(), ['description' => 'Someone else\'s']);
 
     $this->actingAs($customer)
         ->get(route('requests.mine'))
@@ -230,8 +228,7 @@ test('the owner can edit a request, nobody else can', function () {
 
     $this->actingAs($customer)
         ->put(route('requests.update', $serviceRequest), [
-            'title' => 'Cracked screen and dead battery',
-            'description' => 'Both.',
+            'description' => 'Cracked screen and dead battery',
             'categories' => [$category->id],
         ])
         ->assertSessionHasNoErrors()
@@ -239,18 +236,18 @@ test('the owner can edit a request, nobody else can', function () {
 
     $serviceRequest->refresh();
 
-    expect($serviceRequest->title)->toBe('Cracked screen and dead battery')
+    expect($serviceRequest->description)->toBe('Cracked screen and dead battery')
         ->and($serviceRequest->categories)->toHaveCount(1);
 
     $stranger = srCustomer();
 
     $this->actingAs($stranger)->get(route('requests.edit', $serviceRequest))->assertForbidden();
-    $this->actingAs($stranger)->put(route('requests.update', $serviceRequest), ['title' => 'Hijacked', 'description' => 'x'])->assertForbidden();
+    $this->actingAs($stranger)->put(route('requests.update', $serviceRequest), ['description' => 'Hijacked'])->assertForbidden();
     $this->actingAs($stranger)->post(route('requests.close', $serviceRequest))->assertForbidden();
     $this->actingAs($stranger)->post(route('requests.reopen', $serviceRequest))->assertForbidden();
     $this->actingAs($stranger)->delete(route('requests.destroy', $serviceRequest))->assertForbidden();
 
-    expect($serviceRequest->refresh()->title)->toBe('Cracked screen and dead battery');
+    expect($serviceRequest->refresh()->description)->toBe('Cracked screen and dead battery');
 });
 
 test('a request can be closed and reopened, and reopening drops the technician chosen before', function () {
@@ -278,7 +275,7 @@ test('a closed request cannot be reopened past the limit of open ones', function
     $closed = srRequest($customer, ['status' => 'closed']);
 
     foreach (range(1, ServiceRequest::MAX_OPEN_PER_CUSTOMER) as $i) {
-        srRequest($customer, ['title' => "Request {$i}"]);
+        srRequest($customer, ['description' => "Request {$i}"]);
     }
 
     $this->actingAs($customer)->post(route('requests.reopen', $closed))->assertSessionHasErrors('status');

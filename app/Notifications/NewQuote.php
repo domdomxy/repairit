@@ -12,7 +12,7 @@ use Illuminate\Notifications\Notification;
 /**
  * Tells a customer that a technician sent a quote for their repair request.
  * As with every other email here, the email never carries what people wrote
- * (not even the price or the request's title): it says that a quote came in
+ * (not even the price or what the request says): it says that a quote came in
  * and links to the request.
  */
 class NewQuote extends Notification implements ShouldQueue
@@ -39,7 +39,7 @@ class NewQuote extends Notification implements ShouldQueue
     {
         return [
             'kind' => 'quote',
-            'title' => "{$this->quote->technician->name} sent a quote for {$this->quote->serviceRequest->title}",
+            'title' => "{$this->quote->technician->name} sent a quote for: {$this->quote->serviceRequest->excerpt(40)}",
             'body' => "Price: {$this->quote->price}",
             'quote_id' => $this->quote->id,
             'url' => route('requests.show', $this->quote->service_request_id, absolute: false),

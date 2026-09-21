@@ -8,6 +8,7 @@ use App\Models\Message;
 use App\Models\Offer;
 use App\Models\Report;
 use App\Models\Review;
+use App\Models\ServiceRequest;
 use App\Models\User;
 use App\Notifications\NewReport;
 use Illuminate\Http\RedirectResponse;
@@ -15,7 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
 
-/** Reporting: one message or the whole chat from inside a conversation, or an offer or a review from the page it is shown on. */
+/** Reporting: one message or the whole chat from inside a conversation, or an offer, a repair request or a review from the page it is shown on. */
 class ReportController extends Controller
 {
     /** Report a message the other person sent. */
@@ -42,6 +43,18 @@ class ReportController extends Controller
         abort_if($offer->technician_id === $user->id, 403, 'You cannot report your own offer.');
 
         return $this->file($request, null, $offer->technician_id, null, $offer);
+    }
+
+    /** Report a repair request somebody else posted. It has no conversation. */
+    public function storeRequest(Request $request, ServiceRequest $serviceRequest): RedirectResponse
+    {
+        $user = $request->user();
+
+        abort_if($serviceRequest->customer_id === $user->id, 403, 'You cannot report your own request.');
+        // Only what this person could see: a suspended customer's requests are not shown.
+        abort_if($serviceRequest->customer->isSuspended(), 404);
+
+        return $this->file($request, null, $serviceRequest->customer_id, null, serviceRequest: $serviceRequest);
     }
 
     /** Report a review a customer wrote about a technician. It has no conversation. */
@@ -93,7 +106,7 @@ class ReportController extends Controller
      * @param  array<string, mixed>  $review  For a review report: which review it is (`review_id` or
      *                                        `customer_review_id`) and a copy of what it said.
      */
-    private function file(Request $request, ?Conversation $conversation, int $reportedUserId, ?Message $message, ?Offer $offer = null, array $review = []): RedirectResponse
+    private function file(Request $request, ?Conversation $conversation, int $reportedUserId, ?Message $message, ?Offer $offer = null, array $review = [], ?ServiceRequest $serviceRequest = null): RedirectResponse
     {
         $user = $request->user();
 
@@ -107,6 +120,7 @@ class ReportController extends Controller
             ->where('conversation_id', $conversation?->id)
             ->where('message_id', $message?->id)
             ->where('offer_id', $offer?->id)
+            ->where('service_request_id', $serviceRequest?->id)
             ->where('review_id', $review['review_id'] ?? null)
             ->where('customer_review_id', $review['customer_review_id'] ?? null)
             ->where('status', 'open')
@@ -123,6 +137,8 @@ class ReportController extends Controller
             'message_id' => $message?->id,
             'offer_id' => $offer?->id,
             'offer_title' => $offer?->title,
+            'service_request_id' => $serviceRequest?->id,
+            'request_excerpt' => $serviceRequest?->excerpt(120),
             'reason' => $data['reason'],
             'details' => $data['details'] ?? null,
             ...$review,

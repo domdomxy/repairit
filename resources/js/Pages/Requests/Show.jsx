@@ -1,6 +1,6 @@
 import Avatar from '@/Components/Avatar';
 import InputError from '@/Components/InputError';
-import OfferMediaGrid from '@/Components/OfferMediaGrid';
+import PostMedia from '@/Components/PostMedia';
 import QuoteForm from '@/Components/QuoteForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { formatDate, relativeTime } from '@/lib/dates';
@@ -159,7 +159,7 @@ export default function Show({ serviceRequest, isOwner, quotes, myQuote, canQuot
 
     return (
         <AuthenticatedLayout>
-            <Head title={serviceRequest.title} />
+            <Head title="Repair request" />
 
             <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-8 sm:px-6">
                 <Link
@@ -171,7 +171,7 @@ export default function Show({ serviceRequest, isOwner, quotes, myQuote, canQuot
 
                 <section className={`${PANEL} space-y-4`}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                        <h2 className="min-w-0 break-words text-xl font-semibold">{serviceRequest.title}</h2>
+                        <h2 className="min-w-0 break-words text-xl font-semibold">Repair request</h2>
                         <span
                             className={`rounded-full px-2 py-1 text-xs font-medium ${
                                 isOpen
@@ -218,7 +218,7 @@ export default function Show({ serviceRequest, isOwner, quotes, myQuote, canQuot
 
                     <p className="whitespace-pre-line break-words text-sm">{serviceRequest.description}</p>
 
-                    <OfferMediaGrid media={serviceRequest.media} />
+                    <PostMedia media={serviceRequest.media} />
 
                     {isOwner && (
                         <div className="flex flex-wrap gap-2 border-t pt-4 dark:border-gray-700">

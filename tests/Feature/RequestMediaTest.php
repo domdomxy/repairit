@@ -21,7 +21,6 @@ function rmCustomer(array $attributes = []): User
 function rmRequest(User $customer, int $pictures = 0): ServiceRequest
 {
     $serviceRequest = $customer->serviceRequests()->create([
-        'title' => 'Cracked phone screen',
         'description' => 'The screen cracked when I dropped it.',
     ]);
 
@@ -39,7 +38,6 @@ test('a request can be posted with pictures and a video', function () {
 
     $this->actingAs($customer)
         ->post(route('requests.store'), [
-            'title' => 'Cracked phone screen',
             'description' => 'Dropped it.',
             'media' => [
                 UploadedFile::fake()->image('screen.jpg', 300, 300),
@@ -61,7 +59,7 @@ test('a request can be posted with pictures and a video', function () {
 
 test('a request does not need media', function () {
     $this->actingAs(rmCustomer())
-        ->post(route('requests.store'), ['title' => 'Leaking tap', 'description' => 'Drip.'])
+        ->post(route('requests.store'), ['description' => 'Drip.'])
         ->assertSessionHasNoErrors();
 
     expect(ServiceRequest::count())->toBe(1)->and(RequestMedia::count())->toBe(0);
@@ -71,7 +69,6 @@ test('files that are not pictures or videos, or are too many, are refused', func
     $this->actingAs(rmCustomer());
 
     $this->post(route('requests.store'), [
-        'title' => 'Leaking tap',
         'description' => 'Drip.',
         'media' => [UploadedFile::fake()->create('quote.pdf', 100, 'application/pdf')],
     ])->assertSessionHasErrors('media.0');
@@ -80,7 +77,7 @@ test('files that are not pictures or videos, or are too many, are refused', func
         ->map(fn ($i) => UploadedFile::fake()->image("p{$i}.jpg", 100, 100))
         ->all();
 
-    $this->post(route('requests.store'), ['title' => 'Leaking tap', 'description' => 'Drip.', 'media' => $tooMany])
+    $this->post(route('requests.store'), ['description' => 'Drip.', 'media' => $tooMany])
         ->assertSessionHasErrors('media');
 
     expect(ServiceRequest::count())->toBe(0);
@@ -93,7 +90,6 @@ test('the owner can remove pictures and add new ones when editing', function () 
 
     $this->actingAs($customer)
         ->put(route('requests.update', $serviceRequest), [
-            'title' => 'Cracked phone screen',
             'description' => 'Updated.',
             'remove_media' => [$removed->id],
             'media' => [UploadedFile::fake()->create('clip.mp4', 500, 'video/mp4')],
@@ -115,7 +111,6 @@ test('files kept count against the maximum when editing', function () {
 
     $this->actingAs($customer)
         ->put(route('requests.update', $serviceRequest), [
-            'title' => 'Cracked phone screen',
             'description' => 'Updated.',
             'media' => [UploadedFile::fake()->image('extra.jpg', 100, 100)],
         ])

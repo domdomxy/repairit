@@ -303,16 +303,11 @@ class FeedController extends Controller
             ->fromActiveCustomers()
             ->selectRaw("'request' as feed_kind, service_requests.id as feed_id, service_requests.created_at as feed_created_at, null as feed_rating_avg, null as feed_rating_count, ({$relevance}) as feed_relevance", $relevanceBindings);
 
-        // Free text: matches the title or the description.
+        // Free text: matches the description (a request has no title).
         $term = trim((string) $request->input('q'));
 
         if ($term !== '') {
-            $like = $this->likePattern($term);
-
-            $query->where(function ($q) use ($like) {
-                $q->whereRaw("service_requests.title LIKE ? ESCAPE '!'", [$like])
-                    ->orWhereRaw("service_requests.description LIKE ? ESCAPE '!'", [$like]);
-            });
+            $query->whereRaw("service_requests.description LIKE ? ESCAPE '!'", [$this->likePattern($term)]);
         }
 
         if ($request->filled('category')) {
