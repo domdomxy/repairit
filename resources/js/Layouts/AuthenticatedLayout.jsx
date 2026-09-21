@@ -4,7 +4,7 @@ import Dropdown from '@/Components/Dropdown';
 import MessagesMenu from '@/Components/MessagesMenu';
 import NotificationBell from '@/Components/NotificationBell';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
-import TechnicianSearchBar from '@/Components/TechnicianSearchBar';
+import SearchBar from '@/Components/SearchBar';
 import ThemeToggle from '@/Components/ThemeToggle';
 import { useInbox } from '@/lib/inbox';
 import { Link, usePage } from '@inertiajs/react';
@@ -37,9 +37,9 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                             </div>
                         </div>
 
-                        {/* Find a technician: a search bar on every page, for every role. */}
+                        {/* Search: a bar on every page, for every role. */}
                         <div className="flex min-w-0 flex-1 items-center justify-center px-3 sm:px-4">
-                            <TechnicianSearchBar className="w-full max-w-md" />
+                            <SearchBar className="w-full max-w-md" />
                         </div>
 
                         <div className="hidden sm:ms-6 sm:flex sm:items-center">

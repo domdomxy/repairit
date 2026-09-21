@@ -14,10 +14,10 @@ export default function Customer({ stats, charts }) {
             <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">
                 <div className="flex flex-wrap gap-3">
                     <Link
-                        href={route('technicians.index')}
+                        href={route('search.index')}
                         className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
                     >
-                        Find a technician
+                        Search
                     </Link>
                     <Link
                         href={route('conversations.index')}

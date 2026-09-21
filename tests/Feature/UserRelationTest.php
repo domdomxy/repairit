@@ -249,7 +249,7 @@ test('blocked people disappear from the technician search and the feed, in both 
     relApply($viewer, $blockedByMe, UserRelation::BLOCK);
     relApply($blocksMe, $viewer, UserRelation::BLOCK);
 
-    $this->actingAs($viewer)->get(route('technicians.index'))
+    $this->actingAs($viewer)->get(route('search.index', ['city' => 'Tunis']))
         ->assertInertia(fn (Assert $page) => $page
             ->has('technicians.data', 1)
             ->where('technicians.data.0.name', 'Still Here'));
@@ -268,10 +268,10 @@ test('blocked customers and their requests disappear too', function () {
 
     relApply($technician, $blocked, UserRelation::BLOCK);
 
-    $this->actingAs($technician)->get(route('technicians.index', ['type' => 'customer']))
+    $this->actingAs($technician)->get(route('search.index', ['type' => 'requests', 'city' => 'Tunis']))
         ->assertInertia(fn (Assert $page) => $page
-            ->has('technicians.data', 1)
-            ->where('technicians.data.0.name', 'Other Customer'));
+            ->has('requests.data', 1)
+            ->where('requests.data.0.description', 'From the other one'));
 
     $this->actingAs($technician)->get(route('feed.index', ['filter' => 'requests']))
         ->assertInertia(fn (Assert $page) => $page->has('feed.data', 1));
@@ -419,13 +419,13 @@ test('the technician search marks favorites and can show only them', function ()
 
     relApply($customer, $starred, UserRelation::FAVORITE);
 
-    $this->actingAs($customer)->get(route('technicians.index'))
+    $this->actingAs($customer)->get(route('search.index', ['city' => 'Tunis']))
         ->assertInertia(fn (Assert $page) => $page
             ->has('technicians.data', 2)
             ->where('technicians.data', fn ($rows) => collect($rows)->firstWhere('id', $starred->id)['is_favorite'] === true
                 && collect($rows)->firstWhere('id', $other->id)['is_favorite'] === false));
 
-    $this->actingAs($customer)->get(route('technicians.index', ['favorites' => 1]))
+    $this->actingAs($customer)->get(route('search.index', ['favorites' => 1]))
         ->assertInertia(fn (Assert $page) => $page
             ->has('technicians.data', 1)
             ->where('technicians.data.0.name', 'Starred One'));

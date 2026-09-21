@@ -226,7 +226,7 @@ test('a suspended technician disappears from search, their profile and contact',
     $customer = panelCustomer();
 
     $this->actingAs($customer)
-        ->get(route('technicians.index'))
+        ->get(route('search.index', ['availability' => 'available']))
         ->assertInertia(fn (Assert $page) => $page
             ->has('technicians.data', 1)
             ->where('technicians.data.0.id', $visible->id));

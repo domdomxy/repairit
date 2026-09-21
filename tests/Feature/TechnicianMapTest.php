@@ -26,7 +26,7 @@ test('technicians with a location are on the search map, rounded to about a kilo
     );
 
     $this->actingAs(mapViewer())
-        ->get(route('technicians.index'))
+        ->get(route('search.index', ['type' => 'technicians', 'availability' => 'busy']))
         ->assertInertia(fn (Assert $page) => $page
             ->has('mapPoints', 1)
             ->where('mapPoints.0.id', $technician->id)
@@ -48,7 +48,7 @@ test('a map point carries no contact details and no exact coordinates', function
         'show_email_publicly' => true,
     ], ['email' => 'secret-sami@example.com']);
 
-    $response = $this->actingAs(mapViewer())->get(route('technicians.index'));
+    $response = $this->actingAs(mapViewer())->get(route('search.index', ['type' => 'technicians', 'availability' => 'available']));
 
     $response->assertInertia(fn (Assert $page) => $page
         ->missing('mapPoints.0.email')
@@ -73,7 +73,7 @@ test('technicians without a location, or suspended, are not on the map', functio
     mapTechnician(['latitude' => 35.8, 'longitude' => 10.6], ['suspended_at' => now()]);
 
     $this->actingAs(mapViewer())
-        ->get(route('technicians.index'))
+        ->get(route('search.index', ['type' => 'technicians', 'availability' => 'available']))
         ->assertInertia(fn (Assert $page) => $page->has('mapPoints', 1));
 });
 
@@ -85,7 +85,7 @@ test('the map shows every match, not just the current page of results', function
     }
 
     $this->actingAs(mapViewer())
-        ->get(route('technicians.index'))
+        ->get(route('search.index', ['type' => 'technicians', 'availability' => 'available']))
         ->assertInertia(fn (Assert $page) => $page
             ->has('technicians.data', 12)
             ->has('mapPoints', 15));
@@ -103,13 +103,13 @@ test('the map follows the search filters', function () {
     $viewer = mapViewer();
 
     $this->actingAs($viewer)
-        ->get(route('technicians.index', ['category' => 'plumbing']))
+        ->get(route('search.index', ['type' => 'technicians', 'category' => 'plumbing']))
         ->assertInertia(fn (Assert $page) => $page
             ->has('mapPoints', 1)
             ->where('mapPoints.0.name', 'Plumber'));
 
     $this->actingAs($viewer)
-        ->get(route('technicians.index', ['name' => 'Electri']))
+        ->get(route('search.index', ['type' => 'technicians', 'q' => 'Electri']))
         ->assertInertia(fn (Assert $page) => $page
             ->has('mapPoints', 1)
             ->where('mapPoints.0.name', 'Electrician'));
@@ -121,7 +121,7 @@ test('the map respects the radius of a location search', function () {
     mapTechnician(['latitude' => 33.88, 'longitude' => 10.86], ['name' => 'Far']);
 
     $this->actingAs(mapViewer())
-        ->get(route('technicians.index', ['lat' => 36.8, 'lng' => 10.18, 'radius' => 20, 'sort' => 'distance']))
+        ->get(route('search.index', ['type' => 'technicians', 'lat' => 36.8, 'lng' => 10.18, 'radius' => 20, 'sort' => 'distance']))
         ->assertInertia(fn (Assert $page) => $page
             ->has('mapPoints', 1)
             ->where('mapPoints.0.name', 'Near')

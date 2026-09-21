@@ -16,6 +16,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\RepairController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\ServiceRequestController;
 use App\Http\Controllers\SupportController;
 use Illuminate\Foundation\Application;
@@ -89,7 +90,21 @@ Route::middleware('auth')->group(function () {
     Route::get('/support/{ticket}', [SupportController::class, 'show'])->name('support.show');
     Route::post('/support/{ticket}/reply', [SupportController::class, 'reply'])->middleware('throttle:20,1')->name('support.reply');
     Route::post('/support/{ticket}/close', [SupportController::class, 'close'])->name('support.close');
-    Route::get('/technicians', [TechnicianController::class, 'index'])->name('technicians.index');
+    // Search: technicians, offers and repair requests (never customers).
+    Route::get('/search', [SearchController::class, 'index'])->name('search.index');
+    // The technician search became the search page: keep old links (and their filters) working.
+    // The old page looked for technicians unless told otherwise, and searched them with `name`.
+    Route::get('/technicians', function (Request $request) {
+        $query = $request->query();
+        $query['type'] = ($query['type'] ?? 'technician') === 'technician' ? 'technicians' : 'all';
+
+        if (isset($query['name'])) {
+            $query['q'] = $query['name'];
+            unset($query['name']);
+        }
+
+        return redirect()->route('search.index', $query);
+    });
     Route::get('/technicians/{technician}', [TechnicianController::class, 'show'])->name('technicians.show');
     // A customer's public profile, and technicians rating the customers they have worked with.
     Route::get('/customers/{customer}', [CustomerProfileController::class, 'show'])->name('customers.show');

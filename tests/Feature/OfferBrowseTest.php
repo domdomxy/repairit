@@ -189,7 +189,7 @@ test('with no filters set, they still reach the page as an object', function () 
     // An empty PHP array would arrive as a JS array, where `filters.sort` is
     // Array.prototype.sort rather than "unset". A full page load carries the
     // props in an HTML attribute, so the quotes are escaped.
-    foreach (['feed.index', 'technicians.index'] as $route) {
+    foreach (['feed.index', 'search.index'] as $route) {
         expect($this->actingAs($viewer)->get(route($route))->assertOk()->getContent())
             ->toContain('&quot;filters&quot;:{}');
     }

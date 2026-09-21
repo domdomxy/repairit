@@ -289,7 +289,7 @@ test('search results and technician profiles carry pictures, including reviewers
     $viewer = avatarUser();
 
     $this->actingAs($viewer)
-        ->get(route('technicians.index'))
+        ->get(route('search.index', ['availability' => 'available']))
         ->assertInertia(fn (Assert $page) => $page
             ->where('technicians.data.0.avatar_url', $technician->fresh()->avatar_url)
             ->missing('technicians.data.0.avatar_path'));
