@@ -18,6 +18,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -84,10 +85,15 @@ class MessageController extends Controller
         // and each file become their own message (like a real chat app: pick a
         // photo and a document together and they arrive as two bubbles, not one
         // bubble carrying both), so the transaction can return several rows.
+        // Files chosen in the same submission still get one shared `batch_id`,
+        // so the chat can show them stacked together even though each keeps
+        // its own row (and so its own delete/report).
         $stored = [];
+        $files = $request->file('attachments', []);
+        $batchId = count($files) > 1 ? (string) Str::uuid() : null;
 
         try {
-            $messages = DB::transaction(function () use ($request, $conversation, $user, $validated, &$stored) {
+            $messages = DB::transaction(function () use ($files, $conversation, $user, $validated, $batchId, &$stored) {
                 $messages = [];
 
                 if (filled($validated['body'] ?? null)) {
@@ -97,7 +103,7 @@ class MessageController extends Controller
                     ]);
                 }
 
-                foreach ($request->file('attachments', []) as $file) {
+                foreach ($files as $file) {
                     $path = $file->store("message-attachments/{$conversation->id}", Message::ATTACHMENT_DISK);
 
                     abort_if($path === false, 500, 'A file could not be saved.');
@@ -108,6 +114,7 @@ class MessageController extends Controller
 
                     $attachmentMessage = $conversation->messages()->create([
                         'sender_id' => $user->id,
+                        'batch_id' => $batchId,
                         'body' => null,
                     ]);
 
@@ -131,6 +138,43 @@ class MessageController extends Controller
         }
 
         $this->deliver($conversation, $user, $messages, $isCustomersFirstMessage);
+
+        return back();
+    }
+
+    /**
+     * Share the sender's current location in the chat: it arrives as a small
+     * map card the other person can open in their own maps app. The browser
+     * is what actually reads the device's location; this just stores the
+     * coordinates it already found and delivers them like any other message.
+     */
+    public function storeLocation(Request $request, Conversation $conversation): RedirectResponse
+    {
+        $user = Auth::user();
+        abort_unless(
+            $user->id === $conversation->customer_id || $user->id === $conversation->technician_id,
+            403
+        );
+
+        abort_if($conversation->participantFor($user)->isSuspended(), 403, 'This account has been suspended.');
+
+        $validated = $request->validate([
+            'lat' => ['required', 'numeric', 'between:-90,90'],
+            'lng' => ['required', 'numeric', 'between:-180,180'],
+            'label' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $isCustomersFirstMessage = $user->id === $conversation->customer_id
+            && ! $conversation->messages()->exists();
+
+        $message = $conversation->messages()->create([
+            'sender_id' => $user->id,
+            'location_lat' => $validated['lat'],
+            'location_lng' => $validated['lng'],
+            'location_label' => $validated['label'] ?? null,
+        ]);
+
+        $this->deliver($conversation, $user, [$message], $isCustomersFirstMessage);
 
         return back();
     }
@@ -234,6 +278,7 @@ class MessageController extends Controller
         abort_if($message->offer_title !== null, 403, 'A shared offer cannot be edited.');
         // A shared request is a card, and a quote is changed from its own card.
         abort_if($message->request_excerpt !== null, 403, 'A shared request or quote cannot be edited here.');
+        abort_if($message->location_lat !== null, 403, 'A shared location cannot be edited.');
 
         $validated = $request->validate([
             'body' => ['nullable', 'string', 'max:5000'],
@@ -340,7 +385,7 @@ class MessageController extends Controller
         $disk = Storage::disk(Message::ATTACHMENT_DISK);
         abort_unless($disk->exists($attachment->path), 404);
 
-        $inline = $attachment->isInlineImage() || $attachment->is_pdf;
+        $inline = $attachment->isInlineImage() || $attachment->isInlineVideo() || $attachment->is_pdf;
 
         return $disk->response(
             $attachment->path,

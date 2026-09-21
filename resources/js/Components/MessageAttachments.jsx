@@ -2,38 +2,59 @@ import Modal from '@/Components/Modal';
 import { formatSize } from '@/lib/files';
 import { useState } from 'react';
 
-// The files of a message: pictures are shown inline (side by side when there
-// are several), everything else is a chip with its name and size. Pictures
-// and PDFs open in a viewer inside the app instead of a new browser tab;
-// anything else (docx, zip, ...) can only be downloaded, since the browser
-// has no built-in way to show it.
+// The files of a message: pictures and clips are shown inline (side by side
+// when there are several), everything else is a chip with its name and size.
+// Pictures, clips, and PDFs open in a viewer inside the app instead of a new
+// browser tab; anything else (docx, zip, ...) can only be downloaded, since
+// the browser has no built-in way to show it.
+//
+// Several pictures or clips chosen and sent together arrive as their own
+// message rows sharing a `batch_id` and are shown as a stack by
+// `MediaStackRow` instead of here; this component renders whatever is left
+// over: a single picture or clip, or files that aren't media at all.
 export default function MessageAttachments({ attachments, onImageLoad, className = '' }) {
     const [viewing, setViewing] = useState(null);
 
-    const images = attachments.filter((attachment) => attachment.is_image);
-    const files = attachments.filter((attachment) => !attachment.is_image);
+    const media = attachments.filter((attachment) => attachment.is_image || attachment.is_video);
+    const files = attachments.filter((attachment) => !attachment.is_image && !attachment.is_video);
 
     return (
         <div className={`space-y-2 ${className}`}>
-            {images.length > 0 && (
-                <div className={images.length > 1 ? 'grid grid-cols-2 gap-1' : ''}>
-                    {images.map((image) => (
+            {media.length > 0 && (
+                <div className={media.length > 1 ? 'grid grid-cols-2 gap-1' : ''}>
+                    {media.map((item) => (
                         <button
-                            key={image.id}
+                            key={item.id}
                             type="button"
-                            onClick={() => setViewing(image)}
-                            className="block"
+                            onClick={() => setViewing(item)}
+                            className={`relative block overflow-hidden ${media.length > 1 ? 'rounded-md' : ''}`}
                         >
-                            <img
-                                src={image.url}
-                                alt={image.name ?? 'Image'}
-                                onLoad={onImageLoad}
-                                className={
-                                    images.length > 1
-                                        ? 'h-28 w-full rounded-md object-cover'
-                                        : 'max-h-60 rounded-md'
-                                }
-                            />
+                            {item.is_video ? (
+                                <>
+                                    <video
+                                        src={item.url}
+                                        onLoadedData={onImageLoad}
+                                        className={media.length > 1 ? 'h-28 w-full rounded-md object-cover' : 'max-h-60 rounded-md'}
+                                    />
+                                    <span
+                                        aria-hidden="true"
+                                        className="absolute inset-0 flex items-center justify-center bg-black/10 text-3xl text-white drop-shadow"
+                                    >
+                                        ▶
+                                    </span>
+                                </>
+                            ) : (
+                                <img
+                                    src={item.url}
+                                    alt={item.name ?? 'Image'}
+                                    onLoad={onImageLoad}
+                                    className={
+                                        media.length > 1
+                                            ? 'h-28 w-full rounded-md object-cover'
+                                            : 'max-h-60 rounded-md'
+                                    }
+                                />
+                            )}
                         </button>
                     ))}
                 </div>
@@ -98,6 +119,8 @@ export default function MessageAttachments({ attachments, onImageLoad, className
                                     alt={viewing.name ?? 'Image'}
                                     className="max-h-[80vh] max-w-full object-contain"
                                 />
+                            ) : viewing.is_video ? (
+                                <video src={viewing.url} controls autoPlay className="max-h-[80vh] max-w-full" />
                             ) : (
                                 <iframe
                                     title={viewing.name}

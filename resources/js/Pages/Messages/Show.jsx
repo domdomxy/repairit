@@ -1,30 +1,33 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { useEcho } from '@laravel/echo-react';
 import Avatar from '@/Components/Avatar';
 import ConversationInfo from '@/Components/ConversationInfo';
 import ConversationMenu from '@/Components/ConversationMenu';
+import MediaStackRow from '@/Components/MediaStackRow';
 import MessageRow from '@/Components/MessageRow';
 import MessagesShell from '@/Components/MessagesShell';
 import { formatSize } from '@/lib/files';
 
-// Same list the server shows inline; anything else is a plain file chip.
-const PREVIEWABLE = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+// Same lists the server shows inline; anything else is a plain file chip.
+const PREVIEWABLE_IMAGE = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const PREVIEWABLE_VIDEO = ['video/mp4', 'video/quicktime', 'video/webm', 'video/ogg'];
 
-// One chosen file in the composer, with a thumbnail when it is a picture.
+// One chosen file in the composer, with a thumbnail when it is a picture or clip.
 function PendingFile({ file, error, onRemove }) {
     const [previewUrl, setPreviewUrl] = useState(null);
+    const isVideo = PREVIEWABLE_VIDEO.includes(file.type);
 
     // The preview is a temporary browser URL: made when the file appears and
     // let go of when it is removed.
     useEffect(() => {
-        if (!PREVIEWABLE.includes(file.type)) return undefined;
+        if (!PREVIEWABLE_IMAGE.includes(file.type) && !isVideo) return undefined;
 
         const url = URL.createObjectURL(file);
         setPreviewUrl(url);
 
         return () => URL.revokeObjectURL(url);
-    }, [file]);
+    }, [file, isVideo]);
 
     return (
         <li
@@ -33,7 +36,11 @@ function PendingFile({ file, error, onRemove }) {
             }`}
         >
             {previewUrl ? (
-                <img src={previewUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
+                isVideo ? (
+                    <video src={previewUrl} className="h-10 w-10 shrink-0 rounded object-cover" />
+                ) : (
+                    <img src={previewUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
+                )
             ) : (
                 <span aria-hidden="true">📎</span>
             )}
@@ -60,6 +67,8 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
     const { auth } = usePage().props;
     const [messages, setMessages] = useState(initialMessages);
     const [fileProblems, setFileProblems] = useState([]);
+    const [locationError, setLocationError] = useState(null);
+    const [sendingLocation, setSendingLocation] = useState(false);
     const bottomRef = useRef(null);
     const fileInput = useRef(null);
 
@@ -73,6 +82,59 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
         [conversation.customer_id]: conversation.customer,
         [conversation.technician_id]: conversation.technician,
     };
+
+    // Pictures/clips chosen and sent together share a `batch_id` and arrive as
+    // consecutive message rows; grouped here into one stacked card instead of
+    // separate bubbles. A run only stacks while every message in it is
+    // media-only (no text, no other file types) and still visible.
+    const groups = useMemo(() => {
+        const isMediaOnly = (message) => {
+            const files = message.attachments ?? [];
+
+            return (
+                !message.deleted &&
+                !message.body &&
+                !message.offer &&
+                !message.request &&
+                !message.quote &&
+                !message.location &&
+                files.length > 0 &&
+                files.every((file) => file.is_image || file.is_video)
+            );
+        };
+
+        const result = [];
+        let i = 0;
+
+        while (i < messages.length) {
+            const message = messages[i];
+
+            if (message.batch_id && isMediaOnly(message)) {
+                const batch = [message];
+                let j = i + 1;
+
+                while (
+                    j < messages.length &&
+                    messages[j].batch_id === message.batch_id &&
+                    isMediaOnly(messages[j])
+                ) {
+                    batch.push(messages[j]);
+                    j += 1;
+                }
+
+                if (batch.length > 1) {
+                    result.push({ type: 'stack', key: `stack-${message.batch_id}`, messages: batch });
+                    i = j;
+                    continue;
+                }
+            }
+
+            result.push({ type: 'message', key: `message-${message.id}`, message });
+            i += 1;
+        }
+
+        return result;
+    }, [messages]);
 
     // Keeps the list's preview and order up to date. "async" so it can't
     // interrupt a message that is being sent at the same moment.
@@ -103,7 +165,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
         setMessages((current) =>
             current.map((message) =>
                 message.id === event.id
-                    ? { ...message, body: null, attachments: [], offer: null, request: null, quote: null, edited_at: null, deleted: true }
+                    ? { ...message, body: null, attachments: [], offer: null, request: null, quote: null, location: null, edited_at: null, deleted: true }
                     : message,
             ),
         );
@@ -176,6 +238,47 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
 
         setFileProblems(problems);
         setData('attachments', next);
+    }
+
+    // Reads the device's location from the browser, then sends it like any
+    // other message. The browser handles the actual permission prompt; this
+    // only runs once someone has granted it.
+    function shareLocation() {
+        setLocationError(null);
+
+        if (!navigator.geolocation) {
+            setLocationError("Your browser doesn't support sharing your location.");
+            return;
+        }
+
+        setSendingLocation(true);
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                router.post(
+                    route('messages.location.store', conversation.id),
+                    {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                    },
+                    {
+                        preserveScroll: true,
+                        onSuccess: (page) => setMessages(page.props.messages),
+                        onError: () => setLocationError('Your location could not be sent.'),
+                        onFinish: () => setSendingLocation(false),
+                    },
+                );
+            },
+            (error) => {
+                setSendingLocation(false);
+                setLocationError(
+                    error.code === error.PERMISSION_DENIED
+                        ? "Location access was denied. Allow it in your browser's settings to share it here."
+                        : "Couldn't get your location. Please try again.",
+                );
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+        );
     }
 
     function submit(e) {
@@ -267,19 +370,35 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
             )}
 
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-                {messages.map((message) => (
-                    <MessageRow
-                        key={message.id}
-                        message={message}
-                        isMine={message.sender_id === auth.user.id}
-                        author={people[message.sender_id]}
-                        otherName={otherParty.name}
-                        reported={moderation.reported_message_ids.includes(message.id)}
-                        reasons={moderation.reasons}
-                        onMessagesChange={setMessages}
-                        onImageLoad={scrollToBottom}
-                    />
-                ))}
+                {groups.map((group) =>
+                    group.type === 'stack' ? (
+                        <MediaStackRow
+                            key={group.key}
+                            messages={group.messages}
+                            isMine={group.messages[0].sender_id === auth.user.id}
+                            author={people[group.messages[0].sender_id]}
+                            otherName={otherParty.name}
+                            reported={group.messages.some((message) =>
+                                moderation.reported_message_ids.includes(message.id),
+                            )}
+                            reasons={moderation.reasons}
+                            onMessagesChange={setMessages}
+                            onImageLoad={scrollToBottom}
+                        />
+                    ) : (
+                        <MessageRow
+                            key={group.key}
+                            message={group.message}
+                            isMine={group.message.sender_id === auth.user.id}
+                            author={people[group.message.sender_id]}
+                            otherName={otherParty.name}
+                            reported={moderation.reported_message_ids.includes(group.message.id)}
+                            reasons={moderation.reasons}
+                            onMessagesChange={setMessages}
+                            onImageLoad={scrollToBottom}
+                        />
+                    ),
+                )}
                 <div ref={bottomRef} />
             </div>
 
@@ -303,11 +422,12 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                     </ul>
                 )}
 
-                {problems.length > 0 && (
+                {(problems.length > 0 || locationError) && (
                     <div className="mb-2 space-y-1 text-sm text-red-600">
                         {problems.map((problem) => (
                             <p key={problem}>{problem}</p>
                         ))}
+                        {locationError && <p>{locationError}</p>}
                     </div>
                 )}
 
@@ -328,6 +448,16 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                         className="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-md"
                     >
                         📎
+                    </button>
+                    <button
+                        type="button"
+                        onClick={shareLocation}
+                        disabled={sendingLocation}
+                        title="Share your location"
+                        aria-label="Share your location"
+                        className="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-md disabled:opacity-50"
+                    >
+                        {sendingLocation ? '…' : '📍'}
                     </button>
                     <input
                         type="text"

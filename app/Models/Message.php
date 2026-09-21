@@ -24,6 +24,7 @@ class Message extends Model
     /** File types users may attach. Add an extension here to allow another type. */
     public const ATTACHMENT_EXTENSIONS = [
         'jpg', 'jpeg', 'png', 'gif', 'webp',
+        'mp4', 'mov', 'webm', 'ogg',
         'pdf', 'txt', 'csv',
         'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
         'zip',
@@ -32,9 +33,13 @@ class Message extends Model
     /** Only these are shown inline; everything else is always downloaded. */
     public const INLINE_IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
+    /** Played in place in the chat, with the browser's own controls. */
+    public const INLINE_VIDEO_MIMES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/ogg'];
+
     protected $fillable = [
         'conversation_id',
         'sender_id',
+        'batch_id',
         'body',
         'offer_id',
         'offer_title',
@@ -42,6 +47,9 @@ class Message extends Model
         'request_excerpt',
         'quote_id',
         'quote_price',
+        'location_lat',
+        'location_lng',
+        'location_label',
         'read_at',
         'is_automated',
     ];
@@ -51,6 +59,8 @@ class Message extends Model
         'is_automated' => 'boolean',
         'edited_at' => 'datetime',
         'deleted_for_everyone_at' => 'datetime',
+        'location_lat' => 'float',
+        'location_lng' => 'float',
     ];
 
     public function conversation(): BelongsTo
@@ -147,11 +157,15 @@ class Message extends Model
             'conversation_id' => $this->conversation_id,
             'sender_id' => $this->sender_id,
             'sender_name' => $this->relationLoaded('sender') ? $this->sender?->name : null,
+            // Files chosen and sent together share this id, so the chat can
+            // stack them; null for anything sent on its own.
+            'batch_id' => $this->batch_id,
             'body' => $deleted ? null : $this->body,
             'attachments' => $deleted ? [] : $this->attachments->toArray(),
             'offer' => $deleted ? null : $this->sharedOffer(),
             'request' => $deleted ? null : $this->sharedRequest(),
             'quote' => $deleted ? null : $this->sharedQuote(),
+            'location' => $deleted ? null : $this->sharedLocation(),
             'created_at' => $this->created_at->toIso8601String(),
             'edited_at' => $deleted ? null : $this->edited_at?->toIso8601String(),
             'deleted' => $deleted,
@@ -268,6 +282,28 @@ class Message extends Model
             'accepted' => $quote->isAccepted(),
             'edited' => $this->edited_at !== null,
             'request' => $request,
+        ];
+    }
+
+    /**
+     * The point on the map this message shares, as the small card the chat
+     * shows: null for an ordinary message. There is no "deleted" state to
+     * account for, unlike an offer or request card - a shared location has
+     * nothing on the server that can later disappear out from under it.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function sharedLocation(): ?array
+    {
+        if ($this->location_lat === null || $this->location_lng === null) {
+            return null;
+        }
+
+        return [
+            'lat' => $this->location_lat,
+            'lng' => $this->location_lng,
+            'label' => $this->location_label,
+            'maps_url' => "https://www.google.com/maps?q={$this->location_lat},{$this->location_lng}",
         ];
     }
 }

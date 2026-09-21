@@ -60,6 +60,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/messages/{conversation}', [ConversationController::class, 'show'])->name('conversations.show');
     Route::post('/technicians/{technician}/contact', [ConversationController::class, 'startWith'])->name('conversations.start');
     Route::post('/messages/{conversation}', [MessageController::class, 'store'])->name('messages.store');
+    Route::post('/messages/{conversation}/location', [MessageController::class, 'storeLocation'])->name('messages.location.store');
     // Hiding, deleting and reporting a conversation. Hiding and deleting only affect the person asking.
     Route::post('/messages/{conversation}/hide', [ConversationController::class, 'hide'])->name('conversations.hide');
     Route::post('/messages/{conversation}/unhide', [ConversationController::class, 'unhide'])->name('conversations.unhide');

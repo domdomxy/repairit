@@ -29,7 +29,7 @@ class MessageAttachment extends Model
         'updated_at',
     ];
 
-    protected $appends = ['is_image', 'is_pdf', 'url'];
+    protected $appends = ['is_image', 'is_video', 'is_pdf', 'url'];
 
     public function message(): BelongsTo
     {
@@ -41,9 +41,25 @@ class MessageAttachment extends Model
         return in_array($this->mime, Message::INLINE_IMAGE_MIMES, true);
     }
 
+    public function isInlineVideo(): bool
+    {
+        return in_array($this->mime, Message::INLINE_VIDEO_MIMES, true);
+    }
+
+    /** Whether this attachment is media (a picture or a clip): what the chat can stack and preview. */
+    public function isMedia(): bool
+    {
+        return $this->isInlineImage() || $this->isInlineVideo();
+    }
+
     protected function getIsImageAttribute(): bool
     {
         return $this->isInlineImage();
+    }
+
+    protected function getIsVideoAttribute(): bool
+    {
+        return $this->isInlineVideo();
     }
 
     // PDFs are shown in an in-page viewer instead of a plain download link.

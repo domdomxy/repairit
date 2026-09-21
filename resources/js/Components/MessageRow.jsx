@@ -4,6 +4,7 @@ import MessageAttachments from '@/Components/MessageAttachments';
 import Modal from '@/Components/Modal';
 import ReportModal from '@/Components/ReportModal';
 import SecondaryButton from '@/Components/SecondaryButton';
+import SharedLocationCard from '@/Components/SharedLocationCard';
 import SharedOfferCard from '@/Components/SharedOfferCard';
 import SharedQuoteCard from '@/Components/SharedQuoteCard';
 import SharedRequestCard from '@/Components/SharedRequestCard';
@@ -39,9 +40,10 @@ export default function MessageRow({
     const otherFiles = files.filter((file) => !file.is_image);
     // A quote says it was edited on its own card, so that alone makes no bubble.
     const hasBubble = !!message.body || otherFiles.length > 0 || (!!message.edited_at && !message.quote);
-    // A shared offer or request is not text, so there is nothing to edit; a quote
-    // is edited from its own card.
-    const canEdit = isMine && !message.deleted && !message.offer && !message.request && !message.quote;
+    // A shared offer, request, or location is not text, so there is nothing to
+    // edit; a quote is edited from its own card.
+    const canEdit =
+        isMine && !message.deleted && !message.offer && !message.request && !message.quote && !message.location;
 
     function startEdit() {
         setDraft(message.body ?? '');
@@ -180,6 +182,10 @@ export default function MessageRow({
                         {message.offer && <SharedOfferCard offer={message.offer} onImageLoad={onImageLoad} />}
 
                         {message.request && <SharedRequestCard request={message.request} onImageLoad={onImageLoad} />}
+
+                        {message.location && (
+                            <SharedLocationCard location={message.location} onImageLoad={onImageLoad} />
+                        )}
 
                         {message.quote && (
                             <SharedQuoteCard quote={message.quote} isMine={isMine} onMessagesChange={onMessagesChange} />
