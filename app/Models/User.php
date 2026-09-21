@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['name', 'email', 'password', 'role', 'email_notifications', 'bio', 'city'])]
-#[Hidden(['password', 'remember_token', 'avatar_path'])]
+#[Fillable(['name', 'email', 'password', 'role', 'email_notifications', 'bio', 'city', 'phone', 'show_phone_publicly', 'show_email_publicly', 'links'])]
+#[Hidden(['password', 'remember_token', 'avatar_path', 'phone'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -70,6 +70,9 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'suspended_at' => 'datetime',
             'email_notifications' => 'boolean',
+            'show_phone_publicly' => 'boolean',
+            'show_email_publicly' => 'boolean',
+            'links' => 'array',
             'password' => 'hashed',
         ];
     }

@@ -10,6 +10,7 @@ import OfferMenu from '@/Components/OfferMenu';
 import OfferShareActions from '@/Components/OfferShareActions';
 import RequestCard from '@/Components/RequestCard';
 import RequestForm from '@/Components/RequestForm';
+import ProfileLinksSection from '@/Components/ProfileLinks';
 import { Banner, ContactRow, SIDE_PANEL, Section, Stat } from '@/Components/ProfileParts';
 import ReviewsPanel from '@/Components/ReviewsPanel';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -246,6 +247,8 @@ export default function Show({ technician, requests, canReview, myReview, offerF
                                         </div>
                                     </Section>
                                 )}
+
+                                <ProfileLinksSection links={technician.links} />
                             </div>
                         </div>
                     </section>

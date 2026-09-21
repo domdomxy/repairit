@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\TechnicianProfile;
+use App\Support\ProfileLinks;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
@@ -33,6 +34,12 @@ class TechnicianProfileController extends Controller
                 'auto_reply_enabled' => (bool) $profile->auto_reply_enabled,
                 'auto_reply_message' => $profile->auto_reply_message,
                 'categories' => $profile->categories()->pluck('categories.id')->all(),
+                'links' => ProfileLinks::list($request->user()->links),
+            ],
+            'linkLimits' => [
+                'max' => ProfileLinks::MAX,
+                'label_max' => ProfileLinks::LABEL_MAX,
+                'url_max' => ProfileLinks::URL_MAX,
             ],
             'categories' => Category::orderBy('name')->get(['id', 'name']),
             'autoReplyDefault' => TechnicianProfile::DEFAULT_AUTO_REPLY,
@@ -42,6 +49,8 @@ class TechnicianProfileController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
+        ProfileLinks::prepare($request);
+
         $validated = $request->validate([
             'bio' => ['nullable', 'string', 'max:1000'],
             'phone' => [
@@ -63,15 +72,20 @@ class TechnicianProfileController extends Controller
             'auto_reply_message' => ['nullable', 'string', 'max:'.TechnicianProfile::AUTO_REPLY_MAX_LENGTH],
             'categories' => ['required', 'array', 'min:1'],
             'categories.*' => ['integer', 'distinct', 'exists:categories,id'],
-        ], [
+        ] + ProfileLinks::rules(), [
             'phone.required' => 'Add a phone number to show it on your public profile.',
             'phone.regex' => 'Phone numbers can only contain digits, spaces, and + ( ) . -',
             'categories.required' => 'Select at least one specialty.',
             'categories.min' => 'Select at least one specialty.',
-        ]);
+        ] + ProfileLinks::messages());
 
         $categories = $validated['categories'];
         unset($validated['categories']);
+
+        // The links are kept on the account (customers use them too), not on the technician profile.
+        $links = ProfileLinks::clean($validated['links'] ?? []);
+        unset($validated['links']);
+        $request->user()->update(['links' => $links]);
 
         // A blank custom message means the default one.
         $validated['auto_reply_message'] = filled($validated['auto_reply_message'] ?? null)

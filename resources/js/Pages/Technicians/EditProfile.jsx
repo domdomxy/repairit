@@ -4,6 +4,7 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import LocationPicker from '@/Components/LocationPicker';
 import PrimaryButton from '@/Components/PrimaryButton';
+import { LinksEditor } from '@/Components/ProfileLinks';
 import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Transition } from '@headlessui/react';
@@ -18,7 +19,7 @@ const STATUSES = [
 
 const BIO_LIMIT = 1000;
 
-export default function EditProfile({ profile, categories, autoReplyDefault, autoReplyMaxLength }) {
+export default function EditProfile({ profile, categories, autoReplyDefault, autoReplyMaxLength, linkLimits }) {
     const user = usePage().props.auth.user;
 
     // Which automatic message is sent: the default one, or the technician's own.
@@ -37,6 +38,7 @@ export default function EditProfile({ profile, categories, autoReplyDefault, aut
         auto_reply_enabled: profile.auto_reply_enabled,
         auto_reply_message: profile.auto_reply_message ?? '',
         categories: profile.categories,
+        links: profile.links ?? [],
     });
 
     // The default message is sent by leaving the custom one empty.
@@ -209,6 +211,29 @@ export default function EditProfile({ profile, categories, autoReplyDefault, aut
                                         Show my email ({user.email}) on my public profile
                                     </span>
                                 </label>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Links: a website, social networks... */}
+                    <section className="bg-white p-4 shadow sm:rounded-lg sm:p-8 dark:bg-gray-800">
+                        <div className="max-w-xl">
+                            <header>
+                                <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Links</h2>
+                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                    Add your website or social networks. They are shown on your public profile.
+                                </p>
+                            </header>
+
+                            <div className="mt-6">
+                                <LinksEditor
+                                    links={data.links}
+                                    onChange={(links) => setData('links', links)}
+                                    errors={errors}
+                                    max={linkLimits.max}
+                                    labelMax={linkLimits.label_max}
+                                    urlMax={linkLimits.url_max}
+                                />
                             </div>
                         </div>
                     </section>

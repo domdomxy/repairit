@@ -1,5 +1,6 @@
 import Avatar from '@/Components/Avatar';
 import { MailIcon, PhoneIcon, PinIcon, StarIcon } from '@/Components/Icons';
+import { LinkRows } from '@/Components/ProfileLinks';
 import { AVAILABILITY } from '@/lib/availability';
 import { formatDate } from '@/lib/dates';
 import { Link } from '@inertiajs/react';
@@ -80,7 +81,10 @@ export default function ConversationInfo({ contact, open, onClose }) {
               ? route('customers.show', contact.id)
               : null;
 
-    const hasContact = !!(profile?.phone || contact.email);
+    // A technician's phone is on their profile, a customer's on the contact itself.
+    const phone = profile?.phone ?? contact.phone;
+    const hasContact = !!(phone || contact.email);
+    const links = contact.links ?? [];
 
     return (
         <aside
@@ -198,12 +202,12 @@ export default function ConversationInfo({ contact, open, onClose }) {
                         {hasContact && (
                             <Section title="Contact">
                                 <div className="space-y-0.5">
-                                    {profile?.phone && (
+                                    {phone && (
                                         <ContactRow
                                             icon={<PhoneIcon />}
                                             label="Phone"
-                                            value={profile.phone}
-                                            href={`tel:${profile.phone.replace(/[^\d+]/g, '')}`}
+                                            value={phone}
+                                            href={`tel:${phone.replace(/[^\d+]/g, '')}`}
                                         />
                                     )}
                                     {contact.email && (
@@ -215,6 +219,12 @@ export default function ConversationInfo({ contact, open, onClose }) {
                                         />
                                     )}
                                 </div>
+                            </Section>
+                        )}
+
+                        {links.length > 0 && (
+                            <Section title="Links">
+                                <LinkRows links={links} />
                             </Section>
                         )}
 

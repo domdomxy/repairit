@@ -1,10 +1,11 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
-import { PencilIcon, PinIcon, StarIcon } from '@/Components/Icons';
+import { MailIcon, PencilIcon, PhoneIcon, PinIcon, StarIcon } from '@/Components/Icons';
 import Modal from '@/Components/Modal';
 import RequestCard from '@/Components/RequestCard';
 import RequestForm from '@/Components/RequestForm';
-import { Banner, SIDE_PANEL, Section, Stat } from '@/Components/ProfileParts';
+import ProfileLinksSection from '@/Components/ProfileLinks';
+import { Banner, ContactRow, SIDE_PANEL, Section, Stat } from '@/Components/ProfileParts';
 import ReviewsPanel from '@/Components/ReviewsPanel';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useState } from 'react';
@@ -21,6 +22,7 @@ export default function Show({ customer, requests, requestForm, canReview, myRev
 
     const reviews = customer.reviews ?? [];
     const ratingCount = customer.rating_count ?? 0;
+    const hasLinks = (customer.links ?? []).length > 0;
 
     // The request form opens in a panel, like a technician's offer form.
     const [creating, setCreating] = useState(false);
@@ -94,14 +96,44 @@ export default function Show({ customer, requests, requestForm, canReview, myRev
                                     </Section>
                                 )}
 
-                                {isOwnProfile && !customer.bio && !customer.city && (
-                                    <Section title="About">
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                                            Nothing here yet. Add a short bio and your city by editing your profile so
-                                            technicians know who they are talking to.
-                                        </p>
+                                {isOwnProfile &&
+                                    !customer.bio &&
+                                    !customer.city &&
+                                    !customer.phone &&
+                                    !customer.email &&
+                                    !hasLinks && (
+                                        <Section title="About">
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                Nothing here yet. Add a short bio, your city, contact details or links
+                                                by editing your profile so technicians know who they are talking to.
+                                            </p>
+                                        </Section>
+                                    )}
+
+                                {(customer.phone || customer.email) && (
+                                    <Section title="Contact">
+                                        <div className="space-y-0.5">
+                                            {customer.phone && (
+                                                <ContactRow
+                                                    icon={<PhoneIcon />}
+                                                    label="Phone"
+                                                    value={customer.phone}
+                                                    href={`tel:${customer.phone.replace(/[^\d+]/g, '')}`}
+                                                />
+                                            )}
+                                            {customer.email && (
+                                                <ContactRow
+                                                    icon={<MailIcon />}
+                                                    label="Email"
+                                                    value={customer.email}
+                                                    href={`mailto:${customer.email}`}
+                                                />
+                                            )}
+                                        </div>
                                     </Section>
                                 )}
+
+                                <ProfileLinksSection links={customer.links} />
 
                             </div>
                         </div>

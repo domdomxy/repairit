@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Report;
 use App\Models\Review;
 use App\Models\User;
+use App\Support\ProfileLinks;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -368,7 +369,7 @@ class TechnicianController extends Controller
 
     /**
      * The public profile page: the card plus bio, offers, reviews and any contact
-     * details the technician has chosen to make public.
+     * details and links the technician has chosen to make public.
      *
      * @return array<string, mixed>
      */
@@ -387,6 +388,7 @@ class TechnicianController extends Controller
         }
 
         $data['email'] = $profile?->show_email_publicly ? $technician->email : null;
+        $data['links'] = ProfileLinks::list($technician->links);
 
         // The date is what lets the page list the offers among the requests.
         $data['offers'] = $technician->offers

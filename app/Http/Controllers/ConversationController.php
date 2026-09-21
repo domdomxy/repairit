@@ -9,6 +9,7 @@ use App\Models\Quote;
 use App\Models\Report;
 use App\Models\User;
 use App\Support\ConversationList;
+use App\Support\ProfileLinks;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -112,9 +113,9 @@ class ConversationController extends Controller
     /**
      * What the panel on the right shows about the person on the other side.
      *
-     * Only what is already public on their profile page: a technician's phone
-     * and email appear only if they chose to show them, and a customer's
-     * contact details never do. A suspended account shows just a name.
+     * Only what is already public on their profile page: a phone number and an
+     * email appear only if their owner chose to show them, and the links are
+     * the ones on the profile. A suspended account shows just a name.
      *
      * @return array<string, mixed>
      */
@@ -135,7 +136,13 @@ class ConversationController extends Controller
             'member_since' => $other->created_at?->toIso8601String(),
             'profile' => null,
             'email' => null,
+            'phone' => null,
+            'links' => [],
         ];
+
+        if (! $other->isSuspended()) {
+            $contact['links'] = ProfileLinks::list($other->links);
+        }
 
         $profile = $other->technicianProfile;
 
@@ -154,6 +161,10 @@ class ConversationController extends Controller
 
         // A customer's rating comes from what technicians wrote about them.
         if (! $isTechnician && ! $other->isSuspended()) {
+            // A customer's phone and email are there only if they chose to show them.
+            $contact['phone'] = $other->show_phone_publicly && filled($other->phone) ? $other->phone : null;
+            $contact['email'] = $other->show_email_publicly ? $other->email : null;
+
             $stats = $other->customerReviewsReceived()
                 ->selectRaw('COUNT(*) as total, AVG(rating) as average')
                 ->first();
