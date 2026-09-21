@@ -32,6 +32,7 @@ class ConversationController extends Controller
 
         $customer = Auth::user();
         abort_if($customer->id === $technician->id, 403);
+        abort_if($customer->isBlockedWith($technician), 403, 'You can no longer send messages to or from this person.');
 
         $conversation = Conversation::firstOrCreate([
             'customer_id' => $customer->id,
@@ -87,6 +88,7 @@ class ConversationController extends Controller
         $listed = $conversations->firstWhere('id', $conversation->id);
         $conversation->setAttribute('is_request', (bool) $listed?->is_request);
         $conversation->setAttribute('is_hidden', (bool) $listed?->is_hidden);
+        $conversation->setAttribute('is_restricted', (bool) $listed?->is_restricted);
 
         return Inertia::render('Messages/Show', [
             'conversation' => $conversation,
@@ -133,6 +135,10 @@ class ConversationController extends Controller
             'avatar_url' => $other->avatar_url,
             'role' => $isTechnician ? 'technician' : 'customer',
             'suspended' => $other->isSuspended(),
+            // What the viewer did about this person (null for admins, who can't be blocked or muted).
+            'relations' => $other->isAdmin() ? null : $viewer->relationFlagsFor($other),
+            // False once either of them blocked the other: the chat stays readable but nobody can write.
+            'can_message' => ! $viewer->isBlockedWith($other),
             'member_since' => $other->created_at?->toIso8601String(),
             'profile' => null,
             'email' => null,

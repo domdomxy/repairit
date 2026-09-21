@@ -1,6 +1,7 @@
 import Avatar from '@/Components/Avatar';
 import { MailIcon, PhoneIcon, PinIcon, StarIcon } from '@/Components/Icons';
 import { LinkRows } from '@/Components/ProfileLinks';
+import RelationActions from '@/Components/RelationActions';
 import { AVAILABILITY } from '@/lib/availability';
 import { formatDate } from '@/lib/dates';
 import { Link } from '@inertiajs/react';
@@ -233,6 +234,15 @@ export default function ConversationInfo({ contact, open, onClose }) {
                                 Member since {formatDate(contact.member_since)}
                             </p>
                         )}
+                    </div>
+                )}
+
+                {/* Blocking, muting and the rest work on suspended accounts too. */}
+                {contact.relations && (
+                    <div className="border-t border-gray-100 dark:border-gray-700">
+                        <Section title="Manage">
+                            <RelationActions person={contact} relations={contact.relations} />
+                        </Section>
                     </div>
                 )}
             </div>

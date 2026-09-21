@@ -39,6 +39,7 @@ class MessageController extends Controller
         // A suspended account can't be written to (they can't read it either),
         // and the sender shouldn't get a silent success.
         abort_if($conversation->participantFor($user)->isSuspended(), 403, 'This account has been suspended.');
+        abort_if($user->isBlockedWith($conversation->participantFor($user)), 403, 'You can no longer send messages to or from this person.');
 
         $validated = $request->validate([
             // Text is optional when files are attached, and the other way round.
@@ -157,6 +158,7 @@ class MessageController extends Controller
         );
 
         abort_if($conversation->participantFor($user)->isSuspended(), 403, 'This account has been suspended.');
+        abort_if($user->isBlockedWith($conversation->participantFor($user)), 403, 'You can no longer send messages to or from this person.');
 
         $validated = $request->validate([
             'lat' => ['required', 'numeric', 'between:-90,90'],
@@ -196,6 +198,7 @@ class MessageController extends Controller
 
         $customer = Auth::user();
         abort_if($customer->id === $technician->id, 403, 'You cannot send your own offer to yourself.');
+        abort_if($customer->isBlockedWith($technician), 403, 'You can no longer send messages to or from this person.');
 
         $conversation = Conversation::firstOrCreate([
             'customer_id' => $customer->id,
@@ -242,6 +245,7 @@ class MessageController extends Controller
 
         abort_if($customer->isSuspended(), 404);
         abort_if($customer->id === $technician->id, 403, 'You cannot send your own request to yourself.');
+        abort_if($customer->isBlockedWith($technician), 403, 'You can no longer send messages to or from this person.');
 
         $conversation = Conversation::firstOrCreate([
             'customer_id' => $customer->id,

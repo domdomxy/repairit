@@ -164,6 +164,6 @@ class TechnicianRepairController extends Controller
     /** Tell the customer whose account the repair is linked to, if there is one. */
     private function tell(Repair $repair, string $event, ?string $note = null): void
     {
-        $repair->customer?->notify(new RepairUpdated($repair, $event, $repair->status, $note));
+        $repair->customer?->notifyFrom($repair->technician, new RepairUpdated($repair, $event, $repair->status, $note));
     }
 }

@@ -83,6 +83,7 @@ class ServiceRequestController extends Controller
         $serviceRequest->load(['customer:id,name,avatar_path,role,suspended_at', 'categories', 'media'])->loadCount('quotes');
 
         abort_if(! $isOwner && $serviceRequest->customer->isSuspended(), 404);
+        abort_if($serviceRequest->customer->hasBlocked($viewer), 404);
 
         $isTechnician = $viewer->role === 'technician' && ! $isOwner;
 

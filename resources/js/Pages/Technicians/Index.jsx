@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
+import { StarIcon } from '@/Components/Icons';
 import KeywordSearchBar from '@/Components/KeywordSearchBar';
 import TechnicianMap from '@/Components/TechnicianMap';
 import { findPlace } from '@/lib/geocode';
@@ -74,6 +75,7 @@ export default function Index({ technicians, mapPoints, categories, filters }) {
         lng: filters.lng ?? '',
         radius: filters.radius ?? '10',
         sort: filters.sort ?? '',
+        favorites: filters.favorites ?? '',
     });
     const [locating, setLocating] = useState(false);
     // The map is opt-in: it opens on the right, above the results, when asked for.
@@ -160,7 +162,7 @@ export default function Index({ technicians, mapPoints, categories, filters }) {
         setForm((current) =>
             next === 'technician'
                 ? { ...current, type: next }
-                : { ...current, type: next, category: '', city: '', availability: '', lat: '', lng: '', sort: '' }
+                : { ...current, type: next, category: '', city: '', availability: '', lat: '', lng: '', sort: '', favorites: '' }
         );
         setAccuracy(null);
         setPlacedBy(null);
@@ -242,6 +244,14 @@ export default function Index({ technicians, mapPoints, categories, filters }) {
             options: AVAILABILITY_OPTIONS,
             value: toBarValue(form.availability),
             onChange: (value) => update('availability', fromBarValue(value)),
+        },
+        {
+            key: 'favorites',
+            keyword: 'favorites',
+            description: 'Only the technicians you starred',
+            options: [{ value: '1', label: 'Favorites only' }],
+            value: toBarValue(form.favorites),
+            onChange: (value) => update('favorites', fromBarValue(value)),
         },
         ...(hasLocation
             ? [
@@ -463,7 +473,12 @@ export default function Index({ technicians, mapPoints, categories, filters }) {
                                                 <div className="flex min-w-0 items-center gap-3">
                                                     <Avatar user={technician} size="md" />
                                                     <div className="min-w-0">
-                                                        <h3 className="truncate font-semibold">{technician.name}</h3>
+                                                        <h3 className="flex items-center gap-1 font-semibold">
+                                                            <span className="truncate">{technician.name}</span>
+                                                            {technician.is_favorite && (
+                                                                <StarIcon className="h-4 w-4 shrink-0 text-amber-400" />
+                                                            )}
+                                                        </h3>
                                                         <p className="text-sm text-gray-500">{profile?.city}</p>
                                                     </div>
                                                 </div>

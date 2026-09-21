@@ -1,4 +1,5 @@
 import Avatar from '@/Components/Avatar';
+import { StarIcon } from '@/Components/Icons';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { relativeTime } from '@/lib/dates';
 import { Head, Link, usePage } from '@inertiajs/react';
@@ -9,7 +10,7 @@ const TABS = [
     {
         key: 'requests',
         label: 'Requests',
-        empty: 'No new requests. When a customer writes to you, the conversation waits here until you reply.',
+        empty: 'No new requests. When a customer writes to you, or someone you restricted does, the conversation waits here.',
     },
     {
         key: 'hidden',
@@ -40,7 +41,7 @@ function ConversationList({ conversations, activeId, className }) {
     // The open conversation is being read, so it adds nothing to the counts.
     const unreadIn = (key) =>
         inTab(key)
-            .filter((conversation) => conversation.id !== activeId)
+            .filter((conversation) => conversation.id !== activeId && !conversation.is_muted && !conversation.is_restricted)
             .reduce((sum, conversation) => sum + conversation.unread_count, 0);
 
     const visible = inTab(tab);
@@ -95,6 +96,15 @@ function ConversationList({ conversations, activeId, className }) {
                     const isActive = conversation.id === activeId;
                     const unread = isActive ? 0 : conversation.unread_count;
                     const last = conversation.last_message;
+                    // Muted and restricted people are read without the badge: a grey number instead of a blue one.
+                    const quiet = conversation.is_muted || conversation.is_restricted;
+                    const status = [
+                        conversation.is_blocked && 'Blocked',
+                        conversation.is_restricted && 'Restricted',
+                        conversation.is_muted && 'Muted',
+                    ]
+                        .filter(Boolean)
+                        .join(' · ');
 
                     return (
                         // Keeps this list (and its scroll position) while the conversation beside it changes.
@@ -111,8 +121,13 @@ function ConversationList({ conversations, activeId, className }) {
                             <Avatar user={otherParty} size="md" />
                             <span className="min-w-0 flex-1">
                                 <span className="flex items-baseline justify-between gap-2">
-                                    <span className={`truncate text-sm ${unread > 0 ? 'font-semibold' : 'font-medium'}`}>
-                                        {otherParty.name}
+                                    <span className="flex min-w-0 items-center gap-1">
+                                        <span className={`truncate text-sm ${unread > 0 ? 'font-semibold' : 'font-medium'}`}>
+                                            {otherParty.name}
+                                        </span>
+                                        {conversation.is_favorite && (
+                                            <StarIcon className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+                                        )}
                                     </span>
                                     {last && (
                                         <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">
@@ -128,10 +143,15 @@ function ConversationList({ conversations, activeId, className }) {
                                                 : 'text-gray-500 dark:text-gray-400'
                                         }`}
                                     >
+                                        {status && <span className="me-1 font-medium">{status} ·</span>}
                                         {last?.preview ? `${last.from_me ? 'You: ' : ''}${last.preview}` : 'No messages yet'}
                                     </span>
                                     {unread > 0 && (
-                                        <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 px-1.5 text-xs font-semibold text-white">
+                                        <span
+                                            className={`inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-xs font-semibold text-white ${
+                                                quiet ? 'bg-gray-400 dark:bg-gray-500' : 'bg-indigo-600'
+                                            }`}
+                                        >
                                             {unread}
                                         </span>
                                     )}

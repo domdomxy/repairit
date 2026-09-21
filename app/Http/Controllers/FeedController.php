@@ -8,6 +8,7 @@ use App\Models\Quote;
 use App\Models\Report;
 use App\Models\ServiceRequest;
 use App\Models\User;
+use App\Models\UserRelation;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
@@ -64,7 +65,7 @@ class FeedController extends Controller
         return Inertia::render('Feed/Index', [
             'feed' => $feed,
             'categories' => Category::orderBy('name')->get(),
-            'topRated' => $this->topRated((string) $request->input('top_category')),
+            'topRated' => $this->topRated((string) $request->input('top_category'), UserRelation::blockedIdsFor($request->user())),
             'reportReasons' => Report::REASONS,
             // What the "New request" and "New offer" panels need. Admins post
             // neither, and only technicians have offers.
@@ -238,6 +239,8 @@ class FeedController extends Controller
             ->join('technician_profiles', 'technician_profiles.user_id', '=', 'users.id')
             ->where('users.role', 'technician')
             ->whereNull('users.suspended_at')
+            // Nobody who blocked you, or that you blocked, posts in your feed.
+            ->whereNotIn('users.id', UserRelation::blockedIdsFor($request->user()))
             ->selectRaw("'offer' as feed_kind, offers.id as feed_id, offers.created_at as feed_created_at, technician_profiles.rating_avg as feed_rating_avg, technician_profiles.rating_count as feed_rating_count, ({$relevance}) as feed_relevance", $relevanceBindings);
 
         // Free text: matches the title, the description or the technician's name.
@@ -304,6 +307,7 @@ class FeedController extends Controller
         $query = ServiceRequest::query()
             ->open()
             ->fromActiveCustomers()
+            ->whereNotIn('service_requests.customer_id', UserRelation::blockedIdsFor($request->user()))
             ->selectRaw("'request' as feed_kind, service_requests.id as feed_id, service_requests.created_at as feed_created_at, null as feed_rating_avg, null as feed_rating_count, ({$relevance}) as feed_relevance", $relevanceBindings);
 
         // Free text: matches the description (a request has no title).
@@ -401,13 +405,14 @@ class FeedController extends Controller
      *
      * @return list<array<string, mixed>>
      */
-    private function topRated(string $categorySlug = ''): array
+    private function topRated(string $categorySlug = '', array $hiddenIds = []): array
     {
         $query = User::query()
             ->join('technician_profiles', 'technician_profiles.user_id', '=', 'users.id')
             ->where('users.role', 'technician')
             ->whereNull('users.suspended_at')
             ->where('technician_profiles.rating_count', '>', 0)
+            ->whereNotIn('users.id', $hiddenIds)
             ->select('users.*')
             ->with('technicianProfile');
 

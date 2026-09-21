@@ -132,6 +132,7 @@ class QuoteController extends Controller
         $serviceRequest->load('customer');
 
         abort_if($serviceRequest->customer->isSuspended(), 404);
+        abort_if($technician->isBlockedWith($serviceRequest->customer), 403, 'You can no longer send quotes to or from this person.');
         abort_unless($serviceRequest->isOpen(), 403, 'This request is closed.');
 
         $validated = $request->validate([
@@ -154,7 +155,7 @@ class QuoteController extends Controller
 
         // Changing a quote shouldn't ping the customer again.
         if ($quote->wasRecentlyCreated) {
-            $serviceRequest->customer->notify(new NewQuote($quote));
+            $serviceRequest->customer->notifyFrom($technician, new NewQuote($quote));
         }
 
         $this->syncChatCard($quote, $serviceRequest, $technician, $before);
@@ -254,6 +255,7 @@ class QuoteController extends Controller
         abort_unless($serviceRequest->customer_id === $request->user()->id, 403);
         abort_unless($serviceRequest->isOpen(), 403, 'This request is closed.');
         abort_if($quote->technician->isSuspended(), 404);
+        abort_if($request->user()->isBlockedWith($quote->technician), 403, 'You can no longer choose a quote from this person.');
 
         DB::transaction(function () use ($quote, $serviceRequest) {
             $serviceRequest->quotes()->whereKeyNot($quote->id)->update(['accepted_at' => null]);
@@ -261,7 +263,7 @@ class QuoteController extends Controller
             $serviceRequest->update(['status' => ServiceRequest::STATUS_CLOSED]);
         });
 
-        $quote->technician->notify(new QuoteAccepted($quote));
+        $quote->technician->notifyFrom($request->user(), new QuoteAccepted($quote));
 
         return back()->with('success', "You chose {$quote->technician->name}. The request is now closed to new quotes.");
     }

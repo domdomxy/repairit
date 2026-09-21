@@ -85,7 +85,7 @@ function PendingFile({ file, error, onRemove }) {
 // The conversation itself (section 2). Keyed by conversation in Show, so opening
 // another conversation starts it afresh: its own messages, composer and live
 // connection.
-function Chat({ conversation, messages: initialMessages, attachments: limits, moderation, infoOpen, onToggleInfo }) {
+function Chat({ conversation, messages: initialMessages, attachments: limits, moderation, contact, infoOpen, onToggleInfo }) {
     const { auth } = usePage().props;
     const [messages, setMessages] = useState(initialMessages);
     const [fileProblems, setFileProblems] = useState([]);
@@ -424,10 +424,20 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
 
             {conversation.is_request && (
                 <p className="border-t border-gray-200 bg-indigo-50 px-4 py-2 text-xs text-indigo-800 dark:border-gray-700 dark:bg-indigo-900/20 dark:text-indigo-200">
-                    This is a new request. Reply to move it to your inbox.
+                    {conversation.is_restricted
+                        ? `You restricted ${otherParty.name}. Their messages wait here without notifying you until you unrestrict them.`
+                        : 'This is a new request. Reply to move it to your inbox.'}
                 </p>
             )}
 
+            {contact.can_message === false ? (
+                // Blocked, by either of them: the history stays readable but nobody can write.
+                <p className="border-t border-gray-200 bg-gray-50 px-4 py-4 text-center text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
+                    {contact.relations?.blocked
+                        ? `You blocked ${otherParty.name}. Unblock them from the panel on the right to write again.`
+                        : 'You can no longer send messages in this conversation.'}
+                </p>
+            ) : (
             <form onSubmit={submit} className="border-t border-gray-200 p-3 dark:border-gray-700">
                 {data.attachments.length > 0 && (
                     <ul className="mb-2 space-y-1">
@@ -514,6 +524,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                     </button>
                 </div>
             </form>
+            )}
 
             <SendLocationModal
                 show={pickingLocation}
@@ -585,6 +596,7 @@ export default function Show({ conversation, conversations, contact, messages, a
                 messages={messages}
                 attachments={attachments}
                 moderation={moderation}
+                contact={contact}
                 infoOpen={infoOpen}
                 onToggleInfo={() => changeInfo(!infoOpen)}
             />

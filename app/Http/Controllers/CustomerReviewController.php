@@ -20,6 +20,8 @@ class CustomerReviewController extends Controller
 
         abort_unless($technician->role === 'technician', 403, 'Only technicians can rate customers.');
 
+        abort_if($technician->isBlockedWith($customer), 403, 'You can no longer rate this person.');
+
         $conversation = CustomerReview::conversationFor($technician, $customer);
 
         abort_if(
@@ -44,7 +46,7 @@ class CustomerReviewController extends Controller
 
         // Editing a rating shouldn't ping the customer again.
         if ($review->wasRecentlyCreated) {
-            $customer->notify(new NewCustomerReview($review));
+            $customer->notifyFrom($technician, new NewCustomerReview($review));
         }
 
         return back();

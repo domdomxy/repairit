@@ -6,6 +6,7 @@ import RequestCard from '@/Components/RequestCard';
 import RequestForm from '@/Components/RequestForm';
 import ProfileLinksSection from '@/Components/ProfileLinks';
 import { Banner, ContactRow, SIDE_PANEL, Section, Stat } from '@/Components/ProfileParts';
+import RelationActions from '@/Components/RelationActions';
 import ReviewsPanel from '@/Components/ReviewsPanel';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useState } from 'react';
@@ -15,7 +16,7 @@ import { useState } from 'react';
 // in the middle, what technicians say about them on the right.
 const PANEL = 'rounded-lg bg-white p-6 shadow dark:bg-gray-800';
 
-export default function Show({ customer, requests, requestForm, canReview, myReview, reportReasons }) {
+export default function Show({ customer, requests, relations, requestForm, canReview, myReview, reportReasons }) {
     const { auth } = usePage().props;
     const isOwnProfile = auth.user.id === customer.id;
     const isTechnician = auth.user.role === 'technician';
@@ -69,6 +70,14 @@ export default function Show({ customer, requests, requestForm, canReview, myRev
                                     Edit profile
                                 </Link>
                             )}
+
+                            {!isOwnProfile && relations?.blocked && (
+                                <p className="mt-5 rounded-lg bg-gray-100 px-4 py-2.5 text-center text-sm text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                    You blocked {customer.name}.
+                                </p>
+                            )}
+
+                            {!isOwnProfile && <RelationActions person={customer} relations={relations} collapsible />}
 
                             <div className="mt-5 grid grid-cols-3 divide-x divide-gray-100 rounded-lg border border-gray-100 dark:divide-gray-700 dark:border-gray-700">
                                 <Stat label={ratingCount === 1 ? 'Review' : 'Reviews'}>

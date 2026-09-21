@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -100,6 +101,68 @@ class User extends Authenticatable
     public function isSuspended(): bool
     {
         return $this->suspended_at !== null;
+    }
+
+    /** What this person did about other people (blocked, muted, favorited, restricted them). */
+    public function relationsGiven(): HasMany
+    {
+        return $this->hasMany(UserRelation::class, 'user_id');
+    }
+
+    /** Whether this person has applied `$type` (see UserRelation::TYPES) to `$other`. */
+    public function hasRelation(string $type, User|int $other): bool
+    {
+        return UserRelation::where('user_id', $this->id)
+            ->where('target_id', $other instanceof User ? $other->id : $other)
+            ->where('type', $type)
+            ->exists();
+    }
+
+    /** All four at once, as the pages need them. */
+    public function relationFlagsFor(User $other): array
+    {
+        $types = UserRelation::where('user_id', $this->id)
+            ->where('target_id', $other->id)
+            ->pluck('type');
+
+        return [
+            'blocked' => $types->contains(UserRelation::BLOCK),
+            'muted' => $types->contains(UserRelation::MUTE),
+            'favorited' => $types->contains(UserRelation::FAVORITE),
+            'restricted' => $types->contains(UserRelation::RESTRICT),
+        ];
+    }
+
+    public function hasBlocked(User $other): bool
+    {
+        return $this->hasRelation(UserRelation::BLOCK, $other);
+    }
+
+    /** Either of them blocked the other: they cannot reach each other. */
+    public function isBlockedWith(User $other): bool
+    {
+        return $this->hasBlocked($other) || $other->hasBlocked($this);
+    }
+
+    /**
+     * Whether what `$sender` does should reach this person quietly: they muted
+     * or restricted the sender (or blocked them, or were blocked by them).
+     */
+    public function silences(User $sender): bool
+    {
+        return UserRelation::where('user_id', $this->id)
+            ->where('target_id', $sender->id)
+            ->whereIn('type', [UserRelation::MUTE, UserRelation::RESTRICT, UserRelation::BLOCK])
+            ->exists()
+            || $sender->hasBlocked($this);
+    }
+
+    /** Notify this person about something `$sender` did, unless they have silenced the sender. */
+    public function notifyFrom(User $sender, Notification $notification): void
+    {
+        if (! $this->silences($sender)) {
+            $this->notify($notification);
+        }
     }
 
     public function supportTickets(): HasMany

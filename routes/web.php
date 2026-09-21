@@ -28,6 +28,8 @@ use App\Http\Controllers\TechnicianController;
 use App\Http\Controllers\TechnicianOfferController;
 use App\Http\Controllers\TechnicianProfileController;
 use App\Http\Controllers\TechnicianRepairController;
+use App\Http\Controllers\UserRelationController;
+use App\Models\UserRelation;
 use App\Http\Controllers\DashboardController;
 use Inertia\Inertia;
 
@@ -71,6 +73,10 @@ Route::middleware('auth')->group(function () {
     Route::delete('/message/{message}', [MessageController::class, 'destroy'])->name('messages.destroy');
     Route::post('/message/{message}/report', [ReportController::class, 'storeMessage'])->middleware('throttle:10,1,reports')->name('messages.report');
     Route::get('/message-attachments/{attachment}', [MessageController::class, 'attachment'])->name('messages.attachment');
+    // Blocking, muting, favoriting and restricting people (and undoing each): one route per action, the kind is the last segment.
+    Route::get('/relations', [UserRelationController::class, 'index'])->name('relations.index');
+    Route::post('/people/{user}/{relation}', [UserRelationController::class, 'store'])->whereIn('relation', UserRelation::TYPES)->name('relations.store');
+    Route::delete('/people/{user}/{relation}', [UserRelationController::class, 'destroy'])->whereIn('relation', UserRelation::TYPES)->name('relations.destroy');
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');

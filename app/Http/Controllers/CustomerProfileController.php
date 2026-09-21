@@ -97,6 +97,9 @@ class CustomerProfileController extends Controller
 
         $viewer = $request->user();
 
+        // Someone who blocked you does not exist as far as you are concerned.
+        abort_if($customer->hasBlocked($viewer), 404);
+
         $stats = CustomerReview::where('customer_id', $customer->id)
             ->selectRaw('COUNT(*) as total, AVG(rating) as average')
             ->first();
@@ -135,6 +138,8 @@ class CustomerProfileController extends Controller
         }
 
         return Inertia::render('Customers/Show', [
+            // What the viewer did about this customer (null on their own profile, and for admins).
+            'relations' => $isOwner || $customer->isAdmin() ? null : $viewer->relationFlagsFor($customer),
             // Only what is meant to be public: the bio, city, links and contact details are there
             // only because the customer chose to fill them in or to show them.
             'customer' => $contact + [

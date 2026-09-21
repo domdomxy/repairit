@@ -12,6 +12,7 @@ import RequestCard from '@/Components/RequestCard';
 import RequestForm from '@/Components/RequestForm';
 import ProfileLinksSection from '@/Components/ProfileLinks';
 import { Banner, ContactRow, SIDE_PANEL, Section, Stat } from '@/Components/ProfileParts';
+import RelationActions from '@/Components/RelationActions';
 import ReviewsPanel from '@/Components/ReviewsPanel';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { AVAILABILITY } from '@/lib/availability';
@@ -33,7 +34,7 @@ const FILTERS = [
 const NEW_POST_BUTTON =
     'rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60';
 
-export default function Show({ technician, requests, canReview, myReview, offerForm, requestForm, reportReasons }) {
+export default function Show({ technician, requests, relations, canReview, myReview, offerForm, requestForm, reportReasons }) {
     const { auth } = usePage().props;
     const profile = technician.technician_profile;
     const isOwnProfile = auth.user.id === technician.id;
@@ -174,6 +175,10 @@ export default function Show({ technician, requests, canReview, myReview, offerF
                                     <PencilIcon />
                                     Edit profile
                                 </Link>
+                            ) : relations?.blocked ? (
+                                <p className="mt-5 rounded-lg bg-gray-100 px-4 py-2.5 text-center text-sm text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                    You blocked {technician.name}.
+                                </p>
                             ) : (
                                 <button
                                     onClick={contact}
@@ -182,6 +187,10 @@ export default function Show({ technician, requests, canReview, myReview, offerF
                                     <ChatIcon />
                                     Message
                                 </button>
+                            )}
+
+                            {!isOwnProfile && (
+                                <RelationActions person={technician} relations={relations} collapsible />
                             )}
 
                             <div className="mt-5 grid grid-cols-3 divide-x divide-gray-100 rounded-lg border border-gray-100 dark:divide-gray-700 dark:border-gray-700">

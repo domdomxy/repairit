@@ -8,6 +8,7 @@ use App\Models\Conversation;
 use App\Models\ConversationState;
 use App\Models\Message;
 use App\Models\User;
+use App\Models\UserRelation;
 use App\Notifications\NewMessage;
 
 /**
@@ -59,7 +60,8 @@ trait DeliversMessages
             ->exists();
 
         if ($notify && ! $alreadyNotified) {
-            $conversation->participantFor($sender)->notify(new NewMessage($lastMessage));
+            // Not when they muted, restricted or blocked the sender.
+            $conversation->participantFor($sender)->notifyFrom($sender, new NewMessage($lastMessage));
         }
 
         if ($isCustomersFirstMessage) {
@@ -80,6 +82,11 @@ trait DeliversMessages
         $profile = $technician?->technicianProfile;
 
         if (! $profile?->auto_reply_enabled) {
+            return;
+        }
+
+        // A customer the technician restricted gets no automatic answer.
+        if ($technician->hasRelation(UserRelation::RESTRICT, $conversation->customer)) {
             return;
         }
 

@@ -6,6 +6,7 @@ use App\Models\Conversation;
 use App\Models\ConversationState;
 use App\Models\Message;
 use App\Models\User;
+use App\Models\UserRelation;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -20,9 +21,13 @@ class ConversationList
      *
      * Each carries `unread_count`, `last_message` (a short preview), `is_hidden`
      * and `is_request`: true for a technician's conversations where a customer
-     * has written but the technician has not answered yet. Replying moves it out
-     * of "Requests" into the inbox. Conversations a user started themselves,
-     * and ones with nothing in them yet, are never requests.
+     * has written but the technician has not answered yet (replying moves it out
+     * of "Requests" into the inbox), and for anyone this person restricted who has
+     * written to them (only unrestricting moves those out). Conversations a user
+     * started themselves, and ones with nothing in them yet, are never requests.
+     *
+     * It also carries what this person did about the other one: `is_favorite`
+     * (favorites are listed first), `is_muted`, `is_restricted` and `is_blocked`.
      *
      * Everything here is counted from what this person can still see: messages
      * they deleted for themselves, or that the sender deleted for everyone, are
@@ -34,6 +39,12 @@ class ConversationList
     public static function for(User $user): Collection
     {
         $states = ConversationState::where('user_id', $user->id)->get()->keyBy('conversation_id');
+
+        // What this person did about the people they talk to, keyed by that person: ['block', 'mute', ...].
+        $relations = UserRelation::where('user_id', $user->id)
+            ->get()
+            ->groupBy('target_id')
+            ->map(fn (Collection $rows) => $rows->pluck('type')->all());
 
         $conversations = Conversation::where(fn ($query) => $query
             ->where('customer_id', $user->id)
@@ -80,13 +91,22 @@ class ConversationList
             ->get()
             ->keyBy('conversation_id');
 
-        return $conversations->each(function (Conversation $conversation) use ($user, $latest, $states) {
+        return $conversations->each(function (Conversation $conversation) use ($user, $latest, $states, $relations) {
             $message = $latest->get($conversation->id);
+
+            $otherId = $conversation->customer_id === $user->id ? $conversation->technician_id : $conversation->customer_id;
+            $mine = $relations->get($otherId, []);
+            $restricted = in_array(UserRelation::RESTRICT, $mine, true);
 
             $conversation->setAttribute(
                 'is_request',
-                $conversation->technician_id === $user->id && $conversation->has_incoming && ! $conversation->has_replied
+                ($restricted && $conversation->has_incoming)
+                    || ($conversation->technician_id === $user->id && $conversation->has_incoming && ! $conversation->has_replied)
             );
+            $conversation->setAttribute('is_favorite', in_array(UserRelation::FAVORITE, $mine, true));
+            $conversation->setAttribute('is_muted', in_array(UserRelation::MUTE, $mine, true));
+            $conversation->setAttribute('is_restricted', $restricted);
+            $conversation->setAttribute('is_blocked', in_array(UserRelation::BLOCK, $mine, true));
             $conversation->setAttribute('is_hidden', $states->get($conversation->id)?->hidden_at !== null);
             $conversation->setAttribute('last_message', $message ? [
                 'preview' => self::preview($message),
@@ -94,7 +114,10 @@ class ConversationList
                 'created_at' => $message->created_at->toIso8601String(),
             ] : null);
             $conversation->makeHidden(['has_incoming', 'has_replied', 'visible_count']);
-        });
+        })
+            // Favorites first; the sort is stable, so each group stays newest first.
+            ->sortBy(fn (Conversation $conversation) => $conversation->is_favorite ? 0 : 1)
+            ->values();
     }
 
     /** One line for the list; a message with only files, or a shared offer, request or quote, has no text. */
@@ -150,7 +173,10 @@ class ConversationList
 
         [$requests, $inbox] = $visible->partition(fn (Conversation $conversation) => $conversation->is_request);
 
-        $unreadIn = fn (Collection $group) => $group->filter(fn (Conversation $conversation) => $conversation->unread_count > 0)->count();
+        // Muted and restricted people don't add to the badge: that is what muting is for.
+        $unreadIn = fn (Collection $group) => $group
+            ->filter(fn (Conversation $conversation) => $conversation->unread_count > 0 && ! $conversation->is_muted && ! $conversation->is_restricted)
+            ->count();
 
         $present = fn (Collection $group) => $group
             ->take($limit)
@@ -163,6 +189,8 @@ class ConversationList
                     'avatar_url' => $other?->avatar_url,
                     'unread_count' => (int) $conversation->unread_count,
                     'is_request' => (bool) $conversation->is_request,
+                    'is_muted' => (bool) $conversation->is_muted,
+                    'is_restricted' => (bool) $conversation->is_restricted,
                     'last_message' => $conversation->last_message,
                 ];
             })

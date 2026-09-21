@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Offer;
 use App\Models\Report;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -17,7 +18,7 @@ use Inertia\Response;
 class OfferController extends Controller
 {
     /** One offer on its own page, for sharing by link. */
-    public function show(Offer $offer): Response
+    public function show(Request $request, Offer $offer): Response
     {
         $offer->load(['media', 'categories', 'technician.technicianProfile']);
 
@@ -27,6 +28,7 @@ class OfferController extends Controller
             $technician->role === 'technician' && ! $technician->isSuspended() && $technician->technicianProfile,
             404,
         );
+        abort_if($technician->hasBlocked($request->user()), 404);
 
         return Inertia::render('Offers/Show', [
             'offer' => self::card($offer),

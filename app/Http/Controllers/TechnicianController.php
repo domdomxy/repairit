@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Report;
 use App\Models\Review;
 use App\Models\User;
+use App\Models\UserRelation;
 use App\Support\ProfileLinks;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -52,6 +53,20 @@ class TechnicianController extends Controller
             ->whereNull('users.suspended_at')
             ->select('users.*')
             ->with(['technicianProfile.categories']);
+
+        // People who blocked you, or that you blocked, are not in the results.
+        $viewer = $request->user();
+        $query->whereNotIn('users.id', UserRelation::blockedIdsFor($viewer));
+
+        // "Favorites only" narrows the search down to the technicians you starred.
+        $favoriteIds = UserRelation::where('user_id', $viewer->id)
+            ->where('type', UserRelation::FAVORITE)
+            ->pluck('target_id')
+            ->all();
+
+        if ($request->boolean('favorites')) {
+            $query->whereIn('users.id', $favoriteIds);
+        }
 
         // Search by name: a partial, case-insensitive match. The term is a LIKE
         // pattern, so %, _ and the escape character itself are escaped and match
@@ -125,7 +140,7 @@ class TechnicianController extends Controller
         // but swaps every model for its public card.
         $technicians = $query->paginate(12)
             ->withQueryString()
-            ->through(fn (User $technician) => $this->summary($technician));
+            ->through(fn (User $technician) => $this->summary($technician) + ['is_favorite' => in_array($technician->id, $favoriteIds, true)]);
 
         return Inertia::render('Technicians/Index', [
             'technicians' => $technicians,
@@ -133,7 +148,7 @@ class TechnicianController extends Controller
             'categories' => Category::orderBy('name')->get(),
             // Cast to an object: an empty PHP array reaches the browser as a JS
             // array, where `filters.sort` is Array.prototype.sort, not "unset".
-            'filters' => (object) $request->only(['type', 'name', 'category', 'city', 'availability', 'lat', 'lng', 'radius', 'sort']),
+            'filters' => (object) $request->only(['type', 'name', 'category', 'city', 'availability', 'lat', 'lng', 'radius', 'sort', 'favorites']),
         ]);
     }
 
@@ -169,6 +184,14 @@ class TechnicianController extends Controller
             ->select('users.*')
             ->with('technicianProfile.categories');
 
+        // People who blocked you, or that you blocked, are not in the results.
+        $query->whereNotIn('users.id', UserRelation::blockedIdsFor($viewer));
+
+        $favoriteIds = UserRelation::where('user_id', $viewer->id)
+            ->where('type', UserRelation::FAVORITE)
+            ->pluck('target_id')
+            ->all();
+
         // Same partial, escaped match as the technician search.
         $name = trim((string) $request->input('name'));
 
@@ -185,7 +208,7 @@ class TechnicianController extends Controller
             ->orderBy('users.id')
             ->paginate(12)
             ->withQueryString()
-            ->through(fn (User $user) => $user->role === 'technician'
+            ->through(fn (User $user) => ($user->role === 'technician'
                 ? $this->summary($user)
                 : [
                     'id' => $user->id,
@@ -193,7 +216,7 @@ class TechnicianController extends Controller
                     'avatar_url' => $user->avatar_url,
                     'role' => 'customer',
                     'technician_profile' => null,
-                ]);
+                ]) + ['is_favorite' => in_array($user->id, $favoriteIds, true)]);
 
         return Inertia::render('Technicians/Index', [
             'technicians' => $people,
@@ -293,6 +316,8 @@ class TechnicianController extends Controller
     public function show(Request $request, User $technician)
     {
         abort_unless($technician->role === 'technician' && ! $technician->isSuspended(), 404);
+        // Someone who blocked you does not exist as far as you are concerned.
+        abort_if($technician->hasBlocked($request->user()), 404);
 
         $technician->load([
             'technicianProfile.categories',
@@ -317,6 +342,8 @@ class TechnicianController extends Controller
                 : null,
             // The reasons the report form on each review offers.
             'reportReasons' => Report::REASONS,
+            // What the viewer did about this technician (null on their own profile, and for admins).
+            'relations' => $viewer->is($technician) ? null : $viewer->relationFlagsFor($technician),
             'canReview' => Review::conversationFor($viewer, $technician) !== null,
             'myReview' => Review::where('customer_id', $viewer->id)
                 ->where('technician_id', $technician->id)
