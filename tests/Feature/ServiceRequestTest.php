@@ -80,7 +80,7 @@ test('anybody signed in can post a request', function () {
 
 test('guests cannot post or browse requests', function () {
     $this->post(route('requests.store'), ['description' => 'Drips.'])->assertRedirect(route('login'));
-    $this->get(route('requests.index'))->assertRedirect(route('login'));
+    $this->get(route('feed.index'))->assertRedirect(route('login'));
 });
 
 test('a request needs a description, and only real categories', function () {
@@ -130,88 +130,21 @@ test('nobody can have more than ten open requests', function () {
     expect(ServiceRequest::count())->toBe(11);
 });
 
-// --- browsing --------------------------------------------------------------
+// --- browsing ---------------------------------------------------------------
+// The requests are browsed in the feed (FeedTest) and on profiles; the pages that listed them are gone.
 
-test('the open requests page lists open requests of active customers only, without their email', function () {
+test('the old requests addresses lead to the feed, or to a customer\'s own profile', function () {
+    $this->get('/requests')->assertRedirect(route('login'));
+
     $customer = srCustomer();
-    $open = srRequest($customer, ['description' => 'Open one']);
-    srRequest($customer, ['description' => 'Closed one', 'status' => 'closed']);
-
-    $suspended = srCustomer();
-    srRequest($suspended, ['description' => 'From a suspended customer']);
-    $suspended->forceFill(['suspended_at' => now()])->save();
-
-    $this->actingAs(srTechnician())
-        ->get(route('requests.index'))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('Requests/Index')
-            ->where('scope', 'all')
-            ->has('requests.data', 1)
-            ->where('requests.data.0.id', $open->id)
-            ->where('requests.data.0.customer.name', $customer->name)
-            ->where('requests.data.0.quotes_count', 0)
-            ->missing('requests.data.0.customer.email'));
-});
-
-test('requests can be searched and filtered by category and city', function () {
-    $customer = srCustomer();
-    $phones = srCategory('Phones');
-    $plumbing = srCategory('Plumbing');
-
-    $phone = srRequest($customer, ['description' => 'Cracked phone screen', 'city' => 'Tunis']);
-    $phone->categories()->sync([$phones->id]);
-
-    $tap = srRequest($customer, ['description' => 'Leaking tap, drips all night', 'city' => 'Sfax']);
-    $tap->categories()->sync([$plumbing->id]);
-
     $technician = srTechnician();
-
-    $only = fn (array $query, array $expected) => $this->actingAs($technician)
-        ->get(route('requests.index', $query))
-        ->assertInertia(fn (Assert $page) => $page
-            ->has('requests.data', count($expected))
-            ->when($expected !== [], fn (Assert $page) => $page->where('requests.data.0.id', $expected[0])));
-
-    $only(['q' => 'phone'], [$phone->id]);
-    $only(['q' => 'drips'], [$tap->id]);
-    $only(['category' => 'plumbing'], [$tap->id]);
-    $only(['city' => 'tun'], [$phone->id]);
-    // A search for "%" means a percent sign, not "anything".
-    $only(['q' => '%'], []);
-    $only([], [$tap->id, $phone->id]);
-});
-
-test('a technician sees which requests they already answered', function () {
-    $technician = srTechnician();
-    $answered = srRequest(srCustomer(), ['description' => 'Answered']);
-    srRequest(srCustomer(), ['description' => 'Not answered']);
-    srQuote($answered, $technician);
 
     $this->actingAs($technician)
-        ->get(route('requests.index'))
-        ->assertInertia(fn (Assert $page) => $page
-            ->has('requests.data', 2)
-            ->where('requests.data.0.description', 'Not answered')
-            ->where('requests.data.0.has_my_quote', false)
-            ->where('requests.data.1.description', 'Answered')
-            ->where('requests.data.1.has_my_quote', true)
-            ->where('requests.data.1.quotes_count', 1));
-});
+        ->get('/requests?q=screen&category=phones')
+        ->assertRedirect(route('feed.index', ['filter' => 'requests', 'q' => 'screen', 'category' => 'phones']));
 
-test('my requests lists only mine, open or closed', function () {
-    $customer = srCustomer();
-    $mine = srRequest($customer, ['description' => 'Mine']);
-    $closed = srRequest($customer, ['description' => 'Mine, closed', 'status' => 'closed']);
-    srRequest(srCustomer(), ['description' => 'Someone else\'s']);
-
-    $this->actingAs($customer)
-        ->get(route('requests.mine'))
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('scope', 'mine')
-            ->has('requests.data', 2)
-            ->where('requests.data.0.id', $closed->id)
-            ->where('requests.data.1.id', $mine->id));
+    $this->actingAs($technician)->get('/requests/mine')->assertRedirect(route('feed.index', ['filter' => 'requests']));
+    $this->actingAs($customer)->get('/requests/mine')->assertRedirect(route('customers.show', $customer));
 });
 
 // --- managing your own -----------------------------------------------------
@@ -290,7 +223,7 @@ test('deleting a request deletes its quotes', function () {
 
     $this->actingAs($customer)
         ->delete(route('requests.destroy', $serviceRequest))
-        ->assertRedirect(route('requests.mine'));
+        ->assertRedirect(route('feed.index'));
 
     expect(ServiceRequest::count())->toBe(0)
         ->and(Quote::count())->toBe(0);

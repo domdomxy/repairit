@@ -162,11 +162,8 @@ export default function Show({ serviceRequest, isOwner, quotes, myQuote, canQuot
             <Head title="Repair request" />
 
             <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-8 sm:px-6">
-                <Link
-                    href={route(isOwner ? 'requests.mine' : 'requests.index')}
-                    className="text-sm text-indigo-600 hover:underline"
-                >
-                    ← {isOwner ? 'My requests' : 'Open requests'}
+                <Link href={route('feed.index')} className="text-sm text-indigo-600 hover:underline">
+                    ← Back to the feed
                 </Link>
 
                 <section className={`${PANEL} space-y-4`}>

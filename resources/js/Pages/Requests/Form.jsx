@@ -6,7 +6,7 @@ import { Head } from '@inertiajs/react';
 export default function Form({ serviceRequest, categories, limits, defaultCity }) {
     const editing = serviceRequest !== null;
 
-    const cancelHref = editing ? route('requests.show', serviceRequest.id) : route('requests.mine');
+    const cancelHref = editing ? route('requests.show', serviceRequest.id) : route('feed.index');
 
     return (
         <AuthenticatedLayout>

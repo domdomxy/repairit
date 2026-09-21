@@ -89,7 +89,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/customers/{customer}/review', [CustomerReviewController::class, 'store'])->name('customer-reviews.store');
     Route::delete('/customers/{customer}/review', [CustomerReviewController::class, 'destroy'])->name('customer-reviews.destroy');
     // The feed: every technician's offers and every open repair request, with search and filters.
-    // (The technician's own offers are technician.offers.index, a customer's own requests requests.mine.)
+    // (The technician's own offers are technician.offers.index, their quotes technician.quotes.index; a customer's own requests are on their profile.)
     Route::get('/feed', [FeedController::class, 'index'])->name('feed.index');
     // The feed used to be the offers page: keep old links (and their filters) working.
     Route::get('/offers', fn (Request $request) => redirect()->route('feed.index', $request->query()));
@@ -99,6 +99,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/offers/{offer}/share', [MessageController::class, 'shareOffer'])->middleware('throttle:20,1')->name('offers.share');
     // Report an offer to the admins.
     Route::post('/offers/{offer}/report', [ReportController::class, 'storeOffer'])->middleware('throttle:10,1,reports')->name('offers.report');
+    // Send a repair request in the chat with the customer who posted it (technicians).
+    Route::post('/requests/{serviceRequest}/share', [MessageController::class, 'shareRequest'])->middleware('throttle:20,1')->name('requests.share');
     // Report a repair request to the admins.
     Route::post('/requests/{serviceRequest}/report', [ReportController::class, 'storeRequest'])->middleware('throttle:10,1,reports')->name('requests.report');
     // Report a review: one a customer wrote about a technician, or one a technician wrote about a customer.
@@ -107,9 +109,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/offer-media/{media}', [TechnicianOfferController::class, 'media'])->name('offers.media');
     Route::get('/request-media/{media}', [ServiceRequestController::class, 'media'])->name('requests.media');
     // Repair requests: what customers need fixed, for technicians to answer with a quote.
+    // The requests are browsed in the feed (there is no page of their own any more): old links go there,
+    // and a customer's own requests are on their profile.
     // "mine" and "new" must stay above /requests/{serviceRequest}, or they would be read as an id.
-    Route::get('/requests', [ServiceRequestController::class, 'index'])->name('requests.index');
-    Route::get('/requests/mine', [ServiceRequestController::class, 'mine'])->name('requests.mine');
+    Route::get('/requests', fn (Request $request) => redirect()->route('feed.index', ['filter' => 'requests'] + $request->only(['q', 'category', 'city'])));
+    Route::get('/requests/mine', fn (Request $request) => $request->user()->role === 'customer'
+        ? redirect()->route('customers.show', $request->user())
+        : redirect()->route('feed.index', ['filter' => 'requests']));
     Route::get('/requests/new', [ServiceRequestController::class, 'create'])->name('requests.create');
     Route::post('/requests', [ServiceRequestController::class, 'store'])->middleware('throttle:10,1')->name('requests.store');
     Route::get('/requests/{serviceRequest}', [ServiceRequestController::class, 'show'])->name('requests.show');
@@ -137,6 +143,7 @@ Route::middleware(['auth', 'role:technician'])->group(function () {
     Route::get('/technician/profile', [TechnicianProfileController::class, 'edit'])->name('technician.profile.edit');
     Route::put('/technician/profile', [TechnicianProfileController::class, 'update'])->name('technician.profile.update');
     // Answering a customer's repair request with a quote (sending again edits it), or taking it back.
+    Route::get('/technician/quotes', [QuoteController::class, 'index'])->name('technician.quotes.index');
     Route::post('/requests/{serviceRequest}/quotes', [QuoteController::class, 'store'])->middleware('throttle:30,1')->name('requests.quotes.store');
     Route::delete('/requests/{serviceRequest}/quote', [QuoteController::class, 'destroy'])->name('requests.quote.destroy');
     Route::get('/technician/offers', [TechnicianOfferController::class, 'index'])->name('technician.offers.index');

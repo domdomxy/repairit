@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Offer;
+use App\Models\Quote;
 use App\Models\Report;
 use App\Models\ServiceRequest;
 use App\Models\User;
@@ -20,9 +21,9 @@ use Inertia\Response;
  * requests are posted together, with search and filters over both.
  *
  * A technician's own list of offers (with the forms to add and edit them) is
- * TechnicianOfferController, and the customer's own list of requests is
- * ServiceRequestController@mine. This page only browses, and hosts the two
- * "new" panels that post to those controllers.
+ * TechnicianOfferController, and their quotes are QuoteController@index. This
+ * page only browses, and hosts the two "new" panels that post to those
+ * controllers.
  */
 class FeedController extends Controller
 {
@@ -71,6 +72,8 @@ class FeedController extends Controller
                 ? null
                 : ServiceRequestController::formProps() + ['defaultCity' => $user->city],
             'offerForm' => $user->role === 'technician' ? TechnicianOfferController::formProps() : null,
+            // The quote form on a request's card: only technicians send quotes.
+            'quoteLimits' => $user->role === 'technician' && $user->technicianProfile !== null ? Quote::limits() : null,
             // Cast to an object: an empty PHP array reaches the browser as a JS
             // array, where `filters.sort` is Array.prototype.sort, not "unset".
             'filters' => (object) $request->only(['filter', 'q', 'type', 'category', 'city', 'availability', 'media', 'sort', 'top_category']),
@@ -359,6 +362,8 @@ class FeedController extends Controller
             ->withCount('quotes')
             // Lets a technician see which requests they have already answered.
             ->withExists(['quotes as has_my_quote' => fn ($q) => $q->where('technician_id', $viewer->id)])
+            // Their own quote, to change it from the card. Quotes are private: nobody else's is loaded.
+            ->with(['quotes' => fn ($q) => $q->where('technician_id', $viewer->id)])
             ->whereIn('id', $rows->where('feed_kind', 'request')->pluck('feed_id'))
             ->get()
             ->keyBy('id');
@@ -374,7 +379,10 @@ class FeedController extends Controller
                 $serviceRequest = $requests->get($row->feed_id);
 
                 return $serviceRequest
-                    ? ['kind' => 'request'] + $serviceRequest->toCard() + ['has_my_quote' => (bool) $serviceRequest->has_my_quote]
+                    ? ['kind' => 'request'] + $serviceRequest->toCard() + [
+                        'has_my_quote' => (bool) $serviceRequest->has_my_quote,
+                        'my_quote' => $serviceRequest->quotes->first()?->only(['id', 'price', 'estimated_time', 'message']),
+                    ]
                     : null;
             })
             // A row whose post was deleted between the two queries.

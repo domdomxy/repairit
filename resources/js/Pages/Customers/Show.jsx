@@ -82,17 +82,8 @@ export default function Show({ customer, requests, requestForm, canReview, myRev
                         )}
 
                         <section aria-label="Requests">
-                            <div className="mb-3 flex items-center justify-between gap-3 px-1">
+                            <div className="mb-3 px-1">
                                 <h4 className="font-semibold">Requests</h4>
-                                {/* The list shows the latest ones: their owner manages all of them from here. */}
-                                {isOwnProfile && (
-                                    <Link
-                                        href={route('requests.mine')}
-                                        className="text-sm text-indigo-600 hover:underline dark:text-indigo-400"
-                                    >
-                                        My requests
-                                    </Link>
-                                )}
                             </div>
 
                             {requests.length === 0 && (

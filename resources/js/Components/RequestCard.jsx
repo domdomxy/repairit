@@ -1,7 +1,7 @@
 import Avatar from '@/Components/Avatar';
 import FeedKindBadge from '@/Components/FeedKindBadge';
 import PostMedia from '@/Components/PostMedia';
-import { relativeTime } from '@/lib/dates';
+import { formatDateTime, formatMessageTime, relativeTime } from '@/lib/dates';
 import { Link } from '@inertiajs/react';
 
 // A repair request as a card in a list: who is asking, what for, roughly how
@@ -14,12 +14,18 @@ import { Link } from '@inertiajs/react';
 // On the customer's own profile, `showAuthor` is off: the page already says who.
 // Pictures and videos attached to the request are stacked as a collage (PostMedia),
 // the same as an offer's; a click on one opens them in a viewer to browse.
+//
+// The header reads like a post: the owner's name with their city beside it, and
+// when it was posted underneath. At the bottom left, `footer` holds what a
+// technician can do about the request (the button to send a quote), before the
+// categories.
 export default function RequestCard({
     request,
     scope = 'all',
     showKind = false,
     showAuthor = true,
     menu = null,
+    footer = null,
     className = 'rounded-lg bg-white shadow transition hover:shadow-md dark:bg-gray-800',
 }) {
     return (
@@ -27,18 +33,26 @@ export default function RequestCard({
             <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                     {showAuthor && <Avatar user={request.customer} size="sm" />}
-                    <p className="min-w-0 truncate text-sm text-gray-500">
-                        {showAuthor && (
-                            <>
-                                <span className="font-medium text-gray-800 dark:text-gray-200">
-                                    {scope === 'mine' ? 'You' : request.customer.name}
-                                </span>
-                                {' · '}
-                            </>
+                    <div className="min-w-0">
+                        {(showAuthor || request.city) && (
+                            <p className="flex min-w-0 items-baseline gap-1.5 text-sm">
+                                {showAuthor && (
+                                    <span className="truncate font-semibold text-gray-800 dark:text-gray-200">
+                                        {scope === 'mine' ? 'You' : request.customer.name}
+                                    </span>
+                                )}
+                                {request.city && (
+                                    <span className="truncate text-gray-500 dark:text-gray-400">
+                                        {showAuthor && '· '}
+                                        {request.city}
+                                    </span>
+                                )}
+                            </p>
                         )}
-                        {request.city && <>{request.city} · </>}
-                        {relativeTime(request.created_at)}
-                    </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400" title={formatDateTime(request.created_at)}>
+                            {formatMessageTime(request.created_at)} · {relativeTime(request.created_at)}
+                        </p>
+                    </div>
                 </div>
 
                 {/* Above the stretched link of the text, or the menu could not be clicked. */}
@@ -73,15 +87,19 @@ export default function RequestCard({
             )}
 
             <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap gap-1">
-                    {request.categories.map((category) => (
-                        <span
-                            key={category.id}
-                            className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:bg-gray-700 dark:text-gray-200"
-                        >
-                            {category.name}
-                        </span>
-                    ))}
+                {/* Above the stretched link: the button must be clickable. */}
+                <div className="relative z-10 flex flex-wrap items-center gap-2">
+                    {footer}
+                    <div className="flex flex-wrap gap-1">
+                        {request.categories.map((category) => (
+                            <span
+                                key={category.id}
+                                className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                            >
+                                {category.name}
+                            </span>
+                        ))}
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-3 text-xs text-gray-500">

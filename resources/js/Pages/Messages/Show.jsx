@@ -90,7 +90,9 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
     useEcho(`conversation.${conversation.id}`, '.message.updated', (event) => {
         setMessages((current) =>
             current.map((message) =>
-                message.id === event.id ? { ...message, body: event.body, edited_at: event.edited_at } : message,
+                message.id === event.id
+                    ? { ...message, body: event.body, edited_at: event.edited_at, quote: event.quote ?? message.quote }
+                    : message,
             ),
         );
         refreshList();
@@ -101,7 +103,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
         setMessages((current) =>
             current.map((message) =>
                 message.id === event.id
-                    ? { ...message, body: null, attachments: [], offer: null, edited_at: null, deleted: true }
+                    ? { ...message, body: null, attachments: [], offer: null, request: null, quote: null, edited_at: null, deleted: true }
                     : message,
             ),
         );

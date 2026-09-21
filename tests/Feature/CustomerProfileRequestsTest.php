@@ -112,18 +112,24 @@ test('the requests on a profile carry the public fields only', function () {
         ->not->toContain('secret@example.com');
 });
 
-test('the profile lists the latest twenty requests', function () {
+test('other people see the latest twenty open requests on a profile, the customer sees all of theirs', function () {
     $customer = cprCustomer();
 
     foreach (range(1, 25) as $i) {
         cprRequest($customer, "Request {$i}")->forceFill(['created_at' => now()->subMinutes(30 - $i)])->save();
     }
 
-    $titles = cprTitles($this->actingAs($customer), $customer);
+    $others = cprTitles($this->actingAs(cprCustomer()), $customer);
 
-    expect($titles)->toHaveCount(20)
-        ->and($titles[0])->toBe('Request 25')
-        ->and($titles[19])->toBe('Request 6');
+    expect($others)->toHaveCount(20)
+        ->and($others[0])->toBe('Request 25')
+        ->and($others[19])->toBe('Request 6');
+
+    // Nowhere else lists their requests any more, so their own profile keeps every one.
+    $own = cprTitles($this->actingAs($customer), $customer);
+
+    expect($own)->toHaveCount(25)
+        ->and($own[24])->toBe('Request 1');
 });
 
 test('a request posted from the profile panel sends the customer back to their profile', function () {

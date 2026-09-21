@@ -97,7 +97,7 @@ class ConversationList
         });
     }
 
-    /** One line for the list; a message with only files, or a shared offer, has no text. */
+    /** One line for the list; a message with only files, or a shared offer, request or quote, has no text. */
     private static function preview(Message $message): ?string
     {
         if ($message->isDeletedForEveryone()) {
@@ -112,6 +112,14 @@ class ConversationList
 
         if ($message->offer_title !== null) {
             return Str::limit('Shared an offer: '.$message->offer_title, 80);
+        }
+
+        if ($message->quote_price !== null) {
+            return Str::limit('Sent a quote: '.$message->quote_price, 80);
+        }
+
+        if ($message->request_excerpt !== null) {
+            return Str::limit('Shared a request: '.$message->request_excerpt, 80);
         }
 
         return match (true) {

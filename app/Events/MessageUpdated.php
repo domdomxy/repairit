@@ -35,6 +35,8 @@ class MessageUpdated implements ShouldBroadcast
             'conversation_id' => $this->message->conversation_id,
             'body' => $this->message->body,
             'edited_at' => $this->message->edited_at?->toIso8601String(),
+            // A quote's card changes when the quote is edited or deleted (null for any other message).
+            'quote' => $this->message->sharedQuote(),
         ];
     }
 }

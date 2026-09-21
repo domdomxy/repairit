@@ -9,7 +9,6 @@ use App\Models\RequestMedia;
 use App\Models\ServiceRequest;
 use App\Models\User;
 use Closure;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -30,22 +29,8 @@ use Throwable;
  */
 class ServiceRequestController extends Controller
 {
-    private const PER_PAGE = 12;
-
-    /** Most requests a profile lists: the latest ones. The rest are under "My requests". */
+    /** Most requests a profile lists to other people: the latest open ones. The person who posted them sees all of theirs. */
     private const PROFILE_LIMIT = 20;
-
-    /** Every open request, with search and filters. */
-    public function index(Request $request): Response
-    {
-        return $this->list($request, ServiceRequest::query()->open()->fromActiveCustomers(), 'all');
-    }
-
-    /** The requests this person posted, open or closed. */
-    public function mine(Request $request): Response
-    {
-        return $this->list($request, ServiceRequest::query()->where('customer_id', $request->user()->id), 'mine');
-    }
 
     public function create(Request $request): Response
     {
@@ -194,8 +179,8 @@ class ServiceRequestController extends Controller
 
         Storage::disk(Offer::MEDIA_DISK)->delete($paths);
 
-        // Deleted from the feed (`from_panel`): stay there. On the request's own page it no longer exists, so leave for the list.
-        $response = $request->boolean('from_panel') ? back() : redirect()->route('requests.mine');
+        // Deleted from the feed (`from_panel`): stay there. On the request's own page it no longer exists, so leave for the feed.
+        $response = $request->boolean('from_panel') ? back() : redirect()->route('feed.index');
 
         return $response->with('success', 'Your request was deleted.');
     }
@@ -244,55 +229,6 @@ class ServiceRequestController extends Controller
             'Content-Type' => $media->mime,
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, max-age=86400',
-        ]);
-    }
-
-    /**
-     * The list page for both tabs: the same cards and filters, over different
-     * sets of requests.
-     *
-     * @param  'all'|'mine'  $scope
-     */
-    private function list(Request $request, Builder $query, string $scope): Response
-    {
-        $user = $request->user();
-
-        // Free text: matches the description.
-        $term = trim((string) $request->input('q'));
-
-        if ($term !== '') {
-            $query->whereRaw("service_requests.description LIKE ? ESCAPE '!'", [$this->likePattern($term)]);
-        }
-
-        if ($request->filled('category')) {
-            $slug = (string) $request->input('category');
-
-            $query->whereHas('categories', fn ($q) => $q->where('categories.slug', $slug));
-        }
-
-        if ($request->filled('city')) {
-            $query->whereRaw("service_requests.city LIKE ? ESCAPE '!'", [$this->likePattern((string) $request->input('city'))]);
-        }
-
-        $requests = $query
-            ->with(['customer:id,name,avatar_path,role', 'categories', 'media'])
-            ->withCount('quotes')
-            // Lets a technician see which requests they have already answered.
-            ->withExists(['quotes as has_my_quote' => fn ($q) => $q->where('technician_id', $user->id)])
-            ->orderByDesc('service_requests.created_at')
-            ->orderByDesc('service_requests.id')
-            ->paginate(self::PER_PAGE)
-            ->withQueryString()
-            ->through(fn (ServiceRequest $serviceRequest) => $serviceRequest->toCard() + [
-                'has_my_quote' => (bool) $serviceRequest->has_my_quote,
-            ]);
-
-        return Inertia::render('Requests/Index', [
-            'requests' => $requests,
-            'categories' => $this->categories(),
-            'scope' => $scope,
-            // Cast to an object: an empty PHP array reaches the browser as a JS array.
-            'filters' => (object) $request->only(['q', 'category', 'city']),
         ]);
     }
 
@@ -400,7 +336,7 @@ class ServiceRequestController extends Controller
     /**
      * The requests a profile lists, as cards: the latest ones. Everybody sees
      * the open requests, as in the feed; the person who posted them also sees
-     * their closed ones. Shared by the customer's and the technician's profile
+     * all of their own, closed ones included (there is no other list of them). Shared by the customer's and the technician's profile
      * (anyone can post a request).
      *
      * @return list<array<string, mixed>>
@@ -415,7 +351,7 @@ class ServiceRequestController extends Controller
             ->withExists(['quotes as has_my_quote' => fn ($query) => $query->where('technician_id', $viewer->id)])
             ->latest()
             ->latest('id')
-            ->limit(self::PROFILE_LIMIT)
+            ->when($viewer->isNot($owner), fn ($query) => $query->limit(self::PROFILE_LIMIT))
             ->get()
             ->map(fn (ServiceRequest $serviceRequest) => $serviceRequest->toCard() + [
                 'has_my_quote' => (bool) $serviceRequest->has_my_quote,
@@ -457,13 +393,5 @@ class ServiceRequestController extends Controller
     private static function categories()
     {
         return Category::orderBy('name')->get(['id', 'name', 'slug']);
-    }
-
-    /** A search term as a LIKE pattern, with its own wildcards escaped (the queries use "!" as the escape character). */
-    private function likePattern(string $term): string
-    {
-        $term = mb_substr(trim($term), 0, 100);
-
-        return '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $term).'%';
     }
 }

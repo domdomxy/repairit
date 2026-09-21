@@ -5,6 +5,8 @@ import Modal from '@/Components/Modal';
 import ReportModal from '@/Components/ReportModal';
 import SecondaryButton from '@/Components/SecondaryButton';
 import SharedOfferCard from '@/Components/SharedOfferCard';
+import SharedQuoteCard from '@/Components/SharedQuoteCard';
+import SharedRequestCard from '@/Components/SharedRequestCard';
 import { formatDateTime, formatMessageTime } from '@/lib/dates';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { router } from '@inertiajs/react';
@@ -35,9 +37,11 @@ export default function MessageRow({
     const files = message.attachments ?? [];
     const images = files.filter((file) => file.is_image);
     const otherFiles = files.filter((file) => !file.is_image);
-    const hasBubble = !!message.body || otherFiles.length > 0 || !!message.edited_at;
-    // A shared offer is not text, so there is nothing to edit.
-    const canEdit = isMine && !message.deleted && !message.offer;
+    // A quote says it was edited on its own card, so that alone makes no bubble.
+    const hasBubble = !!message.body || otherFiles.length > 0 || (!!message.edited_at && !message.quote);
+    // A shared offer or request is not text, so there is nothing to edit; a quote
+    // is edited from its own card.
+    const canEdit = isMine && !message.deleted && !message.offer && !message.request && !message.quote;
 
     function startEdit() {
         setDraft(message.body ?? '');
@@ -174,6 +178,12 @@ export default function MessageRow({
                 ) : (
                     <div className={`flex flex-col gap-2 ${isMine ? 'items-end' : 'items-start'}`}>
                         {message.offer && <SharedOfferCard offer={message.offer} onImageLoad={onImageLoad} />}
+
+                        {message.request && <SharedRequestCard request={message.request} onImageLoad={onImageLoad} />}
+
+                        {message.quote && (
+                            <SharedQuoteCard quote={message.quote} isMine={isMine} onMessagesChange={onMessagesChange} />
+                        )}
 
                         {images.length > 0 && <MessageAttachments attachments={images} onImageLoad={onImageLoad} />}
 

@@ -10,6 +10,7 @@ import ProfileSidebar from '@/Components/ProfileSidebar';
 import RequestCard from '@/Components/RequestCard';
 import RequestForm from '@/Components/RequestForm';
 import RequestMenu from '@/Components/RequestMenu';
+import RequestQuoteAction from '@/Components/RequestQuoteAction';
 import TopRatedTechnicians from '@/Components/TopRatedTechnicians';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
@@ -76,8 +77,9 @@ const NEW_POST_BUTTON =
 // together. `requestForm` and `offerForm` carry what the two "new" panels (and
 // the "edit" ones, from a post's own menu) need; they are null for the roles
 // that cannot post that kind (only technicians post offers, and admins post
-// nothing).
-export default function Index({ feed, categories, topRated, filters, reportReasons, requestForm, offerForm }) {
+// nothing). `quoteLimits` is set for technicians, who send a quote from a
+// request's card.
+export default function Index({ feed, categories, topRated, filters, reportReasons, requestForm, offerForm, quoteLimits }) {
     const { auth } = usePage().props;
 
     // Which "new" panel is open, if any: 'request' or 'offer'.
@@ -253,6 +255,7 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
                                         key={`request-${post.id}`}
                                         request={post}
                                         showKind
+                                        footer={<RequestQuoteAction request={post} limits={quoteLimits} />}
                                         menu={
                                             <RequestMenu
                                                 request={post}

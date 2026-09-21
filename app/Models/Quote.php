@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A technician's answer to a {@see ServiceRequest}: price, how long it would
@@ -37,6 +38,34 @@ class Quote extends Model
     public function technician(): BelongsTo
     {
         return $this->belongsTo(User::class, 'technician_id');
+    }
+
+    /** The chat messages that carry this quote. */
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class);
+    }
+
+    /** What the quote says, on one line: kept for the admins when a quote is changed or withdrawn. */
+    public function summary(): string
+    {
+        return 'Quote: '.$this->price
+            .(filled($this->estimated_time) ? ' · takes about '.$this->estimated_time : '')
+            .(filled($this->message) ? ' — '.$this->message : '');
+    }
+
+    /**
+     * The limits the quote form needs.
+     *
+     * @return array<string, int>
+     */
+    public static function limits(): array
+    {
+        return [
+            'price_max' => self::PRICE_MAX,
+            'time_max' => self::TIME_MAX,
+            'message_max' => self::MESSAGE_MAX,
+        ];
     }
 
     public function isAccepted(): bool

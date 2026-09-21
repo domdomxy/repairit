@@ -125,7 +125,7 @@ class ReportController extends Controller
             ->each->markAsRead();
 
         $messages = $conversation?->messages()
-            ->with(['sender:id,name', 'attachments', 'edits', 'deletions.user:id,name'])
+            ->with(['sender:id,name', 'attachments', 'quote', 'edits', 'deletions.user:id,name'])
             ->orderBy('created_at')
             ->orderBy('id')
             ->get()
@@ -139,6 +139,16 @@ class ReportController extends Controller
                 'offer' => $message->offer_title === null ? null : [
                     'title' => $message->offer_title,
                     'url' => $message->offer_id ? route('offers.show', $message->offer_id, absolute: false) : null,
+                ],
+                // The request this message shares or answers (the start of its text is kept even if the request is gone).
+                'request' => $message->request_excerpt === null ? null : [
+                    'excerpt' => $message->request_excerpt,
+                    'url' => $message->service_request_id ? route('requests.show', $message->service_request_id, absolute: false) : null,
+                ],
+                // The quote this message carries: what it says now, or null once it was deleted (the price is kept).
+                'quote' => $message->quote_price === null ? null : [
+                    'price' => $message->quote_price,
+                    'summary' => $message->quote?->summary(),
                 ],
                 'created_at' => $message->created_at->toIso8601String(),
                 'edited_at' => $message->edited_at?->toIso8601String(),

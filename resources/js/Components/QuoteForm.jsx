@@ -17,7 +17,8 @@ export default function QuoteForm({ requestId, quote = null, limits, onDone, onC
     function submit(e) {
         e.preventDefault();
 
-        post(route('requests.quotes.store', requestId), { preserveScroll: true, onSuccess: () => onDone?.() });
+        // The page that comes back is handed on, for a caller that keeps part of it in its own state (the chat).
+        post(route('requests.quotes.store', requestId), { preserveScroll: true, onSuccess: (page) => onDone?.(page) });
     }
 
     return (

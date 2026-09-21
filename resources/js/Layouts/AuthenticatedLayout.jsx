@@ -185,12 +185,12 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                             >
                                 Dashboard
                             </ResponsiveNavLink>
-                            {user.role !== 'admin' && (
+                            {user.role === 'technician' && (
                                 <ResponsiveNavLink
-                                    href={route('requests.index')}
-                                    active={route().current('requests.*')}
+                                    href={route('technician.quotes.index')}
+                                    active={route().current('technician.quotes.*')}
                                 >
-                                    Repair requests
+                                    My quotes
                                 </ResponsiveNavLink>
                             )}
                             {user.role === 'technician' && (

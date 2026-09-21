@@ -38,6 +38,10 @@ class Message extends Model
         'body',
         'offer_id',
         'offer_title',
+        'service_request_id',
+        'request_excerpt',
+        'quote_id',
+        'quote_price',
         'read_at',
         'is_automated',
     ];
@@ -63,6 +67,18 @@ class Message extends Model
     public function offer(): BelongsTo
     {
         return $this->belongsTo(Offer::class);
+    }
+
+    /** The repair request this message shares or answers, if any (gone once the customer deletes it). Load it with `with('serviceRequest.media')`. */
+    public function serviceRequest(): BelongsTo
+    {
+        return $this->belongsTo(ServiceRequest::class);
+    }
+
+    /** The quote this message carries, if any (gone once the technician deletes it). */
+    public function quote(): BelongsTo
+    {
+        return $this->belongsTo(Quote::class);
     }
 
     /** The files sent with this message, oldest first. Load them with `with('attachments')`. */
@@ -134,6 +150,8 @@ class Message extends Model
             'body' => $deleted ? null : $this->body,
             'attachments' => $deleted ? [] : $this->attachments->toArray(),
             'offer' => $deleted ? null : $this->sharedOffer(),
+            'request' => $deleted ? null : $this->sharedRequest(),
+            'quote' => $deleted ? null : $this->sharedQuote(),
             'created_at' => $this->created_at->toIso8601String(),
             'edited_at' => $deleted ? null : $this->edited_at?->toIso8601String(),
             'deleted' => $deleted,
@@ -166,6 +184,90 @@ class Message extends Model
             'price' => $offer->price,
             'image_url' => $offer->media->first(fn (OfferMedia $media) => $media->type === 'image')?->url,
             'url' => route('offers.show', $offer->id, absolute: false),
+        ];
+    }
+
+    /**
+     * The repair request this message shares, as the small card the chat shows:
+     * null for an ordinary message (and for a quote, which has its own card).
+     * When the request has been deleted since, only the start of its text is
+     * left, and the card says it is no longer available.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function sharedRequest(): ?array
+    {
+        if ($this->request_excerpt === null || $this->quote_price !== null) {
+            return null;
+        }
+
+        $request = $this->service_request_id ? $this->serviceRequest : null;
+
+        if ($request === null) {
+            return [
+                'id' => null,
+                'excerpt' => $this->request_excerpt,
+                'budget' => null,
+                'city' => null,
+                'status' => null,
+                'image_url' => null,
+                'url' => null,
+            ];
+        }
+
+        return [
+            'id' => $request->id,
+            'excerpt' => $request->excerpt(120),
+            'budget' => $request->budget,
+            'city' => $request->city,
+            'status' => $request->status,
+            'image_url' => $request->media->first(fn (RequestMedia $media) => $media->type === 'image')?->url,
+            'url' => route('requests.show', $request->id, absolute: false),
+        ];
+    }
+
+    /**
+     * The quote this message carries, as the card the chat shows: null for any
+     * other message. It follows the quote (a technician who edits it changes the
+     * card for both people, and the message is marked as edited). Once the quote
+     * is deleted, only the price it had is left and `id` is null.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function sharedQuote(): ?array
+    {
+        if ($this->quote_price === null) {
+            return null;
+        }
+
+        $request = $this->request_excerpt === null ? null : [
+            'id' => $this->service_request_id,
+            'excerpt' => $this->request_excerpt,
+            'url' => $this->service_request_id ? route('requests.show', $this->service_request_id, absolute: false) : null,
+        ];
+
+        $quote = $this->quote_id ? $this->quote : null;
+
+        if ($quote === null) {
+            return [
+                'id' => null,
+                'price' => $this->quote_price,
+                'estimated_time' => null,
+                'message' => null,
+                'accepted' => false,
+                'edited' => false,
+                'request' => $request,
+            ];
+        }
+
+        return [
+            'id' => $quote->id,
+            'price' => $quote->price,
+            'estimated_time' => $quote->estimated_time,
+            'message' => $quote->message,
+            'accepted' => $quote->isAccepted(),
+            'edited' => $this->edited_at !== null,
+            'request' => $request,
         ];
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Conversation;
 use App\Models\ConversationState;
 use App\Models\Message;
+use App\Models\Quote;
 use App\Models\Report;
 use App\Models\User;
 use App\Support\ConversationList;
@@ -60,7 +61,7 @@ class ConversationController extends Controller
         // for everyone come through as placeholders (see Message::forClient).
         $messages = $conversation->messages()
             ->visibleTo($user)
-            ->with(['sender:id,name', 'attachments', 'offer.media'])
+            ->with(['sender:id,name', 'attachments', 'offer.media', 'serviceRequest.media', 'quote'])
             ->orderBy('created_at')
             ->orderBy('id')
             ->get()
@@ -96,6 +97,8 @@ class ConversationController extends Controller
                 'reported_message_ids' => $reports->pluck('message_id')->filter()->values()->all(),
                 'reasons' => Report::REASONS,
             ],
+            // What a technician's quote card needs to be edited from the chat.
+            'quoteLimits' => Quote::limits(),
             // What the composer offers: the limits and the extensions it lets through.
             'attachments' => [
                 'max_kb' => Message::ATTACHMENT_MAX_KB,

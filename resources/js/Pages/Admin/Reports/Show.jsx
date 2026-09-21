@@ -45,10 +45,47 @@ function TranscriptMessage({ message, reportedId }) {
                             )}
                         </p>
                     )}
+                    {message.quote && (
+                        <p>
+                            Sent a quote
+                            {message.request && (
+                                <>
+                                    {' '}
+                                    for{' '}
+                                    {message.request.url ? (
+                                        <Link href={message.request.url} className="font-medium text-indigo-600 hover:underline">
+                                            {message.request.excerpt}
+                                        </Link>
+                                    ) : (
+                                        <span className="font-medium">{message.request.excerpt} (since deleted)</span>
+                                    )}
+                                </>
+                            )}
+                            :{' '}
+                            <span className="font-medium">
+                                {message.quote.summary ?? `${message.quote.price} (since deleted, see its history below)`}
+                            </span>
+                        </p>
+                    )}
+                    {message.request && !message.quote && (
+                        <p>
+                            Shared a request:{' '}
+                            {message.request.url ? (
+                                <Link href={message.request.url} className="font-medium text-indigo-600 hover:underline">
+                                    {message.request.excerpt}
+                                </Link>
+                            ) : (
+                                <span className="font-medium">{message.request.excerpt} (since deleted)</span>
+                            )}
+                        </p>
+                    )}
                     {message.body ? (
                         <p className="whitespace-pre-line">{message.body}</p>
                     ) : (
-                        files.length === 0 && !message.offer && <p className="italic text-gray-500">(no text)</p>
+                        files.length === 0 &&
+                        !message.offer &&
+                        !message.request &&
+                        !message.quote && <p className="italic text-gray-500">(no text)</p>
                     )}
                     {files.length > 0 && <MessageAttachments attachments={files} />}
                 </div>
