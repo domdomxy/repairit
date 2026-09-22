@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\InboxUpdated;
+use App\Events\MessagesRead;
 use App\Models\Conversation;
 use App\Models\ConversationState;
 use App\Models\Message;
@@ -13,6 +15,7 @@ use App\Support\ProfileLinks;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 
 class ConversationController extends Controller
@@ -70,11 +73,27 @@ class ConversationController extends Controller
             ->map(fn (Message $message) => $message->forClient())
             ->all();
 
-        // Mark incoming messages as read
-        $conversation->messages()
+        // Which of the other person's messages are still unread, before they
+        // are marked read: the first one is where the "New messages" divider
+        // goes on the client.
+        $unreadIds = $conversation->messages()
             ->whereNull('read_at')
             ->where('sender_id', '!=', $user->id)
-            ->update(['read_at' => now()]);
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->pluck('id');
+
+        if ($unreadIds->isNotEmpty()) {
+            $readAt = Carbon::now();
+
+            $conversation->messages()->whereIn('id', $unreadIds)->update(['read_at' => $readAt]);
+
+            // Tells whoever sent those messages, live, that they've now been seen:
+            // the open chat's ticks (via the conversation channel) and their own
+            // inbox panel and sidebar preview (via their private channel) alike.
+            broadcast(new MessagesRead($conversation, $user, $readAt));
+            broadcast(new InboxUpdated($conversation->participantFor($user)->id));
+        }
 
         // Built after the messages are marked read, so the open conversation
         // shows no unread count.
@@ -96,6 +115,9 @@ class ConversationController extends Controller
             'conversations' => $conversations,
             'contact' => $this->contactFor($conversation, $user),
             'messages' => $messages,
+            // Where the "New messages" divider sits when the page loads: null
+            // once everything from the other person is already read.
+            'first_unread_id' => $unreadIds->first(),
             'moderation' => [
                 'reported_conversation' => $reports->whereNull('message_id')->isNotEmpty(),
                 'reported_message_ids' => $reports->pluck('message_id')->filter()->values()->all(),

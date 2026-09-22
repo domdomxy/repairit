@@ -236,6 +236,9 @@ class Message extends Model
             'location' => $deleted ? null : $this->sharedLocation(),
             'created_at' => $this->created_at->toIso8601String(),
             'edited_at' => $deleted ? null : $this->edited_at?->toIso8601String(),
+            // When the other person has read this message: null until then. Lets
+            // the sender's bubble show "Delivered" vs "Seen".
+            'read_at' => $this->read_at?->toIso8601String(),
             'deleted' => $deleted,
             'automated' => (bool) $this->is_automated,
         ];

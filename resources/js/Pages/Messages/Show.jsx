@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
-import { useEcho } from '@laravel/echo-react';
+import { useChannel, useEcho } from '@laravel/echo-react';
 import Avatar from '@/Components/Avatar';
 import ConversationInfo from '@/Components/ConversationInfo';
 import ConversationMenu from '@/Components/ConversationMenu';
@@ -9,6 +9,7 @@ import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import SendLocationModal from '@/Components/SendLocationModal';
 import MessageRow from '@/Components/MessageRow';
 import MessagesShell from '@/Components/MessagesShell';
+import TypingIndicator from '@/Components/TypingIndicator';
 import { formatChatSeparator, needsChatSeparator } from '@/lib/dates';
 import { formatSize } from '@/lib/files';
 
@@ -85,15 +86,18 @@ function PendingFile({ file, error, onRemove }) {
 // The conversation itself (section 2). Keyed by conversation in Show, so opening
 // another conversation starts it afresh: its own messages, composer and live
 // connection.
-function Chat({ conversation, messages: initialMessages, attachments: limits, moderation, contact, infoOpen, onToggleInfo }) {
+function Chat({ conversation, messages: initialMessages, attachments: limits, moderation, contact, infoOpen, onToggleInfo, firstUnreadId }) {
     const { auth } = usePage().props;
     const [messages, setMessages] = useState(initialMessages);
     const [fileProblems, setFileProblems] = useState([]);
     const [locationError, setLocationError] = useState(null);
     const [sendingLocation, setSendingLocation] = useState(false);
     const [pickingLocation, setPickingLocation] = useState(false);
+    const [otherTyping, setOtherTyping] = useState(false);
     const bottomRef = useRef(null);
     const fileInput = useRef(null);
+    const typingTimeout = useRef(null);
+    const lastTypingWhisper = useRef(0);
 
     const otherParty =
         auth.user.id === conversation.customer_id
@@ -166,12 +170,20 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
             const separator = needsChatSeparator(previous?.created_at, first.created_at)
                 ? formatChatSeparator(first.created_at)
                 : null;
+            // Where the conversation stood when this page load opened it: the
+            // "New messages" line goes above whichever group first carries that
+            // message, and only there (it doesn't move as more arrive live).
+            const hasUnreadDivider =
+                firstUnreadId != null &&
+                (group.type === 'stack'
+                    ? group.messages.some((message) => message.id === firstUnreadId)
+                    : group.message.id === firstUnreadId);
 
             previous = last;
 
-            return { ...group, separator };
+            return { ...group, separator, hasUnreadDivider };
         });
-    }, [messages]);
+    }, [messages, firstUnreadId]);
 
     // Keeps the list's preview and order up to date. "async" so it can't
     // interrupt a message that is being sent at the same moment.
@@ -182,6 +194,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
     // Live incoming messages
     useEcho(`conversation.${conversation.id}`, '.message.sent', (event) => {
         setMessages((current) => [...current, event]);
+        setOtherTyping(false);
         refreshList();
     });
 
@@ -196,6 +209,44 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
         );
         refreshList();
     });
+
+    // The other person opened the conversation and read what we'd sent: flip
+    // those bubbles from "Delivered" to "Seen". Filtering by sender protects
+    // this from the mirror case, where we are the one who just read theirs.
+    useEcho(`conversation.${conversation.id}`, '.messages.read', (event) => {
+        setMessages((current) =>
+            current.map((message) =>
+                message.sender_id === auth.user.id && !message.read_at
+                    ? { ...message, read_at: event.read_at }
+                    : message,
+            ),
+        );
+        refreshList();
+    });
+
+    // Typing is a whisper, not a database write: it never touches the server,
+    // just the other browser's open tab, and fades on its own if nothing
+    // follows. `channel()` is the same private channel `useEcho` subscribes
+    // to above, so this reuses that one connection rather than opening another.
+    const { channel } = useChannel(`conversation.${conversation.id}`);
+
+    useEffect(() => {
+        const ch = channel();
+        if (!ch) return undefined;
+
+        function onTyping() {
+            setOtherTyping(true);
+            clearTimeout(typingTimeout.current);
+            typingTimeout.current = setTimeout(() => setOtherTyping(false), 3000);
+        }
+
+        ch.listenForWhisper('typing', onTyping);
+
+        return () => {
+            ch.stopListeningForWhisper('typing', onTyping);
+            clearTimeout(typingTimeout.current);
+        };
+    }, [channel]);
 
     // ...or took one back for everyone: it stays in place as a placeholder.
     useEcho(`conversation.${conversation.id}`, '.message.deleted', (event) => {
@@ -217,6 +268,12 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
     // up the conversation shouldn't throw the reader to the bottom.
     const lastMessageId = messages[messages.length - 1]?.id;
     useEffect(scrollToBottom, [messages.length, lastMessageId]);
+
+    // The typing bubble is the newest thing on screen when it shows up, same
+    // as a real message would be, so it earns the same scroll.
+    useEffect(() => {
+        if (otherTyping) scrollToBottom();
+    }, [otherTyping]);
 
     const { data, setData, post, processing, progress, reset, errors, clearErrors } = useForm({
         body: '',
@@ -332,6 +389,16 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
         );
     }
 
+    // Throttled so holding a key down doesn't flood the socket: one whisper
+    // is enough to keep the other side's indicator alive for a few seconds.
+    function notifyTyping() {
+        const now = Date.now();
+        if (now - lastTypingWhisper.current < 2000) return;
+
+        lastTypingWhisper.current = now;
+        channel()?.whisper('typing', {});
+    }
+
     function submit(e) {
         e.preventDefault();
         if (!data.body.trim() && data.attachments.length === 0) return;
@@ -429,6 +496,15 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                                 {group.separator}
                             </p>
                         )}
+                        {group.hasUnreadDivider && (
+                            <div className="flex items-center gap-3 py-1" role="separator" aria-label="New messages">
+                                <span className="h-px flex-1 bg-indigo-200 dark:bg-indigo-800" />
+                                <span className="shrink-0 text-xs font-medium text-indigo-500 dark:text-indigo-400">
+                                    New messages
+                                </span>
+                                <span className="h-px flex-1 bg-indigo-200 dark:bg-indigo-800" />
+                            </div>
+                        )}
                         {group.type === 'stack' ? (
                             <MediaStackRow
                                 messages={group.messages}
@@ -460,6 +536,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                         )}
                     </Fragment>
                 ))}
+                {otherTyping && <TypingIndicator author={otherParty} />}
                 <div ref={bottomRef} />
             </div>
 
@@ -570,7 +647,10 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                     <input
                         type="text"
                         value={data.body}
-                        onChange={(e) => setData('body', e.target.value)}
+                        onChange={(e) => {
+                            setData('body', e.target.value);
+                            notifyTyping();
+                        }}
                         placeholder="Type a message..."
                         className="flex-1 rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900"
                     />
@@ -624,7 +704,7 @@ function saveInfoOpen(userId, open) {
     }
 }
 
-export default function Show({ conversation, conversations, contact, messages, attachments, moderation }) {
+export default function Show({ conversation, conversations, contact, messages, attachments, moderation, first_unread_id }) {
     const userId = usePage().props.auth.user.id;
 
     // The contact panel can be shown or hidden with the "Info" button. On wide
@@ -667,6 +747,7 @@ export default function Show({ conversation, conversations, contact, messages, a
                 contact={contact}
                 infoOpen={infoOpen}
                 onToggleInfo={() => changeInfo(!infoOpen)}
+                firstUnreadId={first_unread_id}
             />
         </MessagesShell>
     );

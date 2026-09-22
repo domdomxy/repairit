@@ -1,12 +1,14 @@
 import Avatar from '@/Components/Avatar';
+import ConversationTypingWatcher from '@/Components/ConversationTypingWatcher';
 import { PushpinIcon } from '@/Components/Icons';
 import LiveUpdatesBoundary from '@/Components/LiveUpdatesBoundary';
+import MessageStatus from '@/Components/MessageStatus';
 import { relativeTime } from '@/lib/dates';
 import { MESSAGES_ICON_PATH, useInbox } from '@/lib/inbox';
 import useDismiss from '@/lib/useDismiss';
 import { Link, router, usePage } from '@inertiajs/react';
 import { useEcho } from '@laravel/echo-react';
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 // Asks only for the messages data. "async" so it can't interrupt a message
 // that is being sent at the same moment.
@@ -38,6 +40,25 @@ function MessagesPanel({ inbox, requests, hidden, activeId, unreadInbox, unreadR
     const term = query.trim().toLowerCase();
     const conversations = term === '' ? base : base.filter((conversation) => conversation.name.toLowerCase().includes(term));
     const unreadOf = (conversation) => (conversation.id === activeId ? 0 : conversation.unread_count);
+
+    // Which rows currently show "Typing…" in place of the last message, each
+    // clearing itself a few seconds after its last whisper.
+    const [typingIds, setTypingIds] = useState({});
+    const typingTimeouts = useRef({});
+
+    const markTyping = useCallback((id) => {
+        setTypingIds((current) => (current[id] ? current : { ...current, [id]: true }));
+        clearTimeout(typingTimeouts.current[id]);
+        typingTimeouts.current[id] = setTimeout(() => {
+            setTypingIds((current) => {
+                if (!current[id]) return current;
+                const { [id]: _, ...rest } = current;
+                return rest;
+            });
+        }, 3000);
+    }, []);
+
+    useEffect(() => () => Object.values(typingTimeouts.current).forEach(clearTimeout), []);
 
     return (
         <div className="absolute end-0 z-50 mt-2 w-96 rounded-lg bg-white shadow-xl ring-1 ring-black ring-opacity-5 dark:bg-gray-800 dark:ring-gray-700">
@@ -132,6 +153,9 @@ function MessagesPanel({ inbox, requests, hidden, activeId, unreadInbox, unreadR
                                 unread > 0 ? 'bg-indigo-50/50 dark:bg-indigo-950/30' : ''
                             }`}
                         >
+                            {conversation.id !== activeId && (
+                                <ConversationTypingWatcher conversationId={conversation.id} onTyping={markTyping} />
+                            )}
                             <Avatar user={{ name: conversation.name, avatar_url: conversation.avatar_url }} size="md" />
                             <span className="min-w-0 flex-1">
                                 <span className="flex items-baseline justify-between gap-2">
@@ -149,20 +173,29 @@ function MessagesPanel({ inbox, requests, hidden, activeId, unreadInbox, unreadR
                                             <PushpinIcon className="h-3 w-3 shrink-0 text-indigo-500" />
                                         )}
                                     </span>
-                                    <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">
-                                        {relativeTime(last.created_at)}
+                                    <span className="flex shrink-0 items-center gap-1">
+                                        {last.from_me && <MessageStatus seen={!!last.read_at} compact />}
+                                        <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                                            {relativeTime(last.created_at)}
+                                        </span>
                                     </span>
                                 </span>
                                 <span className="mt-0.5 flex items-center justify-between gap-2">
-                                    <span
-                                        className={`truncate text-xs ${
-                                            unread > 0
-                                                ? 'font-medium text-gray-800 dark:text-gray-200'
-                                                : 'text-gray-500 dark:text-gray-400'
-                                        }`}
-                                    >
-                                        {last.preview ? `${last.from_me ? 'You: ' : ''}${last.preview}` : ''}
-                                    </span>
+                                    {typingIds[conversation.id] ? (
+                                        <span className="truncate text-xs italic text-indigo-500 dark:text-indigo-400">
+                                            Typing…
+                                        </span>
+                                    ) : (
+                                        <span
+                                            className={`truncate text-xs ${
+                                                unread > 0
+                                                    ? 'font-medium text-gray-800 dark:text-gray-200'
+                                                    : 'text-gray-500 dark:text-gray-400'
+                                            }`}
+                                        >
+                                            {last.preview ? `${last.from_me ? 'You: ' : ''}${last.preview}` : ''}
+                                        </span>
+                                    )}
                                     {unread > 0 && (
                                         <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 px-1.5 text-xs font-semibold text-white">
                                             {unread}

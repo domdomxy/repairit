@@ -1,5 +1,6 @@
 import Avatar from '@/Components/Avatar';
 import MessageAttachments from '@/Components/MessageAttachments';
+import MessageStatus from '@/Components/MessageStatus';
 import ReportModal from '@/Components/ReportModal';
 import SharedLocationCard from '@/Components/SharedLocationCard';
 import SharedOfferCard from '@/Components/SharedOfferCard';
@@ -240,6 +241,7 @@ export default function MessageRow({
         <div id={`message-${message.id}`} className={`group relative flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}>
             {!isMine && <Avatar user={author} size="sm" />}
             {isMine && sentAt}
+            {isMine && !message.deleted && <MessageStatus seen={!!message.read_at} />}
             {isMine && menuButton}
 
             {/* Fades in as the swipe passes the threshold, on the side the content is pulling away from. */}

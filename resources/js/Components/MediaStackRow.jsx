@@ -1,5 +1,6 @@
 import Avatar from '@/Components/Avatar';
 import MediaLightbox from '@/Components/MediaLightbox';
+import MessageStatus from '@/Components/MessageStatus';
 import PlayIcon from '@/Components/PlayIcon';
 import ReportModal from '@/Components/ReportModal';
 import { formatMessageTime } from '@/lib/dates';
@@ -268,6 +269,7 @@ export default function MediaStackRow({ messages, isMine, author, myId, otherNam
         <div id={`message-${first.id}`} className={`group relative flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}>
             {!isMine && <Avatar user={author} size="sm" />}
             {isMine && sentAt}
+            {isMine && <MessageStatus seen={!!last.read_at} />}
             {isMine && menuButton}
 
             {canReply && dragX !== 0 && (

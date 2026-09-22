@@ -1,9 +1,11 @@
 import Avatar from '@/Components/Avatar';
+import ConversationTypingWatcher from '@/Components/ConversationTypingWatcher';
 import { PushpinIcon } from '@/Components/Icons';
+import MessageStatus from '@/Components/MessageStatus';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { relativeTime } from '@/lib/dates';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const TABS = [
     { key: 'inbox', label: 'Inbox', empty: 'No conversations yet.' },
@@ -60,6 +62,25 @@ function ConversationList({ conversations, activeId, className }) {
     const visible = inTab(tab).filter(
         (conversation) => term === '' || otherPartyOf(conversation).name.toLowerCase().includes(term),
     );
+
+    // Which rows currently show "Typing…" in place of the last message, each
+    // clearing itself a few seconds after its last whisper.
+    const [typingIds, setTypingIds] = useState({});
+    const typingTimeouts = useRef({});
+
+    const markTyping = useCallback((id) => {
+        setTypingIds((current) => (current[id] ? current : { ...current, [id]: true }));
+        clearTimeout(typingTimeouts.current[id]);
+        typingTimeouts.current[id] = setTimeout(() => {
+            setTypingIds((current) => {
+                if (!current[id]) return current;
+                const { [id]: _, ...rest } = current;
+                return rest;
+            });
+        }, 3000);
+    }, []);
+
+    useEffect(() => () => Object.values(typingTimeouts.current).forEach(clearTimeout), []);
 
     return (
         <section
@@ -155,6 +176,9 @@ function ConversationList({ conversations, activeId, className }) {
                                 isActive ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
                             }`}
                         >
+                            {!isActive && (
+                                <ConversationTypingWatcher conversationId={conversation.id} onTyping={markTyping} />
+                            )}
                             <Avatar user={otherParty} size="md" />
                             <span className="min-w-0 flex-1">
                                 <span className="flex items-baseline justify-between gap-2">
@@ -178,23 +202,32 @@ function ConversationList({ conversations, activeId, className }) {
                                             <PushpinIcon className="h-3.5 w-3.5" />
                                         </button>
                                         {last && (
-                                            <span className="text-[11px] text-gray-400 dark:text-gray-500">
-                                                {relativeTime(last.created_at)}
+                                            <span className="flex shrink-0 items-center gap-1">
+                                                {last.from_me && <MessageStatus seen={!!last.read_at} compact />}
+                                                <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                                                    {relativeTime(last.created_at)}
+                                                </span>
                                             </span>
                                         )}
                                     </span>
                                 </span>
                                 <span className="mt-0.5 flex items-center justify-between gap-2">
-                                    <span
-                                        className={`truncate text-xs ${
-                                            unread > 0
-                                                ? 'font-medium text-gray-800 dark:text-gray-200'
-                                                : 'text-gray-500 dark:text-gray-400'
-                                        }`}
-                                    >
-                                        {status && <span className="me-1 font-medium">{status} ·</span>}
-                                        {last?.preview ? `${last.from_me ? 'You: ' : ''}${last.preview}` : 'No messages yet'}
-                                    </span>
+                                    {typingIds[conversation.id] ? (
+                                        <span className="truncate text-xs italic text-indigo-500 dark:text-indigo-400">
+                                            Typing…
+                                        </span>
+                                    ) : (
+                                        <span
+                                            className={`truncate text-xs ${
+                                                unread > 0
+                                                    ? 'font-medium text-gray-800 dark:text-gray-200'
+                                                    : 'text-gray-500 dark:text-gray-400'
+                                            }`}
+                                        >
+                                            {status && <span className="me-1 font-medium">{status} ·</span>}
+                                            {last?.preview ? `${last.from_me ? 'You: ' : ''}${last.preview}` : 'No messages yet'}
+                                        </span>
+                                    )}
                                     {unread > 0 && (
                                         <span
                                             className={`inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-xs font-semibold text-white ${

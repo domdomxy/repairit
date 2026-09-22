@@ -114,6 +114,9 @@ class ConversationList
                 'preview' => self::preview($message),
                 'from_me' => $message->sender_id === $user->id,
                 'created_at' => $message->created_at->toIso8601String(),
+                // Only meaningful when `from_me` is true: null until the other
+                // person has opened the conversation and read it.
+                'read_at' => $message->read_at?->toIso8601String(),
             ] : null);
             $conversation->makeHidden(['has_incoming', 'has_replied', 'visible_count']);
         })
