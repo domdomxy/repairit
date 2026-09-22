@@ -77,7 +77,7 @@ function PendingFile({ file, error, onRemove }) {
                 type="button"
                 onClick={onRemove}
                 aria-label={`Remove ${file.name}`}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             >
                 ✕
             </button>

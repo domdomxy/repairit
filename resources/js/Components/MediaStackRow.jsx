@@ -65,7 +65,7 @@ function StackThumb({ attachments, onOpen }) {
                             className="absolute inset-0 overflow-hidden rounded-lg border-2 border-white shadow-md dark:border-gray-900"
                         >
                             {attachment.is_video ? (
-                                <span className="relative block h-full w-full bg-gray-800">
+                                <span className="relative block h-full w-full bg-gray-200 dark:bg-gray-800">
                                     <video src={attachment.url} className="h-full w-full object-cover opacity-90" />
                                     <span className="absolute inset-0 flex items-center justify-center">
                                         <PlayIcon className="h-11 w-11" />
