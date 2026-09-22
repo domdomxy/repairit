@@ -60,10 +60,11 @@ function ResultRow({ href, onNavigate, image, Icon, title, subtitle, trailing })
 }
 
 /**
- * A search box that opens a panel underneath it: recent searches while it is
- * empty, a handful of live matches per kind while typing, and Enter (or
- * "See all results") for the full search page, which is where any filtering
- * beyond a keyword happens.
+ * A magnifying-glass button that opens a panel underneath it: the search
+ * input lives inside that panel (autofocused on open), above recent searches
+ * while it is empty, a handful of live matches per kind while typing, and
+ * Enter (or "See all results") for the full search page, which is where any
+ * filtering beyond a keyword happens.
  */
 export default function SearchBar({ className = '' }) {
     const [open, setOpen] = useState(false);
@@ -77,10 +78,19 @@ export default function SearchBar({ className = '' }) {
 
     useDismiss(open, containerRef, () => setOpen(false));
 
-    function focus() {
+    function openPanel() {
         setRecent(loadRecent());
         setOpen(true);
     }
+
+    // Autofocus the input once the panel (and the input inside it) has mounted.
+    useEffect(() => {
+        if (!open) return undefined;
+
+        const id = requestAnimationFrame(() => inputRef.current?.focus());
+
+        return () => cancelAnimationFrame(id);
+    }, [open]);
 
     // Debounced quick search: fires a bit after typing stops, and ignores a
     // reply that comes back after a newer one was already sent.
@@ -147,38 +157,52 @@ export default function SearchBar({ className = '' }) {
     const hasResults = results.technicians.length + results.offers.length + results.requests.length > 0;
 
     return (
-        <div className={'relative ' + className} ref={containerRef}>
-            <svg
-                className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth="1.5"
-                stroke="currentColor"
-                aria-hidden="true"
-            >
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-            </svg>
-
-            <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onFocus={focus}
-                onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        goToSearchPage(query);
-                    }
-                }}
-                placeholder="Search technicians, offers and requests"
+        <div className={'relative shrink-0 ' + className} ref={containerRef}>
+            <button
+                type="button"
+                onClick={openPanel}
+                title="Search"
                 aria-label="Search technicians, offers and requests"
-                autoComplete="off"
-                className="w-full truncate rounded-md border-gray-300 bg-gray-50 py-2 pl-10 pr-3 text-sm placeholder:text-gray-400 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-indigo-600 dark:focus:ring-indigo-600"
-            />
+                aria-expanded={open}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-gray-300 text-gray-500 transition hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 dark:focus:ring-offset-gray-800"
+            >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                </svg>
+            </button>
 
             {open && (
-                <div className="absolute start-0 top-full z-50 mt-2 w-[26rem] max-w-[90vw] rounded-lg bg-white shadow-xl ring-1 ring-black ring-opacity-5 dark:bg-gray-800 dark:ring-gray-700">
+                <div className="absolute end-0 top-full z-50 mt-2 w-[min(90vw,48rem)] rounded-lg bg-white shadow-xl ring-1 ring-black ring-opacity-5 dark:bg-gray-800 dark:ring-gray-700">
+                    <div className="relative border-b border-gray-100 p-2 dark:border-gray-700">
+                        <svg
+                            className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            strokeWidth="1.5"
+                            stroke="currentColor"
+                            aria-hidden="true"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                        </svg>
+
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    goToSearchPage(query);
+                                }
+                            }}
+                            placeholder="Search technicians, offers and requests"
+                            aria-label="Search technicians, offers and requests"
+                            autoComplete="off"
+                            className="w-full truncate rounded-md border-gray-300 bg-gray-50 py-2 pl-10 pr-3 text-sm placeholder:text-gray-400 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-indigo-600 dark:focus:ring-indigo-600"
+                        />
+                    </div>
+
                     <div className="max-h-[26rem] overflow-y-auto p-2">
                         {term === '' ? (
                             recent.length === 0 ? (

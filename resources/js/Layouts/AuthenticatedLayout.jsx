@@ -44,11 +44,12 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                         </div>
 
                         {/* Search + compose: positioned as a cluster right before the
-                            account icons, per the reference layout — resized search bar,
-                            then the compose button, then the divider that separates this
-                            cluster from messages/notifications/account. */}
+                            account icons, per the reference layout — search icon that
+                            opens a panel with the input, then the compose button, then
+                            the divider that separates this cluster from
+                            messages/notifications/account. */}
                         <div className="flex min-w-0 flex-1 items-center justify-end gap-3 px-3 sm:px-4">
-                            <SearchBar className="w-full max-w-xs" />
+                            <SearchBar />
 
                             {/* Create post: a shortcut to the feed's composer from anywhere in
                                 the app. Technicians choose between a request and an offer;
@@ -91,7 +92,7 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                             />
                         </div>
 
-                        <div className="hidden sm:ms-6 sm:flex sm:items-center sm:gap-2">
+                        <div className="hidden sm:ms-1 sm:flex sm:items-center sm:gap-2">
                             <MessagesMenu />
                             <NotificationBell />
                             <div className="relative">
