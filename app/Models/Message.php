@@ -39,6 +39,7 @@ class Message extends Model
     protected $fillable = [
         'conversation_id',
         'sender_id',
+        'reply_to_id',
         'batch_id',
         'body',
         'offer_id',
@@ -71,6 +72,12 @@ class Message extends Model
     public function sender(): BelongsTo
     {
         return $this->belongsTo(User::class, 'sender_id');
+    }
+
+    /** The message this one replies to, if any. Load it with `with('replyTo.sender')`. */
+    public function replyTo(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'reply_to_id');
     }
 
     /** The offer this message shares, if any (gone once the technician deletes it). Load it with `with('offer.media')`. */
@@ -107,6 +114,66 @@ class Message extends Model
     public function deletions(): HasMany
     {
         return $this->hasMany(MessageDeletion::class);
+    }
+
+    /**
+     * The message this one replies to, as the small quoted line the chat shows
+     * above the bubble: null when this message isn't a reply. Load `replyTo`
+     * (and `replyTo.sender`, `replyTo.attachments`) first. Kept even once the
+     * original is deleted, the way a shared offer or request is - the quote
+     * just says so instead of showing a preview.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function replySummary(): ?array
+    {
+        $original = $this->replyTo;
+
+        if ($original === null) {
+            return null;
+        }
+
+        return [
+            'id' => $original->id,
+            'sender_id' => $original->sender_id,
+            'sender_name' => $original->relationLoaded('sender') ? $original->sender?->name : null,
+            'deleted' => $original->isDeletedForEveryone(),
+            'preview' => $original->isDeletedForEveryone() ? null : $original->preview(),
+        ];
+    }
+
+    /** One short line describing this message: its text, or what it shares, or its files. Never quotes a deleted message. */
+    public function preview(int $limit = 80): ?string
+    {
+        $text = trim((string) $this->body);
+
+        if ($text !== '') {
+            return \Illuminate\Support\Str::limit(preg_replace('/\s+/u', ' ', $text), $limit);
+        }
+
+        if ($this->offer_title !== null) {
+            return \Illuminate\Support\Str::limit('Shared an offer: '.$this->offer_title, $limit);
+        }
+
+        if ($this->quote_price !== null) {
+            return \Illuminate\Support\Str::limit('Sent a quote: '.$this->quote_price, $limit);
+        }
+
+        if ($this->request_excerpt !== null) {
+            return \Illuminate\Support\Str::limit('Shared a request: '.$this->request_excerpt, $limit);
+        }
+
+        if ($this->location_lat !== null) {
+            return 'Shared a location';
+        }
+
+        $count = $this->relationLoaded('attachments') ? $this->attachments->count() : $this->attachments()->count();
+
+        return match (true) {
+            $count === 0 => null,
+            $count === 1 => 'Sent an attachment',
+            default => "Sent {$count} attachments",
+        };
     }
 
     public function isDeletedForEveryone(): bool
@@ -160,6 +227,7 @@ class Message extends Model
             // Files chosen and sent together share this id, so the chat can
             // stack them; null for anything sent on its own.
             'batch_id' => $this->batch_id,
+            'reply_to' => $this->replySummary(),
             'body' => $deleted ? null : $this->body,
             'attachments' => $deleted ? [] : $this->attachments->toArray(),
             'offer' => $deleted ? null : $this->sharedOffer(),

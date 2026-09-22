@@ -8,9 +8,34 @@ import SharedRequestCard from '@/Components/SharedRequestCard';
 import { formatDateTime, formatMessageTime } from '@/lib/dates';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 const ACTION = 'text-xs text-gray-500 underline-offset-2 hover:text-gray-800 hover:underline dark:text-gray-400 dark:hover:text-gray-200';
+
+// How far a swipe must travel before releasing it counts as "reply", and the
+// most it can drag (with resistance built in via the clamp, not eased).
+const REPLY_THRESHOLD = 56;
+const REPLY_MAX_DRAG = 88;
+
+function ReplyIcon({ className = 'h-4 w-4' }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M9 17 4 12l5-5" />
+            <path d="M4 12h10a6 6 0 0 1 6 6v1" />
+        </svg>
+    );
+}
+
+// Scrolls a message back into view and briefly highlights it, used when a
+// reply's quoted line is clicked.
+function jumpToMessage(id) {
+    const el = document.getElementById(`message-${id}`);
+    if (!el) return;
+
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('ring-2', 'ring-indigo-400', 'rounded-lg');
+    window.setTimeout(() => el.classList.remove('ring-2', 'ring-indigo-400', 'rounded-lg'), 1200);
+}
 
 // One message in the conversation, with what its owner can do to it: edit it
 // or delete it (for me / for everyone) when it is theirs, delete it for
@@ -19,17 +44,72 @@ export default function MessageRow({
     message,
     isMine,
     author,
+    myId,
     otherName,
     reported,
     reasons,
     onMessagesChange,
     onImageLoad,
+    onReply,
 }) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState('');
     const [editError, setEditError] = useState(null);
     const [saving, setSaving] = useState(false);
     const [reporting, setReporting] = useState(false);
+    const [dragX, setDragX] = useState(0);
+    const [isDragging, setIsDragging] = useState(false);
+
+    // Tracked in refs, not state, so the move/up handlers always see the
+    // latest value without waiting on a render.
+    const dragState = useRef({ pointerId: null, startX: 0, startY: 0, active: false, dx: 0 });
+    const canReply = typeof onReply === 'function' && !message.deleted && !editing;
+
+    function onDragStart(e) {
+        if (!canReply || e.pointerType === 'mouse' && e.button !== 0) return;
+
+        dragState.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, active: false, dx: 0 };
+    }
+
+    function onDragMove(e) {
+        const state = dragState.current;
+        if (state.pointerId !== e.pointerId) return;
+
+        const dx = e.clientX - state.startX;
+        const dy = e.clientY - state.startY;
+
+        if (!state.active) {
+            // Not yet decided whether this is a swipe or a scroll/tap: wait for
+            // a clear horizontal move before taking over the gesture.
+            if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy)) return;
+
+            state.active = true;
+            setIsDragging(true);
+            e.currentTarget.setPointerCapture(e.pointerId);
+        }
+
+        // Only one direction does anything: left-to-right on the other
+        // person's message, right-to-left on your own. The other direction is
+        // just resisted (stays at 0) rather than fighting the gesture.
+        const clamped = isMine
+            ? Math.max(Math.min(dx, 0), -REPLY_MAX_DRAG)
+            : Math.min(Math.max(dx, 0), REPLY_MAX_DRAG);
+
+        state.dx = clamped;
+        setDragX(clamped);
+    }
+
+    function endDrag() {
+        const state = dragState.current;
+
+        if (state.active && Math.abs(state.dx) >= REPLY_THRESHOLD) {
+            onReply(message);
+        }
+
+        dragState.current = { pointerId: null, startX: 0, startY: 0, active: false, dx: 0 };
+        setIsDragging(false);
+        setDragX(0);
+    }
 
     const files = message.attachments ?? [];
     const images = files.filter((file) => file.is_image);
@@ -100,6 +180,13 @@ export default function MessageRow({
                 anchor={isMine ? 'bottom end' : 'bottom start'}
                 className="z-50 w-48 rounded-md bg-white py-1 shadow-lg ring-1 ring-black/5 [--anchor-gap:6px] focus:outline-none dark:bg-gray-700"
             >
+                {canReply && (
+                    <MenuItem>
+                        <button type="button" onClick={() => onReply(message)} className={menuItem}>
+                            Reply
+                        </button>
+                    </MenuItem>
+                )}
                 {canEdit && (
                     <MenuItem>
                         <button type="button" onClick={startEdit} className={menuItem}>
@@ -150,12 +237,47 @@ export default function MessageRow({
     );
 
     return (
-        <div className={`group flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}>
+        <div id={`message-${message.id}`} className={`group relative flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}>
             {!isMine && <Avatar user={author} size="sm" />}
             {isMine && sentAt}
             {isMine && menuButton}
 
-            <div className={`flex min-w-0 max-w-[75%] flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+            {/* Fades in as the swipe passes the threshold, on the side the content is pulling away from. */}
+            {canReply && dragX !== 0 && (
+                <span
+                    className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-indigo-500 ${isMine ? 'right-0' : 'left-0'}`}
+                    style={{ opacity: Math.min(1, Math.abs(dragX) / REPLY_THRESHOLD) }}
+                >
+                    <ReplyIcon className="h-5 w-5" />
+                </span>
+            )}
+
+            <div
+                onPointerDown={onDragStart}
+                onPointerMove={onDragMove}
+                onPointerUp={endDrag}
+                onPointerCancel={endDrag}
+                style={{
+                    transform: dragX !== 0 ? `translateX(${dragX}px)` : undefined,
+                    transition: isDragging ? 'none' : 'transform 200ms ease-out',
+                    touchAction: canReply ? 'pan-y' : undefined,
+                }}
+                className={`flex min-w-0 max-w-[75%] flex-col ${isMine ? 'items-end' : 'items-start'}`}
+            >
+                {message.reply_to && !editing && (
+                    <button
+                        type="button"
+                        onClick={() => jumpToMessage(message.reply_to.id)}
+                        className={`mb-1 max-w-full rounded-md border-s-2 border-indigo-400 bg-gray-50 px-2 py-1 text-start text-xs text-gray-600 hover:bg-gray-100 dark:border-indigo-500 dark:bg-gray-900/40 dark:text-gray-300 dark:hover:bg-gray-900/70`}
+                    >
+                        <span className="block truncate font-medium text-indigo-600 dark:text-indigo-400">
+                            {message.reply_to.sender_id === myId ? 'You' : message.reply_to.sender_name}
+                        </span>
+                        <span className="block truncate italic">
+                            {message.reply_to.deleted ? 'This message was deleted' : message.reply_to.preview ?? 'Attachment'}
+                        </span>
+                    </button>
+                )}
                 {message.automated && !message.deleted && !editing && (
                     <p className="mb-1 px-1 text-[11px] text-gray-500 dark:text-gray-400">Automatic reply</p>
                 )}

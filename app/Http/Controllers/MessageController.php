@@ -44,6 +44,14 @@ class MessageController extends Controller
         $validated = $request->validate([
             // Text is optional when files are attached, and the other way round.
             'body' => ['nullable', 'string', 'max:5000', 'required_without:attachments'],
+            // The message being replied to, if any: must be in this conversation
+            // and still visible to the sender (not deleted for them, and not
+            // from before they cleared the conversation).
+            'reply_to_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('messages', 'id')->where('conversation_id', $conversation->id),
+            ],
             'attachments' => [
                 'nullable',
                 'array',
@@ -73,6 +81,16 @@ class MessageController extends Controller
             'attachments.*.mimes' => 'That file type is not allowed.',
         ]);
 
+        // A reply must point at something this person can still see: not
+        // deleted for them, and not from before they cleared the conversation.
+        if ($validated['reply_to_id'] ?? null) {
+            abort_unless(
+                Message::whereKey($validated['reply_to_id'])->visibleTo($user)->exists(),
+                422,
+                'The message being replied to is no longer available.'
+            );
+        }
+
         // Is this the customer's first message, in a conversation nobody has
         // written in yet? Checked before anything is stored, and against every
         // row (deleted ones included), so deleting a message or the whole
@@ -88,20 +106,25 @@ class MessageController extends Controller
         // bubble carrying both), so the transaction can return several rows.
         // Files chosen in the same submission still get one shared `batch_id`,
         // so the chat can show them stacked together even though each keeps
-        // its own row (and so its own delete/report).
+        // its own row (and so its own delete/report). A reply is attached to
+        // only the first row of the submission: that is the one the quote
+        // shows above.
         $stored = [];
         $files = $request->file('attachments', []);
         $batchId = count($files) > 1 ? (string) Str::uuid() : null;
+        $replyToId = $validated['reply_to_id'] ?? null;
 
         try {
-            $messages = DB::transaction(function () use ($files, $conversation, $user, $validated, $batchId, &$stored) {
+            $messages = DB::transaction(function () use ($files, $conversation, $user, $validated, $batchId, &$stored, &$replyToId) {
                 $messages = [];
 
                 if (filled($validated['body'] ?? null)) {
                     $messages[] = $conversation->messages()->create([
                         'sender_id' => $user->id,
+                        'reply_to_id' => $replyToId,
                         'body' => $validated['body'],
                     ]);
+                    $replyToId = null;
                 }
 
                 foreach ($files as $file) {
@@ -115,9 +138,11 @@ class MessageController extends Controller
 
                     $attachmentMessage = $conversation->messages()->create([
                         'sender_id' => $user->id,
+                        'reply_to_id' => $replyToId,
                         'batch_id' => $batchId,
                         'body' => null,
                     ]);
+                    $replyToId = null;
 
                     $attachmentMessage->attachments()->create([
                         'path' => $path,

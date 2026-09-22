@@ -1,8 +1,8 @@
 import Avatar from '@/Components/Avatar';
-import { StarIcon } from '@/Components/Icons';
+import { PushpinIcon } from '@/Components/Icons';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { relativeTime } from '@/lib/dates';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
 const TABS = [
@@ -37,6 +37,14 @@ function ConversationList({ conversations, activeId, className }) {
 
     const otherPartyOf = (conversation) =>
         auth.user.id === conversation.customer_id ? conversation.technician : conversation.customer;
+
+    function togglePin(conversation, e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const url = route(conversation.is_pinned ? 'conversations.unpin' : 'conversations.pin', conversation.id);
+        router.post(url, {}, { preserveScroll: true, preserveState: true });
+    }
 
     const inTab = (key) =>
         conversations.filter((conversation) =>
@@ -143,7 +151,7 @@ function ConversationList({ conversations, activeId, className }) {
                             preserveState
                             preserveScroll
                             aria-current={isActive ? 'true' : undefined}
-                            className={`flex items-center gap-3 border-b border-gray-100 px-4 py-3 transition hover:bg-gray-50 dark:border-gray-700/50 dark:hover:bg-gray-700/30 ${
+                            className={`group/row flex items-center gap-3 border-b border-gray-100 px-4 py-3 transition hover:bg-gray-50 dark:border-gray-700/50 dark:hover:bg-gray-700/30 ${
                                 isActive ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
                             }`}
                         >
@@ -154,15 +162,27 @@ function ConversationList({ conversations, activeId, className }) {
                                         <span className={`truncate text-sm ${unread > 0 ? 'font-semibold' : 'font-medium'}`}>
                                             {otherParty.name}
                                         </span>
-                                        {conversation.is_favorite && (
-                                            <StarIcon className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+                                    </span>
+                                    <span className="flex shrink-0 items-center gap-1.5">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => togglePin(conversation, e)}
+                                            aria-label={conversation.is_pinned ? 'Unpin conversation' : 'Pin conversation'}
+                                            title={conversation.is_pinned ? 'Unpin conversation' : 'Pin conversation'}
+                                            className={`rounded p-0.5 transition ${
+                                                conversation.is_pinned
+                                                    ? 'text-indigo-500'
+                                                    : 'text-gray-300 opacity-0 hover:text-gray-500 group-hover/row:opacity-100 dark:text-gray-500 dark:hover:text-gray-300'
+                                            }`}
+                                        >
+                                            <PushpinIcon className="h-3.5 w-3.5" />
+                                        </button>
+                                        {last && (
+                                            <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                                                {relativeTime(last.created_at)}
+                                            </span>
                                         )}
                                     </span>
-                                    {last && (
-                                        <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">
-                                            {relativeTime(last.created_at)}
-                                        </span>
-                                    )}
                                 </span>
                                 <span className="mt-0.5 flex items-center justify-between gap-2">
                                     <span

@@ -30,7 +30,7 @@ trait DeliversMessages
     private function deliver(Conversation $conversation, User $sender, array $messages, bool $isCustomersFirstMessage, bool $notify = true): void
     {
         foreach ($messages as $message) {
-            $message->load('attachments', 'offer.media', 'serviceRequest.media', 'quote');
+            $message->load('attachments', 'offer.media', 'serviceRequest.media', 'quote', 'replyTo.sender:id,name', 'replyTo.attachments');
         }
 
         $lastMessage = end($messages);

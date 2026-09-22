@@ -19,6 +19,17 @@ export function PinIcon({ className = 'h-4 w-4' }) {
     );
 }
 
+// A thumbtack, for pinning a conversation - distinct from PinIcon (a map pin,
+// used for locations and addresses).
+export function PushpinIcon({ className = 'h-4 w-4' }) {
+    return (
+        <svg {...outline} className={className}>
+            <path d="M12 17v5" />
+            <path d="M9 3h6l-.6 5.4a2 2 0 0 0 .77 1.83L17 11.5a1 1 0 0 1 .38 1.7l-1.13 1.13a1 1 0 0 1-.71.29H8.46a1 1 0 0 1-.71-.29L6.62 13.2a1 1 0 0 1 .38-1.7l1.83-1.27A2 2 0 0 0 9.6 8.4L9 3Z" />
+        </svg>
+    );
+}
+
 export function PhoneIcon({ className = 'h-4 w-4' }) {
     return (
         <svg {...outline} className={className}>

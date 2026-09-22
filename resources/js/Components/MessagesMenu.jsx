@@ -1,4 +1,5 @@
 import Avatar from '@/Components/Avatar';
+import { PushpinIcon } from '@/Components/Icons';
 import LiveUpdatesBoundary from '@/Components/LiveUpdatesBoundary';
 import { relativeTime } from '@/lib/dates';
 import { MESSAGES_ICON_PATH, useInbox } from '@/lib/inbox';
@@ -144,6 +145,9 @@ function MessagesPanel({ inbox, requests, hidden, activeId, unreadInbox, unreadR
                                         >
                                             {conversation.name}
                                         </span>
+                                        {conversation.is_pinned && (
+                                            <PushpinIcon className="h-3 w-3 shrink-0 text-indigo-500" />
+                                        )}
                                     </span>
                                     <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">
                                         {relativeTime(last.created_at)}

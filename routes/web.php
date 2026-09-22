@@ -67,6 +67,9 @@ Route::middleware('auth')->group(function () {
     // Hiding, deleting and reporting a conversation. Hiding and deleting only affect the person asking.
     Route::post('/messages/{conversation}/hide', [ConversationController::class, 'hide'])->name('conversations.hide');
     Route::post('/messages/{conversation}/unhide', [ConversationController::class, 'unhide'])->name('conversations.unhide');
+    // Pinning a conversation (kept at the top of this person's own list, inbox and panel alike).
+    Route::post('/messages/{conversation}/pin', [ConversationController::class, 'pin'])->name('conversations.pin');
+    Route::post('/messages/{conversation}/unpin', [ConversationController::class, 'unpin'])->name('conversations.unpin');
     Route::delete('/messages/{conversation}', [ConversationController::class, 'destroy'])->name('conversations.destroy');
     Route::post('/messages/{conversation}/report', [ReportController::class, 'storeConversation'])->middleware('throttle:10,1,reports')->name('conversations.report');
     // One message: edit it, delete it (scope "me" or "everyone"), or report it.

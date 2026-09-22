@@ -63,7 +63,7 @@ class ConversationController extends Controller
         // for everyone come through as placeholders (see Message::forClient).
         $messages = $conversation->messages()
             ->visibleTo($user)
-            ->with(['sender:id,name', 'attachments', 'offer.media', 'serviceRequest.media', 'quote'])
+            ->with(['sender:id,name', 'attachments', 'offer.media', 'serviceRequest.media', 'quote', 'replyTo.sender:id,name', 'replyTo.attachments'])
             ->orderBy('created_at')
             ->orderBy('id')
             ->get()
@@ -88,6 +88,7 @@ class ConversationController extends Controller
         $listed = $conversations->firstWhere('id', $conversation->id);
         $conversation->setAttribute('is_request', (bool) $listed?->is_request);
         $conversation->setAttribute('is_hidden', (bool) $listed?->is_hidden);
+        $conversation->setAttribute('is_pinned', (bool) $listed?->is_pinned);
         $conversation->setAttribute('is_restricted', (bool) $listed?->is_restricted);
 
         return Inertia::render('Messages/Show', [
@@ -203,6 +204,31 @@ class ConversationController extends Controller
         $conversation->updateStateFor($user, ['hidden_at' => null]);
 
         return back()->with('success', 'Conversation moved back to your list.');
+    }
+
+    /**
+     * Pin a conversation to the top of this person's own list (inbox, requests
+     * and the messages panel alike). Never shown to the other person, and
+     * unrelated to favoriting a user for the technician search.
+     */
+    public function pin(Conversation $conversation): RedirectResponse
+    {
+        $user = Auth::user();
+        abort_unless($conversation->hasParticipant($user), 403);
+
+        $conversation->updateStateFor($user, ['pinned_at' => now()]);
+
+        return back()->with('success', 'Conversation pinned.');
+    }
+
+    public function unpin(Conversation $conversation): RedirectResponse
+    {
+        $user = Auth::user();
+        abort_unless($conversation->hasParticipant($user), 403);
+
+        $conversation->updateStateFor($user, ['pinned_at' => null]);
+
+        return back()->with('success', 'Conversation unpinned.');
     }
 
     /**

@@ -37,6 +37,16 @@ export default function ConversationMenu({ conversation, otherName, reported, re
                 </Dropdown.Trigger>
 
                 <Dropdown.Content>
+                    {conversation.is_pinned ? (
+                        <Dropdown.Link href={route('conversations.unpin', conversation.id)} method="post" as="button" preserveScroll>
+                            Unpin conversation
+                        </Dropdown.Link>
+                    ) : (
+                        <Dropdown.Link href={route('conversations.pin', conversation.id)} method="post" as="button" preserveScroll>
+                            Pin conversation
+                        </Dropdown.Link>
+                    )}
+
                     {conversation.is_hidden ? (
                         <Dropdown.Link
                             href={route('conversations.unhide', conversation.id)}

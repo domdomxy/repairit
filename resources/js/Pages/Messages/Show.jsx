@@ -221,7 +221,43 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
     const { data, setData, post, processing, progress, reset, errors, clearErrors } = useForm({
         body: '',
         attachments: [],
+        reply_to_id: '',
     });
+
+    // What the composer shows above the input while replying: just enough to
+    // build the quoted line, taken from the message actually on screen.
+    const [replyingTo, setReplyingTo] = useState(null);
+
+    function startReply(target) {
+        setReplyingTo({
+            id: target.id,
+            sender_id: target.sender_id,
+            sender_name: people[target.sender_id]?.name,
+            preview: previewOf(target),
+        });
+        setData('reply_to_id', target.id);
+    }
+
+    function cancelReply() {
+        setReplyingTo(null);
+        setData('reply_to_id', '');
+    }
+
+    // A short, client-side version of the same preview the server sends for
+    // an already-sent reply's quoted line.
+    function previewOf(target) {
+        if (target.body) return target.body.length > 80 ? `${target.body.slice(0, 80)}…` : target.body;
+        if (target.offer) return `Shared an offer: ${target.offer.title}`;
+        if (target.request) return `Shared a request: ${target.request.excerpt}`;
+        if (target.quote) return `Sent a quote: ${target.quote.price}`;
+        if (target.location) return 'Shared a location';
+
+        const files = target.attachments ?? [];
+        if (files.length === 1) return 'Sent an attachment';
+        if (files.length > 1) return `Sent ${files.length} attachments`;
+
+        return null;
+    }
 
     function removeFile(index) {
         clearErrors();
@@ -309,6 +345,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                 setMessages(page.props.messages);
                 reset();
                 setFileProblems([]);
+                setReplyingTo(null);
             },
         });
     }
@@ -397,6 +434,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                                 messages={group.messages}
                                 isMine={group.messages[0].sender_id === auth.user.id}
                                 author={people[group.messages[0].sender_id]}
+                                myId={auth.user.id}
                                 otherName={otherParty.name}
                                 reported={group.messages.some((message) =>
                                     moderation.reported_message_ids.includes(message.id),
@@ -404,17 +442,20 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                                 reasons={moderation.reasons}
                                 onMessagesChange={setMessages}
                                 onImageLoad={scrollToBottom}
+                                onReply={startReply}
                             />
                         ) : (
                             <MessageRow
                                 message={group.message}
                                 isMine={group.message.sender_id === auth.user.id}
                                 author={people[group.message.sender_id]}
+                                myId={auth.user.id}
                                 otherName={otherParty.name}
                                 reported={moderation.reported_message_ids.includes(group.message.id)}
                                 reasons={moderation.reasons}
                                 onMessagesChange={setMessages}
                                 onImageLoad={scrollToBottom}
+                                onReply={startReply}
                             />
                         )}
                     </Fragment>
@@ -439,6 +480,26 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                 </p>
             ) : (
             <form onSubmit={submit} className="border-t border-gray-200 p-3 dark:border-gray-700">
+                {replyingTo && (
+                    <div className="mb-2 flex items-start gap-2 rounded-md border-s-2 border-indigo-400 bg-gray-50 px-3 py-1.5 dark:border-indigo-500 dark:bg-gray-900/40">
+                        <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                                Replying to {replyingTo.sender_id === auth.user.id ? 'yourself' : otherParty.name}
+                            </p>
+                            <p className="truncate text-xs italic text-gray-500 dark:text-gray-400">
+                                {replyingTo.preview ?? 'Attachment'}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={cancelReply}
+                            aria-label="Cancel reply"
+                            className="shrink-0 rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                )}
                 {data.attachments.length > 0 && (
                     <ul className="mb-2 space-y-1">
                         {data.attachments.map((file, index) => (

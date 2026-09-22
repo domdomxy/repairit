@@ -19,15 +19,17 @@ class ConversationList
     /**
      * The user's conversations for the list on the left, newest first.
      *
-     * Each carries `unread_count`, `last_message` (a short preview), `is_hidden`
-     * and `is_request`: true for a technician's conversations where a customer
+     * Each carries `unread_count`, `last_message` (a short preview), `is_hidden`,
+     * `is_pinned` (pinned conversations are listed first; this is a per-conversation
+     * choice, unrelated to favoriting a user for the technician search) and
+     * `is_request`: true for a technician's conversations where a customer
      * has written but the technician has not answered yet (replying moves it out
      * of "Requests" into the inbox), and for anyone this person restricted who has
      * written to them (only unrestricting moves those out). Conversations a user
      * started themselves, and ones with nothing in them yet, are never requests.
      *
-     * It also carries what this person did about the other one: `is_favorite`
-     * (favorites are listed first), `is_muted`, `is_restricted` and `is_blocked`.
+     * It also carries what this person did about the other one: `is_muted`,
+     * `is_restricted` and `is_blocked`.
      *
      * Everything here is counted from what this person can still see: messages
      * they deleted for themselves, or that the sender deleted for everyone, are
@@ -103,7 +105,7 @@ class ConversationList
                 ($restricted && $conversation->has_incoming)
                     || ($conversation->technician_id === $user->id && $conversation->has_incoming && ! $conversation->has_replied)
             );
-            $conversation->setAttribute('is_favorite', in_array(UserRelation::FAVORITE, $mine, true));
+            $conversation->setAttribute('is_pinned', $states->get($conversation->id)?->pinned_at !== null);
             $conversation->setAttribute('is_muted', in_array(UserRelation::MUTE, $mine, true));
             $conversation->setAttribute('is_restricted', $restricted);
             $conversation->setAttribute('is_blocked', in_array(UserRelation::BLOCK, $mine, true));
@@ -115,8 +117,8 @@ class ConversationList
             ] : null);
             $conversation->makeHidden(['has_incoming', 'has_replied', 'visible_count']);
         })
-            // Favorites first; the sort is stable, so each group stays newest first.
-            ->sortBy(fn (Conversation $conversation) => $conversation->is_favorite ? 0 : 1)
+            // Pinned first; the sort is stable, so each group stays newest first.
+            ->sortBy(fn (Conversation $conversation) => $conversation->is_pinned ? 0 : 1)
             ->values();
     }
 
@@ -193,6 +195,7 @@ class ConversationList
                     'avatar_url' => $other?->avatar_url,
                     'unread_count' => (int) $conversation->unread_count,
                     'is_request' => (bool) $conversation->is_request,
+                    'is_pinned' => (bool) $conversation->is_pinned,
                     'is_muted' => (bool) $conversation->is_muted,
                     'is_restricted' => (bool) $conversation->is_restricted,
                     'last_message' => $conversation->last_message,
