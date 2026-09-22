@@ -1,5 +1,6 @@
 import Avatar from '@/Components/Avatar';
-import ApplicationLogo from '@/Components/ApplicationLogo';
+import logoLight from '@/assets/logos/repairit-icon-only-light.png';
+import logoDark from '@/assets/logos/repairit-icon-only-dark.png';
 import Dropdown from '@/Components/Dropdown';
 import { PlusIcon } from '@/Components/Icons';
 import MessagesMenu from '@/Components/MessagesMenu';
@@ -38,7 +39,8 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                         <div className="flex shrink-0">
                             <div className="flex shrink-0 items-center">
                                 <Link href={route('feed.index')}>
-                                    <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800 dark:text-gray-200" />
+                                    <img src={logoLight} alt="RepairIT" className="block h-9 w-auto dark:hidden" />
+                                    <img src={logoDark} alt="RepairIT" className="hidden h-9 w-auto dark:block" />
                                 </Link>
                             </div>
                         </div>
