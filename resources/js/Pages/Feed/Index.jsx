@@ -218,7 +218,7 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
                                         aria-label="Filter by category"
                                         value={form.category}
                                         onChange={(e) => update('category', e.target.value)}
-                                        className="rounded-lg border-gray-200 bg-white py-1 text-sm text-gray-700 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                                        className="rounded-lg border-gray-200 bg-white py-1 text-sm text-gray-700 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300"
                                     >
                                         <option value="">All categories</option>
                                         {categories.map((category) => (

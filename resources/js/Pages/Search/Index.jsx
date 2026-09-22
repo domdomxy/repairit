@@ -797,7 +797,7 @@ export default function Index({ technicians, offers, requests, searching, counts
                                                     <select
                                                         value={form.sort}
                                                         onChange={(e) => update('sort', e.target.value)}
-                                                        className="rounded-lg border-gray-200 bg-white py-1 text-sm text-gray-700 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                                                        className="rounded-lg border-gray-200 bg-white py-1 text-sm text-gray-700 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300"
                                                     >
                                                         {sortOptions.map((option) => (
                                                             <option key={option.value} value={option.value}>
