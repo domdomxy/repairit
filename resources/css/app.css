@@ -7,6 +7,17 @@
     .dark {
         color-scheme: dark;
     }
+
+    /* Chrome/Edge draw the native <option> popup with their own system dark
+       colours (a purple-tinted grey) rather than inheriting the <select>'s own
+       dark:bg-gray-900 / dark:text-gray-300, so every select's dropdown list
+       looked different from the select itself and from each other. Setting
+       the same two tokens directly on <option> makes the popup match the
+       closed control everywhere, with no per-component change needed. */
+    .dark select option {
+        background-color: #000000;
+        color: #c7cada;
+    }
 }
 
 /* KeywordSearchBar.jsx: the row of applied-filter pills scrolls sideways, and its
