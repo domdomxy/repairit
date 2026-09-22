@@ -16,6 +16,7 @@ const REFRESH = { only: ['inbox'], preserveScroll: true, preserveState: true, as
 
 const TABS = [
     { key: 'inbox', label: 'Inbox', empty: 'You have no messages yet.' },
+    { key: 'unread', label: 'Unread', empty: 'No unread conversations.' },
     {
         key: 'requests',
         label: 'Requests',
@@ -36,10 +37,12 @@ function MessagesPanel({ inbox, requests, hidden, activeId, unreadInbox, unreadR
     const [tab, setTab] = useState(inbox.length === 0 && requests.length > 0 ? 'requests' : 'inbox');
     const [query, setQuery] = useState('');
 
-    const base = tab === 'requests' ? requests : tab === 'hidden' ? hidden : inbox;
+    const unreadOf = (conversation) => (conversation.id === activeId ? 0 : conversation.unread_count);
+
+    const base =
+        tab === 'requests' ? requests : tab === 'hidden' ? hidden : tab === 'unread' ? inbox.filter((conversation) => unreadOf(conversation) > 0) : inbox;
     const term = query.trim().toLowerCase();
     const conversations = term === '' ? base : base.filter((conversation) => conversation.name.toLowerCase().includes(term));
-    const unreadOf = (conversation) => (conversation.id === activeId ? 0 : conversation.unread_count);
 
     // Which rows currently show "Typing…" in place of the last message, each
     // clearing itself a few seconds after its last whisper.
@@ -93,6 +96,7 @@ function MessagesPanel({ inbox, requests, hidden, activeId, unreadInbox, unreadR
                 {TABS.map(({ key, label }) => {
                     const selected = tab === key;
                     const unread = key === 'requests' ? unreadRequests : key === 'hidden' ? unreadHidden : unreadInbox;
+                    // 'inbox' and 'unread' both count unread messages within the inbox list.
 
                     return (
                         <button
@@ -254,7 +258,7 @@ export default function MessagesMenu({ className = '' }) {
                 <button
                     type="button"
                     onClick={toggle}
-                    className={`relative inline-flex items-center rounded-md p-2 transition ${
+                    className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition ${
                         unread > 0 || onMessagesPage
                             ? 'text-indigo-600 dark:text-indigo-400'
                             : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'

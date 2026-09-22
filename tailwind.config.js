@@ -19,6 +19,19 @@ export default {
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },
+            // Dark mode is built almost entirely from two shades: gray-900 for
+            // the page itself, gray-800 for everything that sits on top of it
+            // (cards, panels, menus, inputs...). Overriding just these two
+            // keeps every existing `dark:bg-gray-900` / `dark:bg-gray-800`
+            // class working, but swaps them for a true-black page and a
+            // clearly-lighter-but-still-dark surface for content, instead of
+            // Tailwind's default blue-tinted grays.
+            colors: {
+                gray: {
+                    900: '#000000',
+                    800: '#141414',
+                },
+            },
         },
     },
 

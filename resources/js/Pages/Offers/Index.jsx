@@ -130,7 +130,7 @@ export default function Index({ offers, categories, topRated, filters, reportRea
                     {/* Account rail: profile, dashboard, theme toggle, support. Stretched
                         to the row's height, which flex-1 above guarantees is at least the
                         remaining viewport, on any screen size, without a hardcoded vh figure. */}
-                    <aside className="w-full lg:sticky lg:top-4 lg:w-56 lg:shrink-0 lg:self-stretch">
+                    <aside className="w-full lg:sticky lg:top-20 lg:w-56 lg:shrink-0 lg:self-stretch">
                         <ProfileSidebar user={auth.user} className="h-full" />
                     </aside>
 
@@ -163,7 +163,7 @@ export default function Index({ offers, categories, topRated, filters, reportRea
                     </div>
 
                     {/* The best rated technicians: beside the offers on wide screens, below them on small ones. */}
-                    <aside className="w-full lg:sticky lg:top-4 lg:w-80 lg:shrink-0">
+                    <aside className="w-full lg:sticky lg:top-20 lg:w-80 lg:shrink-0">
                         <TopRatedTechnicians
                             technicians={topRated}
                             categories={categories}

@@ -184,7 +184,7 @@ export default function Index({ quotes, counts, status, quoteLimits }) {
 
             <div className="flex w-full flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">
                 <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:items-start">
-                    <aside className="w-full lg:sticky lg:top-4 lg:w-56 lg:shrink-0 lg:self-stretch">
+                    <aside className="w-full lg:sticky lg:top-20 lg:w-56 lg:shrink-0 lg:self-stretch">
                         <ProfileSidebar user={auth.user} className="h-full" />
                     </aside>
 

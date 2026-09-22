@@ -97,6 +97,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/support/{ticket}/close', [SupportController::class, 'close'])->name('support.close');
     // Search: technicians, offers and repair requests (never customers).
     Route::get('/search', [SearchController::class, 'index'])->name('search.index');
+    // The header's search box: a handful of quick matches per kind as the person types.
+    Route::get('/search/quick', [SearchController::class, 'quick'])->middleware('throttle:60,1')->name('search.quick');
     // The technician search became the search page: keep old links (and their filters) working.
     // The old page looked for technicians unless told otherwise, and searched them with `name`.
     Route::get('/technicians', function (Request $request) {

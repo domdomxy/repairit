@@ -8,6 +8,7 @@ use App\Models\ServiceRequest;
 use App\Models\User;
 use App\Models\UserRelation;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
@@ -54,6 +55,68 @@ class SearchController extends Controller
 
     /** Results of each kind in the "all" preview. */
     private const PREVIEW = ['technicians' => 8, 'offers' => 4, 'requests' => 4];
+
+    /** Results per kind in the quick-search dropdown. */
+    private const QUICK_LIMIT = 4;
+
+    /**
+     * The typeahead behind the header's search box: a handful of matches per
+     * kind for whatever has been typed so far, not a full page of results.
+     * Empty text finds nothing (the dropdown shows recent searches instead,
+     * which is a client-side, per-browser concern).
+     */
+    public function quick(Request $request): JsonResponse
+    {
+        $viewer = $request->user();
+        $term = $this->text($request, 'q');
+
+        if ($term === '') {
+            return response()->json(['technicians' => [], 'offers' => [], 'requests' => []]);
+        }
+
+        $blockedIds = UserRelation::blockedIdsFor($viewer);
+        $favoriteIds = UserRelation::where('user_id', $viewer->id)
+            ->where('type', UserRelation::FAVORITE)
+            ->pluck('target_id')
+            ->all();
+
+        $technicians = $this->technicianQuery($request, $blockedIds, $favoriteIds, null)
+            ->orderByDesc('technician_profiles.rating_avg')
+            ->orderBy('users.id')
+            ->limit(self::QUICK_LIMIT)
+            ->get();
+
+        $offers = $this->offerQuery($request, $blockedIds, $favoriteIds)
+            ->orderByDesc('offers.created_at')
+            ->orderByDesc('offers.id')
+            ->limit(self::QUICK_LIMIT)
+            ->get();
+
+        $requests = $this->requestQuery($request, $blockedIds, $viewer)
+            ->orderByDesc('service_requests.created_at')
+            ->orderByDesc('service_requests.id')
+            ->limit(self::QUICK_LIMIT)
+            ->get();
+
+        return response()->json([
+            'technicians' => $technicians->map(fn (User $technician) => [
+                'id' => $technician->id,
+                'name' => $technician->name,
+                'avatar_url' => $technician->avatar_url,
+                'city' => $technician->technicianProfile?->city,
+            ])->values(),
+            'offers' => $offers->map(fn (Offer $offer) => [
+                'id' => $offer->id,
+                'title' => $offer->title,
+                'price' => $offer->price,
+                'thumbnail_url' => $offer->media->first()?->url,
+            ])->values(),
+            'requests' => $requests->map(fn (ServiceRequest $serviceRequest) => [
+                'id' => $serviceRequest->id,
+                'excerpt' => $serviceRequest->excerpt(80),
+            ])->values(),
+        ]);
+    }
 
     public function index(Request $request): Response
     {

@@ -11,8 +11,9 @@ import { useInbox } from '@/lib/inbox';
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
-// `stickyNav` keeps the top bar in view while the page scrolls, for pages that
-// pin side columns under it (they sit 5.0625rem from the top: bar + gap).
+// The bar is always fixed to the top of the viewport, on every page (it sits
+// 5.0625rem from the top for pages that pin side columns under it: bar + gap).
+// `stickyNav` is no longer needed for that, but pages still pass it harmlessly.
 export default function AuthenticatedLayout({ children, stickyNav = false }) {
     const { auth, flash, notifications } = usePage().props;
     const user = auth.user;
@@ -26,11 +27,11 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
     const canCompose = user.role === 'technician' || user.role === 'customer';
 
     return (
-        <div className="flex min-h-screen flex-col bg-gray-100 dark:bg-gray-900">
+        <div className="flex min-h-screen flex-col bg-gray-100 pt-16 dark:bg-gray-900">
+            {/* Fixed, so it never scrolls with the page; the pt-16 above (the
+                bar's height) keeps the rest of the content clear of it. */}
             <nav
-                className={`border-b border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800 ${
-                    stickyNav ? 'sticky top-0 z-40' : ''
-                }`}
+                className="fixed inset-x-0 top-0 z-40 border-b border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800"
             >
                 <div className="w-full px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 justify-between">
@@ -59,9 +60,9 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                                             type="button"
                                             title="Create new post"
                                             aria-label="Create new post"
-                                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-gray-500 transition hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:text-gray-400 dark:hover:text-gray-300 dark:focus:ring-offset-gray-800"
                                         >
-                                            <PlusIcon className="h-5 w-5" />
+                                            <PlusIcon className="h-6 w-6" />
                                         </button>
                                     </Dropdown.Trigger>
 
@@ -86,7 +87,7 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                                 messages, notifications, and the account menu. */}
                             <div
                                 aria-hidden="true"
-                                className="hidden h-8 w-px shrink-0 bg-gray-200 dark:bg-gray-700 sm:block"
+                                className="hidden h-8 w-px shrink-0 bg-gray-200 dark:bg-gray-700 sm:ms-2 sm:block"
                             />
                         </div>
 
@@ -96,27 +97,14 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                             <div className="relative ms-3">
                                 <Dropdown>
                                     <Dropdown.Trigger>
-                                        <span className="inline-flex rounded-md">
-                                            <button
-                                                type="button"
-                                                className="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none dark:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
-                                            >
-                                                <Avatar user={user} size="sm" />
-
-                                                <svg
-                                                    className="-me-0.5 ms-2 h-4 w-4"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                >
-                                                    <path
-                                                        fillRule="evenodd"
-                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                        clipRule="evenodd"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </span>
+                                        <button
+                                            type="button"
+                                            title="Account"
+                                            aria-label="Account"
+                                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                        >
+                                            <Avatar user={user} size="md" />
+                                        </button>
                                     </Dropdown.Trigger>
 
                                     <Dropdown.Content>

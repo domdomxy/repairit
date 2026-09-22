@@ -86,7 +86,7 @@ export default function Show({ offer, reportReasons }) {
                         <PostMedia media={offer.media} />
                     </article>
 
-                    <aside aria-label="Technician" className={`${CARD} overflow-hidden lg:sticky lg:top-6`}>
+                    <aside aria-label="Technician" className={`${CARD} overflow-hidden lg:sticky lg:top-[5.5rem]`}>
                         <Banner />
 
                         <div className="px-6 pb-6">

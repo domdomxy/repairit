@@ -272,7 +272,7 @@ export default function Index({ technicians, mapPoints, categories, filters }) {
             <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
                     {/* Left: the filters */}
-                    <aside className="relative z-10 w-full lg:sticky lg:top-4 lg:w-80 lg:shrink-0">
+                    <aside className="relative z-10 w-full lg:sticky lg:top-20 lg:w-80 lg:shrink-0">
                         <div className="space-y-4 rounded-lg bg-white p-4 shadow dark:bg-gray-800">
                             {/* Who to look for */}
                             <div role="group" aria-label="Search for" className="grid grid-cols-3 gap-1 rounded-md bg-gray-100 p-1 dark:bg-gray-900">

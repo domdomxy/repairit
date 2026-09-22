@@ -290,7 +290,7 @@ export default function NotificationBell({ className = '' }) {
                 <button
                     type="button"
                     onClick={() => setOpen((value) => !value)}
-                    className={`relative inline-flex items-center rounded-md p-2 transition ${
+                    className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition ${
                         unread > 0
                             ? 'text-indigo-600 dark:text-indigo-400'
                             : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'

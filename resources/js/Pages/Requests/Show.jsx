@@ -312,7 +312,7 @@ export default function Show({ serviceRequest, isOwner, quotes, myQuote, canQuot
                         )}
                     </div>
 
-                    <aside aria-label="Posted by" className={`${CARD} overflow-hidden lg:sticky lg:top-6`}>
+                    <aside aria-label="Posted by" className={`${CARD} overflow-hidden lg:sticky lg:top-[5.5rem]`}>
                         <Banner />
 
                         <div className="px-6 pb-6">

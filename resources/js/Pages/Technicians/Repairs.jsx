@@ -163,7 +163,7 @@ export default function Repairs({ repairs, filter, counts, customers }) {
 
             <div className="flex w-full flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">
                 <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:items-start">
-                    <aside className="w-full lg:sticky lg:top-4 lg:w-56 lg:shrink-0 lg:self-stretch">
+                    <aside className="w-full lg:sticky lg:top-20 lg:w-56 lg:shrink-0 lg:self-stretch">
                         <ProfileSidebar user={auth.user} className="h-full" />
                     </aside>
 
@@ -205,7 +205,7 @@ export default function Repairs({ repairs, filter, counts, customers }) {
                         {/* Comes first on a small screen: starting to track is what most visits are for. */}
                         <section
                             aria-label="Track a new repair"
-                            className={`${CARD} order-first p-6 xl:sticky xl:top-4 xl:order-none`}
+                            className={`${CARD} order-first p-6 xl:sticky xl:top-20 xl:order-none`}
                         >
                             <header className="flex items-start gap-4">
                                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300">
