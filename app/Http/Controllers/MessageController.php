@@ -368,6 +368,7 @@ class MessageController extends Controller
         $conversation = $message->conversation;
 
         abort_unless($conversation->hasParticipant($user), 403);
+        abort_unless(Message::whereKey($message->id)->visibleTo($user)->exists(), 404);
 
         if ($message->pinned_at !== null) {
             $message->forceFill(['pinned_at' => null, 'pinned_by_id' => null])->save();

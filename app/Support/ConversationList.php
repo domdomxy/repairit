@@ -31,6 +31,12 @@ class ConversationList
      * It also carries what this person did about the other one: `is_muted`,
      * `is_restricted` and `is_blocked`.
      *
+     * A conversation with nothing this person can see in it yet - most notably
+     * the empty row created the moment someone clicks "Message" on a profile,
+     * before they've actually sent anything - is left out entirely, for
+     * everyone involved. It starts showing up (for both people) once a
+     * message actually lands in it.
+     *
      * Everything here is counted from what this person can still see: messages
      * they deleted for themselves, or that the sender deleted for everyone, are
      * not unread and are not "incoming". A conversation they deleted stays out of
@@ -72,9 +78,12 @@ class ConversationList
             ])
             ->orderByDesc('last_message_at')
             ->get()
-            // A deleted conversation stays gone until something new shows up in it.
-            ->reject(fn (Conversation $conversation) => $states->get($conversation->id)?->cleared_at !== null
-                && (int) $conversation->visible_count === 0)
+            // A conversation with nothing this person can see in it yet doesn't
+            // belong in their list - most importantly, the empty conversation
+            // row created the moment someone clicks "Message" on a profile:
+            // that should only surface for the other person once something is
+            // actually sent into it, not immediately in their inbox.
+            ->reject(fn (Conversation $conversation) => (int) $conversation->visible_count === 0)
             ->values();
 
         // The newest message this person can see in every conversation, in one query.

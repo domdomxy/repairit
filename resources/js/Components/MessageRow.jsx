@@ -254,6 +254,20 @@ export default function MessageRow({
         </Menu>
     );
 
+    // A small reply shortcut that only shows up on hover, right beside the ⋯
+    // button - the same reveal treatment, so the two read as one toolbar.
+    const replyButton = canReply && (
+        <button
+            type="button"
+            onClick={() => onReply(message)}
+            aria-label="Reply"
+            title="Reply"
+            className="shrink-0 self-center rounded-full p-1.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 focus:opacity-100 sm:group-hover:opacity-100 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+        >
+            <ReplyIcon className="h-4 w-4" />
+        </button>
+    );
+
     // Shown beside the message while it is hovered (wide screens), on the side
     // facing the middle of the chat.
     const sentAt = (
@@ -265,16 +279,29 @@ export default function MessageRow({
         </span>
     );
 
+    // Whether this message shows the toolbar (…, reply, time) parked at the
+    // outer, whole-row level - only true for the two single-block states
+    // (deleted, being edited) where there's nothing else stacked around the
+    // content. For a normal message it's rendered further down, scoped to
+    // just the content block, so it centers on that regardless of whatever
+    // meta labels (pinned, edited, automatic reply, reply preview, delivery
+    // status) happen to be stacked above or below it.
+    const outerToolbar = message.deleted || editing;
+
     return (
         <div id={`message-${message.id}`} className={`group relative flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}>
             {!isMine && <Avatar user={author} size="sm" />}
-            {isMine && sentAt}
-            {isMine && menuButton}
+            {isMine && outerToolbar && sentAt}
+            {isMine && outerToolbar && replyButton}
+            {isMine && outerToolbar && menuButton}
 
-            {/* Fades in as the swipe passes the threshold, on the side the content is pulling away from. */}
+            {/* Fades in as the swipe passes the threshold, in the gap the bubble
+                is pulling away from. Anchored to the row, but offset past the
+                avatar's width + gap on the other person's side so it can't land
+                on top of it. */}
             {canReply && dragX !== 0 && (
                 <span
-                    className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-indigo-500 ${isMine ? 'right-0' : 'left-0'}`}
+                    className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-indigo-500 ${isMine ? 'right-0' : 'left-10'}`}
                     style={{ opacity: Math.min(1, Math.abs(dragX) / REPLY_THRESHOLD) }}
                 >
                     <ReplyIcon className="h-5 w-5" />
@@ -297,12 +324,12 @@ export default function MessageRow({
                     <button
                         type="button"
                         onClick={() => jumpToMessage(message.reply_to.id)}
-                        className={`mb-1 max-w-full rounded-md border-s-2 border-indigo-400 bg-gray-50 px-2 py-1 text-start text-xs text-gray-600 hover:bg-gray-100 dark:border-indigo-500 dark:bg-gray-900/40 dark:text-gray-300 dark:hover:bg-gray-900/70`}
+                        className={`mb-1 max-w-full rounded-md bg-gray-50 px-2 py-1 text-start text-xs text-gray-600 hover:bg-gray-100 dark:bg-gray-900/40 dark:text-gray-300 dark:hover:bg-gray-900/70`}
                     >
                         <span className="block truncate font-medium text-indigo-600 dark:text-indigo-400">
                             {message.reply_to.sender_id === myId ? 'You' : message.reply_to.sender_name}
                         </span>
-                        <span className="block truncate italic">
+                        <span className="block truncate">
                             {message.reply_to.deleted ? 'This message was deleted' : message.reply_to.preview ?? 'Attachment'}
                         </span>
                     </button>
@@ -359,32 +386,47 @@ export default function MessageRow({
                             </p>
                         )}
 
-                        {message.offer && <SharedOfferCard offer={message.offer} onImageLoad={onImageLoad} />}
+                        {/* The toolbar sits in this row, next to the content only -
+                            not the meta labels above or the status line below - so
+                            it always lands in the middle of the content itself. */}
+                        <div className="flex items-center gap-2">
+                            {isMine && sentAt}
+                            {isMine && replyButton}
+                            {isMine && menuButton}
 
-                        {message.request && <SharedRequestCard request={message.request} onImageLoad={onImageLoad} />}
+                            <div className={`flex min-w-0 flex-col gap-2 ${isMine ? 'items-end' : 'items-start'}`}>
+                                {message.offer && <SharedOfferCard offer={message.offer} onImageLoad={onImageLoad} />}
 
-                        {message.location && (
-                            <SharedLocationCard location={message.location} onImageLoad={onImageLoad} />
-                        )}
+                                {message.request && <SharedRequestCard request={message.request} onImageLoad={onImageLoad} />}
 
-                        {message.quote && (
-                            <SharedQuoteCard quote={message.quote} isMine={isMine} onMessagesChange={onMessagesChange} />
-                        )}
+                                {message.location && (
+                                    <SharedLocationCard location={message.location} onImageLoad={onImageLoad} />
+                                )}
 
-                        {images.length > 0 && <MessageAttachments attachments={images} onImageLoad={onImageLoad} />}
+                                {message.quote && (
+                                    <SharedQuoteCard quote={message.quote} isMine={isMine} onMessagesChange={onMessagesChange} />
+                                )}
 
-                        {hasBubble && (
-                            <div
-                                className={`space-y-2 break-words rounded-lg px-4 py-2 ${
-                                    isMine ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700'
-                                }`}
-                            >
-                                {message.body && <p className="whitespace-pre-line text-sm">{message.body}</p>}
-                                {otherFiles.length > 0 && (
-                                    <MessageAttachments attachments={otherFiles} onImageLoad={onImageLoad} />
+                                {images.length > 0 && <MessageAttachments attachments={images} onImageLoad={onImageLoad} />}
+
+                                {hasBubble && (
+                                    <div
+                                        className={`space-y-2 break-words rounded-lg px-4 py-2 ${
+                                            isMine ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700'
+                                        }`}
+                                    >
+                                        {message.body && <p className="whitespace-pre-line text-sm">{message.body}</p>}
+                                        {otherFiles.length > 0 && (
+                                            <MessageAttachments attachments={otherFiles} onImageLoad={onImageLoad} />
+                                        )}
+                                    </div>
                                 )}
                             </div>
-                        )}
+
+                            {!isMine && menuButton}
+                            {!isMine && replyButton}
+                            {!isMine && sentAt}
+                        </div>
 
                         {/* Under the bubble: "Delivered", or "Seen" and how long ago. Only
                             the last message in the conversation shows it here; for any
@@ -396,8 +438,9 @@ export default function MessageRow({
                 )}
             </div>
 
-            {!isMine && menuButton}
-            {!isMine && sentAt}
+            {!isMine && outerToolbar && menuButton}
+            {!isMine && outerToolbar && replyButton}
+            {!isMine && outerToolbar && sentAt}
 
             <ReportModal
                 show={reporting}

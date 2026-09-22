@@ -10,6 +10,7 @@ import SendLocationModal from '@/Components/SendLocationModal';
 import MessageRow from '@/Components/MessageRow';
 import MessagesShell from '@/Components/MessagesShell';
 import PinnedMessagesBar from '@/Components/PinnedMessagesBar';
+import PinnedMessagesModal from '@/Components/PinnedMessagesModal';
 import TypingIndicator from '@/Components/TypingIndicator';
 import { formatChatSeparator, needsChatSeparator } from '@/lib/dates';
 import { formatSize } from '@/lib/files';
@@ -315,6 +316,10 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
         [messages],
     );
 
+    // The inline bar under the header only shows a short, scrollable strip;
+    // this modal is the dedicated place to browse every pinned message.
+    const [pinnedModalOpen, setPinnedModalOpen] = useState(false);
+
     function jumpToPinned(id) {
         const el = document.getElementById(`message-${id}`);
         if (!el) return;
@@ -480,6 +485,8 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                     otherName={otherParty.name}
                     reported={moderation.reported_conversation}
                     reasons={moderation.reasons}
+                    pinnedCount={pinnedMessages.length}
+                    onShowPinned={() => setPinnedModalOpen(true)}
                 />
                 <button
                     type="button"
@@ -517,6 +524,16 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
             )}
 
             <PinnedMessagesBar
+                messages={pinnedMessages}
+                myId={auth.user.id}
+                onJump={jumpToPinned}
+                onUnpin={unpinMessage}
+                onViewAll={() => setPinnedModalOpen(true)}
+            />
+
+            <PinnedMessagesModal
+                show={pinnedModalOpen}
+                onClose={() => setPinnedModalOpen(false)}
                 messages={pinnedMessages}
                 myId={auth.user.id}
                 onJump={jumpToPinned}
@@ -595,12 +612,12 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
             ) : (
             <form onSubmit={submit} className="border-t border-gray-200 p-3 dark:border-gray-700">
                 {replyingTo && (
-                    <div className="mb-2 flex items-start gap-2 rounded-md border-s-2 border-indigo-400 bg-gray-50 px-3 py-1.5 dark:border-indigo-500 dark:bg-gray-900/40">
+                    <div className="mb-2 flex items-start gap-2 rounded-md bg-gray-50 px-3 py-1.5 dark:bg-gray-900/40">
                         <div className="min-w-0 flex-1">
                             <p className="truncate text-xs font-medium text-indigo-600 dark:text-indigo-400">
                                 Replying to {replyingTo.sender_id === auth.user.id ? 'yourself' : otherParty.name}
                             </p>
-                            <p className="truncate text-xs italic text-gray-500 dark:text-gray-400">
+                            <p className="truncate text-xs text-gray-500 dark:text-gray-400">
                                 {replyingTo.preview ?? 'Attachment'}
                             </p>
                         </div>
