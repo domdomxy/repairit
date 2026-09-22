@@ -1,7 +1,7 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
 import { MailIcon, PencilIcon, PhoneIcon, PinIcon, StarIcon } from '@/Components/Icons';
-import Modal from '@/Components/Modal';
+import CreatePanel from '@/Components/CreatePanel';
 import RequestCard from '@/Components/RequestCard';
 import RequestForm from '@/Components/RequestForm';
 import ProfileLinksSection from '@/Components/ProfileLinks';
@@ -77,7 +77,14 @@ export default function Show({ customer, requests, relations, requestForm, canRe
                                 </p>
                             )}
 
-                            {!isOwnProfile && <RelationActions person={customer} relations={relations} collapsible />}
+                            {!isOwnProfile && (
+                                <RelationActions
+                                    person={customer}
+                                    relations={relations}
+                                    reasons={reportReasons}
+                                    collapsible
+                                />
+                            )}
 
                             <div className="mt-5 grid grid-cols-3 divide-x divide-gray-100 rounded-lg border border-gray-100 dark:divide-gray-700 dark:border-gray-700">
                                 <Stat label={ratingCount === 1 ? 'Review' : 'Reviews'}>
@@ -185,21 +192,22 @@ export default function Show({ customer, requests, relations, requestForm, canRe
                     </div>
 
                     {isOwnProfile && requestForm && (
-                        <Modal show={creating} onClose={() => setCreating(false)} maxWidth="2xl">
-                            <div className="p-6">
-                                <h3 className="mb-4 text-lg font-medium text-gray-900 dark:text-gray-100">
-                                    Create a new request
-                                </h3>
-                                <RequestForm
-                                    categories={requestForm.categories}
-                                    limits={requestForm.limits}
-                                    defaultCity={requestForm.defaultCity}
-                                    inPanel
-                                    onDone={() => setCreating(false)}
-                                    onCancel={() => setCreating(false)}
-                                />
-                            </div>
-                        </Modal>
+                        <CreatePanel
+                            kind="request"
+                            show={creating}
+                            onClose={() => setCreating(false)}
+                            title="Create a new request"
+                            description="Describe what needs fixing. Technicians can see it and send you a quote. Your email and phone number are never shown."
+                        >
+                            <RequestForm
+                                categories={requestForm.categories}
+                                limits={requestForm.limits}
+                                defaultCity={requestForm.defaultCity}
+                                inPanel
+                                onDone={() => setCreating(false)}
+                                onCancel={() => setCreating(false)}
+                            />
+                        </CreatePanel>
                     )}
 
                     {/* Right: how technicians rate them */}

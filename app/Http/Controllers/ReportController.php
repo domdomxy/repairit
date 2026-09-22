@@ -16,7 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
 
-/** Reporting: one message or the whole chat from inside a conversation, or an offer, a repair request or a review from the page it is shown on. */
+/** Reporting: one message or the whole chat from inside a conversation, an offer, a repair request or a review from the page it is shown on, or a person as a whole. */
 class ReportController extends Controller
 {
     /** Report a message the other person sent. */
@@ -92,6 +92,20 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * Report a person as a whole: for how they behave, not for one thing they
+     * wrote or posted. It has no conversation, and only the reported user is
+     * on it. Reachable from their profile and from the chat with them.
+     */
+    public function storeUser(Request $request, User $user): RedirectResponse
+    {
+        abort_if($user->is($request->user()), 403, 'You cannot report yourself.');
+        // Admins have no profile to report, and the people who would look at the report are admins.
+        abort_if($user->isAdmin(), 404);
+
+        return $this->file($request, null, $user->id, null, userReport: true);
+    }
+
     /** Report the conversation as a whole. */
     public function storeConversation(Request $request, Conversation $conversation): RedirectResponse
     {
@@ -106,7 +120,7 @@ class ReportController extends Controller
      * @param  array<string, mixed>  $review  For a review report: which review it is (`review_id` or
      *                                        `customer_review_id`) and a copy of what it said.
      */
-    private function file(Request $request, ?Conversation $conversation, int $reportedUserId, ?Message $message, ?Offer $offer = null, array $review = [], ?ServiceRequest $serviceRequest = null): RedirectResponse
+    private function file(Request $request, ?Conversation $conversation, int $reportedUserId, ?Message $message, ?Offer $offer = null, array $review = [], ?ServiceRequest $serviceRequest = null, bool $userReport = false): RedirectResponse
     {
         $user = $request->user();
 
@@ -123,6 +137,9 @@ class ReportController extends Controller
             ->where('service_request_id', $serviceRequest?->id)
             ->where('review_id', $review['review_id'] ?? null)
             ->where('customer_review_id', $review['customer_review_id'] ?? null)
+            // A person report points at no post, so it is the person that makes two of them the same.
+            ->where('user_report', $userReport)
+            ->when($userReport, fn ($query) => $query->where('reported_user_id', $reportedUserId))
             ->where('status', 'open')
             ->exists();
 
@@ -139,6 +156,7 @@ class ReportController extends Controller
             'offer_title' => $offer?->title,
             'service_request_id' => $serviceRequest?->id,
             'request_excerpt' => $serviceRequest?->excerpt(120),
+            'user_report' => $userReport,
             'reason' => $data['reason'],
             'details' => $data['details'] ?? null,
             ...$review,

@@ -1,8 +1,9 @@
+import CategoryPicker from '@/Components/CategoryPicker';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import MediaPicker from '@/Components/MediaPicker';
-import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
+import SubmitButton from '@/Components/SubmitButton';
 import TextInput from '@/Components/TextInput';
 import { Link, useForm } from '@inertiajs/react';
 
@@ -37,13 +38,6 @@ export default function RequestForm({
         media: [],
         remove_media: [],
     });
-
-    function toggleCategory(id) {
-        setData(
-            'categories',
-            data.categories.includes(id) ? data.categories.filter((existing) => existing !== id) : [...data.categories, id],
-        );
-    }
 
     function submit(e) {
         e.preventDefault();
@@ -81,34 +75,13 @@ export default function RequestForm({
                 <InputError message={errors.description} className="mt-2" />
             </div>
 
-            <div>
-                <InputLabel value="Categories" />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Pick up to {limits.max_categories}, so technicians can find your request by them.
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                    {categories.map((category) => {
-                        const selected = data.categories.includes(category.id);
-
-                        return (
-                            <button
-                                key={category.id}
-                                type="button"
-                                onClick={() => toggleCategory(category.id)}
-                                aria-pressed={selected}
-                                className={`rounded-full border px-3 py-1 text-sm transition ${
-                                    selected
-                                        ? 'border-indigo-600 bg-indigo-600 text-white'
-                                        : 'border-gray-300 text-gray-700 hover:border-indigo-400 dark:border-gray-600 dark:text-gray-300'
-                                }`}
-                            >
-                                {category.name}
-                            </button>
-                        );
-                    })}
-                </div>
-                <InputError message={errors.categories ?? errors['categories.0']} className="mt-2" />
-            </div>
+            <CategoryPicker
+                categories={categories}
+                value={data.categories}
+                onChange={(ids) => setData('categories', ids)}
+                hint={`Pick up to ${limits.max_categories}, so technicians can find your request by them.`}
+                error={errors.categories ?? errors['categories.0']}
+            />
 
             <div className="grid gap-6 sm:grid-cols-2">
                 <div>
@@ -149,10 +122,7 @@ export default function RequestForm({
                 noun="request"
             />
 
-            <div className="flex items-center gap-3">
-                <PrimaryButton disabled={processing}>
-                    {processing && progress ? `Uploading ${progress.percentage}%` : editing ? 'Save changes' : 'Post request'}
-                </PrimaryButton>
+            <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-5 dark:border-gray-700">
                 {onCancel ? (
                     <SecondaryButton onClick={onCancel} disabled={processing}>
                         Cancel
@@ -164,6 +134,9 @@ export default function RequestForm({
                         </Link>
                     )
                 )}
+                <SubmitButton disabled={processing}>
+                    {processing && progress ? `Uploading ${progress.percentage}%` : editing ? 'Save changes' : 'Post request'}
+                </SubmitButton>
             </div>
         </form>
     );

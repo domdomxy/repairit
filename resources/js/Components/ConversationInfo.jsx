@@ -64,7 +64,8 @@ function Rating({ average, count }) {
 // be shown or hidden with the "Info" button in the conversation's header (or the
 // close button here). When shown it is a column next to the conversation on wide
 // screens, and opens over the conversation on narrower ones.
-export default function ConversationInfo({ contact, open, onClose }) {
+// `reasons` are the report reasons, for the option to report the person.
+export default function ConversationInfo({ contact, open, onClose, reasons }) {
     const profile = contact.profile;
     const availability = profile ? AVAILABILITY[profile.availability_status] : null;
 
@@ -241,7 +242,7 @@ export default function ConversationInfo({ contact, open, onClose }) {
                 {contact.relations && (
                     <div className="border-t border-gray-100 dark:border-gray-700">
                         <Section title="Manage">
-                            <RelationActions person={contact} relations={contact.relations} />
+                            <RelationActions person={contact} relations={contact.relations} reasons={reasons} />
                         </Section>
                     </div>
                 )}

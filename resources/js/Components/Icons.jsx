@@ -116,3 +116,29 @@ export function ChevronRightIcon({ className = 'h-4 w-4' }) {
         </svg>
     );
 }
+
+export function XIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg {...outline} className={className}>
+            <path d="M18 6 6 18M6 6l12 12" />
+        </svg>
+    );
+}
+
+export function CheckIcon({ className = 'h-4 w-4' }) {
+    return (
+        <svg {...outline} strokeWidth={2.4} className={className}>
+            <path d="m5 12.5 4.5 4.5L19 7.5" />
+        </svg>
+    );
+}
+
+export function ImageIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg {...outline} className={className}>
+            <rect x="3" y="3" width="18" height="18" rx="2.5" />
+            <circle cx="9" cy="9" r="1.6" />
+            <path d="m21 15-4.6-4.6a1.5 1.5 0 0 0-2.1 0L5 19.5" />
+        </svg>
+    );
+}

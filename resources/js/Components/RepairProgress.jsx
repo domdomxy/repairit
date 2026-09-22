@@ -19,9 +19,10 @@ export default function RepairProgress({ status, statuses, updates }) {
         : updates.find((update) => REPAIR_FLOW.includes(update.status))?.status;
     const active = REPAIR_FLOW.indexOf(step);
     const paused = status === 'waiting';
+    const finished = status === 'completed';
 
     return (
-        <div className="mt-6">
+        <div className="mt-6 rounded-xl bg-gray-50 px-4 py-5 dark:bg-gray-900/40">
             <ol className="flex items-start">
                 {REPAIR_FLOW.map((name, index) => {
                     const done = index < active || (index === active && status === 'completed');
@@ -29,11 +30,11 @@ export default function RepairProgress({ status, statuses, updates }) {
 
                     let circle = 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400';
                     if (done) {
-                        circle = 'bg-indigo-600 text-white';
+                        circle = finished ? 'bg-green-500 text-white' : 'bg-indigo-600 text-white';
                     } else if (current) {
                         circle = paused
-                            ? 'border-2 border-amber-500 bg-white text-amber-600 dark:bg-gray-800'
-                            : 'border-2 border-indigo-600 bg-white text-indigo-600 dark:bg-gray-800';
+                            ? 'border-2 border-amber-500 bg-white text-amber-600 dark:bg-gray-900'
+                            : 'border-2 border-indigo-600 bg-white text-indigo-600 dark:bg-gray-900';
                     }
 
                     return (
@@ -45,13 +46,17 @@ export default function RepairProgress({ status, statuses, updates }) {
                             {index > 0 && (
                                 <span
                                     aria-hidden="true"
-                                    className={`absolute left-[-50%] top-[11px] h-0.5 w-full ${
-                                        index <= active ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'
+                                    className={`absolute left-[-50%] top-[15px] h-0.5 w-full ${
+                                        index <= active
+                                            ? finished
+                                                ? 'bg-green-500'
+                                                : 'bg-indigo-600'
+                                            : 'bg-gray-200 dark:bg-gray-700'
                                     }`}
                                 />
                             )}
                             <span
-                                className={`relative z-10 mx-auto flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${circle}`}
+                                className={`relative z-10 mx-auto flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${circle}`}
                             >
                                 {done ? '✓' : index + 1}
                             </span>

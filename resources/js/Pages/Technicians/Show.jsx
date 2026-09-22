@@ -3,7 +3,7 @@ import Avatar from '@/Components/Avatar';
 import { ChatIcon, MailIcon, PencilIcon, PhoneIcon, PinIcon, StarIcon } from '@/Components/Icons';
 import FeedFilterMenu from '@/Components/FeedFilterMenu';
 import FeedKindBadge from '@/Components/FeedKindBadge';
-import Modal from '@/Components/Modal';
+import CreatePanel from '@/Components/CreatePanel';
 import OfferCard from '@/Components/OfferCard';
 import OfferForm from '@/Components/OfferForm';
 import OfferMenu from '@/Components/OfferMenu';
@@ -190,7 +190,7 @@ export default function Show({ technician, requests, relations, canReview, myRev
                             )}
 
                             {!isOwnProfile && (
-                                <RelationActions person={technician} relations={relations} collapsible />
+                                <RelationActions person={technician} relations={relations} reasons={reportReasons} collapsible />
                             )}
 
                             <div className="mt-5 grid grid-cols-3 divide-x divide-gray-100 rounded-lg border border-gray-100 dark:divide-gray-700 dark:border-gray-700">
@@ -379,56 +379,59 @@ export default function Show({ technician, requests, relations, canReview, myRev
                     </div>
 
                     {isOwnProfile && requestForm && (
-                        <Modal show={creating === 'request'} onClose={() => setCreating(null)} maxWidth="2xl">
-                            <div className="p-6">
-                                <h3 className="mb-4 text-lg font-medium text-gray-900 dark:text-gray-100">
-                                    Create a new request
-                                </h3>
-                                <RequestForm
-                                    categories={requestForm.categories}
-                                    limits={requestForm.limits}
-                                    defaultCity={requestForm.defaultCity}
-                                    inPanel
-                                    onDone={() => setCreating(null)}
-                                    onCancel={() => setCreating(null)}
-                                />
-                            </div>
-                        </Modal>
+                        <CreatePanel
+                            kind="request"
+                            show={creating === 'request'}
+                            onClose={() => setCreating(null)}
+                            title="Create a new request"
+                            description="Describe what needs fixing. Technicians can see it and send you a quote. Your email and phone number are never shown."
+                        >
+                            <RequestForm
+                                categories={requestForm.categories}
+                                limits={requestForm.limits}
+                                defaultCity={requestForm.defaultCity}
+                                inPanel
+                                onDone={() => setCreating(null)}
+                                onCancel={() => setCreating(null)}
+                            />
+                        </CreatePanel>
                     )}
 
                     {isOwnProfile && offerForm && (
                         <>
-                            <Modal show={creating === 'offer'} onClose={() => setCreating(null)} maxWidth="2xl">
-                                <div className="p-6">
-                                    <h3 className="mb-4 text-lg font-medium text-gray-900 dark:text-gray-100">
-                                        Create a new offer
-                                    </h3>
+                            <CreatePanel
+                                kind="offer"
+                                show={creating === 'offer'}
+                                onClose={() => setCreating(null)}
+                                title="Create a new offer"
+                                description="Offers are shown in the feed and on your public profile. Add pictures or videos of your work to help customers choose you."
+                            >
+                                <OfferForm
+                                    limits={offerForm.limits}
+                                    categories={offerForm.categories}
+                                    onDone={() => setCreating(null)}
+                                    onCancel={() => setCreating(null)}
+                                />
+                            </CreatePanel>
+
+                            <CreatePanel
+                                kind="offer"
+                                show={editing !== null}
+                                onClose={() => setEditing(null)}
+                                title="Edit offer"
+                                description="Change what customers see in the feed and on your public profile."
+                            >
+                                {editing && (
                                     <OfferForm
+                                        key={editing.id}
+                                        offer={editing}
                                         limits={offerForm.limits}
                                         categories={offerForm.categories}
-                                        onDone={() => setCreating(null)}
-                                        onCancel={() => setCreating(null)}
+                                        onDone={() => setEditing(null)}
+                                        onCancel={() => setEditing(null)}
                                     />
-                                </div>
-                            </Modal>
-
-                            <Modal show={editing !== null} onClose={() => setEditing(null)} maxWidth="2xl">
-                                <div className="p-6">
-                                    <h3 className="mb-4 text-lg font-medium text-gray-900 dark:text-gray-100">
-                                        Edit offer
-                                    </h3>
-                                    {editing && (
-                                        <OfferForm
-                                            key={editing.id}
-                                            offer={editing}
-                                            limits={offerForm.limits}
-                                            categories={offerForm.categories}
-                                            onDone={() => setEditing(null)}
-                                            onCancel={() => setEditing(null)}
-                                        />
-                                    )}
-                                </div>
-                            </Modal>
+                                )}
+                            </CreatePanel>
                         </>
                     )}
 

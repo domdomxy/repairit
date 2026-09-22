@@ -1,11 +1,11 @@
 import RepairStatusBadge from '@/Components/RepairStatusBadge';
-import { formatDateTime } from '@/lib/dates';
+import { formatDateTime, relativeTime } from '@/lib/dates';
 
 // Everything that happened to a repair, newest first: the status at the time,
 // when, and what the technician wrote.
 export default function RepairTimeline({ updates }) {
     return (
-        <ol className="space-y-6 border-l border-gray-200 pl-6 dark:border-gray-700">
+        <ol className="space-y-7 border-l border-gray-200 pl-6 dark:border-gray-700">
             {updates.map((update, index) => (
                 <li key={update.id} className="relative">
                     <span
@@ -14,14 +14,18 @@ export default function RepairTimeline({ updates }) {
                             index === 0 ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'
                         }`}
                     />
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <RepairStatusBadge status={update.status} label={update.status_label} />
-                        <time dateTime={update.created_at} className="text-xs text-gray-500">
-                            {formatDateTime(update.created_at)}
+                        <time
+                            dateTime={update.created_at}
+                            title={formatDateTime(update.created_at)}
+                            className="text-xs text-gray-500 dark:text-gray-400"
+                        >
+                            {formatDateTime(update.created_at)} · {relativeTime(update.created_at)}
                         </time>
                     </div>
                     {update.note && (
-                        <p className="mt-2 whitespace-pre-line break-words text-sm text-gray-700 dark:text-gray-300">
+                        <p className="mt-2 whitespace-pre-line break-words rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
                             {update.note}
                         </p>
                     )}

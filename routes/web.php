@@ -128,6 +128,8 @@ Route::middleware('auth')->group(function () {
     // Report a review: one a customer wrote about a technician, or one a technician wrote about a customer.
     Route::post('/reviews/{review}/report', [ReportController::class, 'storeReview'])->middleware('throttle:10,1,reports')->name('reviews.report');
     Route::post('/customer-reviews/{customerReview}/report', [ReportController::class, 'storeCustomerReview'])->middleware('throttle:10,1,reports')->name('customer-reviews.report');
+    // Report a person as a whole, from their profile or from the chat with them.
+    Route::post('/people/{user}/report', [ReportController::class, 'storeUser'])->middleware('throttle:10,1,reports')->name('users.report');
     Route::get('/offer-media/{media}', [TechnicianOfferController::class, 'media'])->name('offers.media');
     Route::get('/request-media/{media}', [ServiceRequestController::class, 'media'])->name('requests.media');
     // Repair requests: what customers need fixed, for technicians to answer with a quote.

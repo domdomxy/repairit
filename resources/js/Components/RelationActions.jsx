@@ -1,5 +1,6 @@
 import DangerButton from '@/Components/DangerButton';
 import Modal from '@/Components/Modal';
+import ReportModal from '@/Components/ReportModal';
 import SecondaryButton from '@/Components/SecondaryButton';
 import { router } from '@inertiajs/react';
 import { useState } from 'react';
@@ -42,8 +43,11 @@ const ACTIONS = [
 // `person` is { id, name }; `relations` what the signed-in person already did
 // about them: { blocked, muted, favorited, restricted }. With `collapsible`
 // the list sits behind a "More options" line, for pages where it is a side note.
-export default function RelationActions({ person, relations, collapsible = false }) {
+// Given the report `reasons`, the list ends with a way to report the person to
+// the admins, which is not a relation and is never undone.
+export default function RelationActions({ person, relations, reasons = null, collapsible = false }) {
     const [confirmingBlock, setConfirmingBlock] = useState(false);
+    const [reporting, setReporting] = useState(false);
     const [processing, setProcessing] = useState(false);
 
     if (!relations) return null;
@@ -109,6 +113,19 @@ export default function RelationActions({ person, relations, collapsible = false
                     </li>
                 );
             })}
+
+            {reasons && (
+                <li>
+                    <button type="button" onClick={() => setReporting(true)} className="w-full py-2.5 text-start">
+                        <span className="block text-sm font-medium text-red-600 dark:text-red-400">
+                            Report {person.name}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">
+                            Tell the admins about this person. They are not told who reported them.
+                        </span>
+                    </button>
+                </li>
+            )}
         </ul>
     );
 
@@ -135,6 +152,17 @@ export default function RelationActions({ person, relations, collapsible = false
                 </details>
             ) : (
                 list
+            )}
+
+            {reasons && (
+                <ReportModal
+                    show={reporting}
+                    onClose={() => setReporting(false)}
+                    title={`Report ${person.name}`}
+                    description={`Tell the admins what is wrong with ${person.name}. To report one message, offer, request or review, use the Report option next to it. ${person.name} is not told who reported them.`}
+                    action={route('users.report', person.id)}
+                    reasons={reasons}
+                />
             )}
 
             <Modal show={confirmingBlock} onClose={() => setConfirmingBlock(false)} maxWidth="md">

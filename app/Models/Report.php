@@ -6,10 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * A user reporting a message, a whole conversation, an offer, a repair request
- * or a review. Admins can read the full conversation of a reported chat,
- * including messages that were deleted. An offer, request or review report has
- * no conversation.
+ * A user reporting a message, a whole conversation, an offer, a repair request,
+ * a review or a person as a whole. Admins can read the full conversation of a
+ * reported chat, including messages that were deleted. An offer, request,
+ * review or person report has no conversation.
  */
 class Report extends Model
 {
@@ -39,6 +39,7 @@ class Report extends Model
         'review_subject_id',
         'review_rating',
         'review_comment',
+        'user_report',
         'reason',
         'details',
         'status',
@@ -50,6 +51,7 @@ class Report extends Model
     protected $casts = [
         'reviewed_at' => 'datetime',
         'review_rating' => 'integer',
+        'user_report' => 'boolean',
     ];
 
     protected $attributes = [
@@ -126,16 +128,26 @@ class Report extends Model
         return $this->conversation_id === null && $this->request_excerpt !== null;
     }
 
-    /** Offer reports have no conversation (the offer itself may be gone by now); nor do review and request reports, which are told apart first. */
-    public function isOfferReport(): bool
+    /** A person reported as a whole: the report points at no message, post or review, only at the reported user. */
+    public function isUserReport(): bool
     {
-        return $this->conversation_id === null && ! $this->isReviewReport() && ! $this->isRequestReport();
+        return $this->user_report;
     }
 
-    /** What was reported: 'review', 'request', 'offer', 'message' or 'conversation'. */
+    /** Offer reports have no conversation (the offer itself may be gone by now); nor do review, request and user reports, which are told apart first. */
+    public function isOfferReport(): bool
+    {
+        return $this->conversation_id === null
+            && ! $this->isReviewReport()
+            && ! $this->isRequestReport()
+            && ! $this->isUserReport();
+    }
+
+    /** What was reported: 'user', 'review', 'request', 'offer', 'message' or 'conversation'. */
     public function type(): string
     {
         return match (true) {
+            $this->isUserReport() => 'user',
             $this->isReviewReport() => 'review',
             $this->isRequestReport() => 'request',
             $this->isOfferReport() => 'offer',
@@ -148,6 +160,7 @@ class Report extends Model
     public function targetLabel(): string
     {
         return match ($this->type()) {
+            'user' => 'a user',
             'review' => 'a review',
             'request' => 'a request',
             'offer' => 'an offer',

@@ -289,6 +289,26 @@ export default function Show({ report, messages, offer, serviceRequest, review, 
                                 </p>
                             )}
                         </section>
+                    ) : report.type === 'user' ? (
+                        <section className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
+                            <h3 className="text-xs font-semibold uppercase text-gray-500">Reported person</h3>
+                            <p className="mt-2 text-sm">
+                                {report.reporter.name} reported <span className="font-medium">{report.reported.name}</span>{' '}
+                                as a person, not one message, offer, request or review of theirs. Look at their profile
+                                before deciding.
+                            </p>
+                            {report.reported.role !== 'admin' && (
+                                <Link
+                                    href={route(
+                                        report.reported.role === 'technician' ? 'technicians.show' : 'customers.show',
+                                        report.reported.id,
+                                    )}
+                                    className="mt-3 inline-block rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                                >
+                                    View {report.reported.name}&rsquo;s profile
+                                </Link>
+                            )}
+                        </section>
                     ) : offer ? (
                         <section className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
                             <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
@@ -415,13 +435,15 @@ export default function Show({ report, messages, offer, serviceRequest, review, 
                         <section className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
                             <h3 className="text-xs font-semibold uppercase text-gray-500">
                                 Other reports about this{' '}
-                                {report.type === 'review'
-                                    ? 'review'
-                                    : serviceRequest
-                                      ? 'request'
-                                      : offer
-                                        ? 'offer'
-                                        : 'conversation'}
+                                {report.type === 'user'
+                                    ? 'person'
+                                    : report.type === 'review'
+                                      ? 'review'
+                                      : serviceRequest
+                                        ? 'request'
+                                        : offer
+                                          ? 'offer'
+                                          : 'conversation'}
                             </h3>
                             <ul className="mt-2 divide-y divide-gray-100 text-sm dark:divide-gray-700">
                                 {related.map((other) => (

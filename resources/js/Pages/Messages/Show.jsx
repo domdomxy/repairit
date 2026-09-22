@@ -588,7 +588,14 @@ export default function Show({ conversation, conversations, contact, messages, a
             conversations={conversations}
             activeId={conversation.id}
             infoOpen={infoOpen}
-            info={<ConversationInfo contact={contact} open={infoOpen} onClose={() => changeInfo(false)} />}
+            info={
+                <ConversationInfo
+                    contact={contact}
+                    open={infoOpen}
+                    onClose={() => changeInfo(false)}
+                    reasons={moderation.reasons}
+                />
+            }
         >
             <Chat
                 key={conversation.id}

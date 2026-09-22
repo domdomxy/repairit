@@ -1,5 +1,5 @@
+import { ImageIcon, XIcon } from '@/Components/Icons';
 import InputLabel from '@/Components/InputLabel';
-import SecondaryButton from '@/Components/SecondaryButton';
 import { formatSize } from '@/lib/files';
 import { useEffect, useRef, useState } from 'react';
 
@@ -23,20 +23,22 @@ function PendingFile({ file, error, onRemove }) {
 
     return (
         <li
-            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm ${
-                error ? 'bg-red-50 dark:bg-red-950' : 'bg-gray-100 dark:bg-gray-700'
+            className={`flex items-center gap-3 rounded-lg border p-2 text-sm ${
+                error
+                    ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950'
+                    : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900/40'
             }`}
         >
             {previewUrl && isVideo ? (
-                <video src={`${previewUrl}#t=0.1`} preload="metadata" muted className="h-10 w-10 shrink-0 rounded object-cover" />
+                <video src={`${previewUrl}#t=0.1`} preload="metadata" muted className="h-11 w-11 shrink-0 rounded-md object-cover" />
             ) : previewUrl ? (
-                <img src={previewUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
+                <img src={previewUrl} alt="" className="h-11 w-11 shrink-0 rounded-md object-cover" />
             ) : (
                 <span aria-hidden="true">📎</span>
             )}
             <span className="min-w-0 flex-1">
-                <span className="block truncate">{file.name}</span>
-                <span className="text-xs text-gray-500">
+                <span className="block truncate font-medium text-gray-800 dark:text-gray-100">{file.name}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
                     {isVideo ? 'Video' : 'Picture'} · {formatSize(file.size)}
                 </span>
             </span>
@@ -44,9 +46,9 @@ function PendingFile({ file, error, onRemove }) {
                 type="button"
                 onClick={onRemove}
                 aria-label={`Remove ${file.name}`}
-                className="text-gray-500 hover:text-gray-700"
+                className="shrink-0 rounded-full p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-200"
             >
-                ✕
+                <XIcon className="h-4 w-4" />
             </button>
         </li>
     );
@@ -61,7 +63,10 @@ function PendingFile({ file, error, onRemove }) {
  * the saved ones marked for removal, `errors` the form's server errors (a
  * complaint about one file comes back as `media.<position>`). `limits` carries
  * max_files, image_max_kb, video_max_kb, max_total_kb and the two extension
- * lists. `noun` is what the files belong to ("request").
+ * lists. `noun` is what the files belong to ("request"). `label` and `hint`
+ * are the heading and the line under it; `hint` can be left out with `null`.
+ *
+ * The files can be picked with the button or dropped onto it.
  */
 export default function MediaPicker({
     files,
@@ -72,11 +77,15 @@ export default function MediaPicker({
     limits,
     errors = {},
     noun = 'request',
+    label = 'Pictures and videos (optional)',
+    hint = 'Show what is broken: it helps technicians give you a better quote.',
 }) {
     const fileInput = useRef(null);
     const [fileProblems, setFileProblems] = useState([]);
+    const [dragging, setDragging] = useState(false);
 
     const kept = saved.length - removeIds.length;
+    const article = /^[aeiou]/i.test(noun) ? 'An' : 'A';
 
     const extensionOf = (file) => file.name.split('.').pop()?.toLowerCase();
 
@@ -90,6 +99,17 @@ export default function MediaPicker({
         // Clear the input so choosing the same file again still fires onChange.
         e.target.value = '';
 
+        addFiles(picked);
+    }
+
+    function dropFiles(e) {
+        e.preventDefault();
+        setDragging(false);
+
+        if (!full) addFiles(Array.from(e.dataTransfer.files ?? []));
+    }
+
+    function addFiles(picked) {
         const problems = [];
         const next = [...files];
         let total = next.reduce((sum, file) => sum + file.size, 0);
@@ -116,7 +136,7 @@ export default function MediaPicker({
             } else if (file.size > maxKb * 1024) {
                 problems.push(`${file.name}: ${isVideo ? 'videos' : 'pictures'} may not be larger than ${maxKb / 1024} MB.`);
             } else if (kept + next.length >= limits.max_files) {
-                problems.push(`A ${noun} can have up to ${limits.max_files} pictures and videos in total.`);
+                problems.push(`${article} ${noun} can have up to ${limits.max_files} pictures and videos in total.`);
             } else if (total + file.size > limits.max_total_kb * 1024) {
                 problems.push(`${file.name}: the files together may not be larger than ${limits.max_total_kb / 1024} MB.`);
             } else {
@@ -151,19 +171,22 @@ export default function MediaPicker({
 
     return (
         <div>
-            <InputLabel value="Pictures and videos (optional)" />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Show what is broken: it helps technicians give you a better quote.
-            </p>
+            <div className="flex items-baseline justify-between gap-3">
+                <InputLabel value={label} />
+                <span className="text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                    {kept + files.length}/{limits.max_files}
+                </span>
+            </div>
+            {hint && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{hint}</p>}
 
             {saved.length > 0 && (
-                <ul className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                <ul className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4">
                     {saved.map((item) => {
                         const removing = removeIds.includes(item.id);
 
                         return (
-                            <li key={item.id} className="space-y-1">
-                                <div className={`relative overflow-hidden rounded-md ${removing ? 'opacity-40' : ''}`}>
+                            <li key={item.id} className="space-y-1.5">
+                                <div className={`relative overflow-hidden rounded-lg ${removing ? 'opacity-40' : ''}`}>
                                     {item.type === 'video' ? (
                                         <video
                                             src={`${item.url}#t=0.1`}
@@ -183,7 +206,7 @@ export default function MediaPicker({
                                 <button
                                     type="button"
                                     onClick={() => toggleRemoval(item.id)}
-                                    className="text-xs text-gray-600 underline dark:text-gray-400"
+                                    className="text-xs font-medium text-gray-600 underline-offset-2 hover:underline dark:text-gray-400"
                                 >
                                     {removing ? 'Keep' : 'Remove'}
                                 </button>
@@ -194,7 +217,7 @@ export default function MediaPicker({
             )}
 
             {files.length > 0 && (
-                <ul className="mt-2 space-y-1">
+                <ul className="mt-3 space-y-2">
                     {files.map((file, index) => (
                         <PendingFile
                             key={`${file.name}-${file.size}-${file.lastModified}`}
@@ -207,15 +230,31 @@ export default function MediaPicker({
             )}
 
             <input ref={fileInput} type="file" multiple accept={accept} onChange={pickFiles} className="hidden" />
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-                <SecondaryButton onClick={() => fileInput.current?.click()} disabled={full}>
-                    Add pictures or videos
-                </SecondaryButton>
+            <button
+                type="button"
+                onClick={() => fileInput.current?.click()}
+                onDragOver={(e) => {
+                    e.preventDefault();
+                    if (!full) setDragging(true);
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={dropFiles}
+                disabled={full}
+                className={`mt-3 flex w-full flex-col items-center gap-1 rounded-xl border-2 border-dashed px-4 py-5 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 ${
+                    dragging
+                        ? 'border-indigo-500 bg-indigo-50 dark:border-indigo-400 dark:bg-indigo-900/20'
+                        : 'border-gray-300 hover:border-indigo-400 hover:bg-indigo-50/50 dark:border-gray-600 dark:hover:border-indigo-500 dark:hover:bg-indigo-900/10'
+                }`}
+            >
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300">
+                    <ImageIcon className="h-5 w-5" />
+                </span>
+                <span className="text-sm font-medium text-gray-800 dark:text-gray-100">Add pictures or videos</span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                     Up to {limits.max_files} files · pictures {limits.image_max_kb / 1024} MB each · videos{' '}
                     {limits.video_max_kb / 1024} MB each
                 </span>
-            </div>
+            </button>
 
             {problems.length > 0 && (
                 <div className="mt-2 space-y-1 text-sm text-red-600">

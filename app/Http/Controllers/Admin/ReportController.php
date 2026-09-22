@@ -16,13 +16,14 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Reported messages, conversations, offers, repair requests and reviews, as an admin works through them.
+ * Reported messages, conversations, offers, repair requests, reviews and people, as an admin works through them.
  *
  * A report is the only way an admin gets to read a private conversation. The
  * page shows all of it, including messages that were deleted (for one person or
  * for both) and what edited messages said before they were changed. A report
  * about an offer or a request shows that post instead, and one about a review
- * shows the review as it was reported: none of them has a conversation.
+ * shows the review as it was reported: none of them has a conversation, and
+ * neither does a report about a person as a whole, which points at no post.
  */
 class ReportController extends Controller
 {
@@ -104,6 +105,7 @@ class ReportController extends Controller
 
         if (! $alreadyLogged) {
             $looked = match ($report->type()) {
+                'user' => 'looked at the report about the person',
                 'review' => 'looked at the review',
                 'offer' => 'looked at the offer',
                 'request' => 'looked at the request',
@@ -279,11 +281,23 @@ class ReportController extends Controller
         return back()->with('success', 'Review removed.');
     }
 
-    /** The other reports about the same conversation, offer, request or review. */
+    /** The other reports about the same conversation, offer, request, review or person. */
     private function relatedTo(Report $report): Builder
     {
         return Report::query()
             ->whereKeyNot($report->id)
+            ->when(
+                $report->isUserReport(),
+                // Reports about the same person as a whole; what people reported of theirs is another matter.
+                fn ($query) => $query->where('user_report', true)->where('reported_user_id', $report->reported_user_id),
+                fn ($query) => $this->relatedToThing($query, $report),
+            );
+    }
+
+    /** The other reports about the same conversation, offer, request or review. */
+    private function relatedToThing(Builder $reports, Report $report): Builder
+    {
+        return $reports
             ->when(
                 $report->isReviewReport(),
                 // A review that has been deleted no longer links its reports together.

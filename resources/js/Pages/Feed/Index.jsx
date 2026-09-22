@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
+import CreatePanel from '@/Components/CreatePanel';
 import { TagIcon, WrenchIcon } from '@/Components/Icons';
 import FeedFilterMenu from '@/Components/FeedFilterMenu';
-import Modal from '@/Components/Modal';
 import OfferForm from '@/Components/OfferForm';
 import OfferListing from '@/Components/OfferListing';
 import Pagination from '@/Components/Pagination';
@@ -41,33 +41,6 @@ function initialFilter(filters) {
 function buildParams(form) {
     return Object.fromEntries(
         Object.entries(form).filter(([key, value]) => value !== '' && value !== null && !(key === 'filter' && value === 'newest')),
-    );
-}
-
-// A panel over the feed to write a new post. It can only be closed with its
-// own buttons, so a stray click outside never throws away a half-written post.
-function CreatePanel({ show, onClose, title, description, children }) {
-    return (
-        <Modal show={show} onClose={onClose} closeable={false} maxWidth="2xl">
-            <div className="space-y-6 p-6">
-                <header className="flex items-start justify-between gap-4">
-                    <div>
-                        <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">{title}</h2>
-                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{description}</p>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        aria-label="Close"
-                        className="shrink-0 rounded-md px-2 py-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-                    >
-                        ✕
-                    </button>
-                </header>
-
-                {children}
-            </div>
-        </Modal>
     );
 }
 
@@ -309,6 +282,7 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
 
             {requestForm && (
                 <CreatePanel
+                    kind="request"
                     show={panel === 'request'}
                     onClose={() => setPanel(null)}
                     title="New request"
@@ -327,6 +301,7 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
 
             {requestForm && (
                 <CreatePanel
+                    kind="request"
                     show={editing?.kind === 'request'}
                     onClose={() => setEditing(null)}
                     title="Edit request"
@@ -348,6 +323,7 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
 
             {offerForm && (
                 <CreatePanel
+                    kind="offer"
                     show={panel === 'offer'}
                     onClose={() => setPanel(null)}
                     title="New offer"
@@ -364,6 +340,7 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
 
             {offerForm && (
                 <CreatePanel
+                    kind="offer"
                     show={editing?.kind === 'offer'}
                     onClose={() => setEditing(null)}
                     title="Edit offer"

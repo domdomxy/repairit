@@ -1,23 +1,27 @@
-import Avatar from '@/Components/Avatar';
-import Checkbox from '@/Components/Checkbox';
+import CategoryPicker from '@/Components/CategoryPicker';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import LocationPicker from '@/Components/LocationPicker';
-import PrimaryButton from '@/Components/PrimaryButton';
+import { EditHeader, OptionCards, SaveBar, SettingsSection, ToggleRow } from '@/Components/ProfileEditParts';
 import { LinksEditor } from '@/Components/ProfileLinks';
 import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Transition } from '@headlessui/react';
+import { AVAILABILITY } from '@/lib/availability';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
-const STATUSES = [
-    { value: 'available', label: 'Available' },
-    { value: 'busy', label: 'Busy' },
-    { value: 'offline', label: 'Offline' },
-];
-
 const BIO_LIMIT = 1000;
+
+const FIELD =
+    'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-indigo-600 dark:focus:ring-indigo-600';
+
+// The three statuses, as choices with the colour of their dot.
+const STATUS_OPTIONS = Object.entries(AVAILABILITY).map(([value, { label, dot }]) => ({ value, label, dot }));
+
+const REPLY_OPTIONS = [
+    { value: 'default', label: 'Default message' },
+    { value: 'custom', label: 'My own message' },
+];
 
 export default function EditProfile({ profile, categories, autoReplyDefault, autoReplyMaxLength, linkLimits }) {
     const user = usePage().props.auth.user;
@@ -47,15 +51,6 @@ export default function EditProfile({ profile, categories, autoReplyDefault, aut
         auto_reply_message: replyMode === 'custom' ? form.auto_reply_message.trim() : null,
     }));
 
-    function toggleCategory(id) {
-        setData(
-            'categories',
-            data.categories.includes(id)
-                ? data.categories.filter((c) => c !== id)
-                : [...data.categories, id]
-        );
-    }
-
     function submit(e) {
         e.preventDefault();
 
@@ -72,325 +67,197 @@ export default function EditProfile({ profile, categories, autoReplyDefault, aut
         <AuthenticatedLayout>
             <Head title="Technician Profile" />
 
-            <div className="py-12">
-                <form
-                    onSubmit={submit}
-                    className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8"
-                >
+            <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+                <EditHeader user={user} audience="customers" publicHref={route('technicians.show', user.id)} />
+
+                <form onSubmit={submit} className="mt-6 space-y-6">
                     {/* About */}
-                    <section className="bg-white p-4 shadow sm:rounded-lg sm:p-8 dark:bg-gray-800">
-                        <div className="max-w-xl">
-                            <header>
-                                <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                                    About you
-                                </h2>
-                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                    This is what customers see on your public profile.
-                                </p>
-                            </header>
-
-                            <div className="mt-6 flex items-center gap-4">
-                                <Avatar user={user} size="lg" />
-                                <Link
-                                    href={route('profile.edit')}
-                                    className="text-sm text-indigo-600 underline hover:text-indigo-500 dark:text-indigo-400"
-                                >
-                                    {user.avatar_url ? 'Change your profile picture' : 'Add a profile picture'}
-                                </Link>
-                            </div>
-
-                            <div className="mt-6 space-y-6">
-                                <div>
-                                    <InputLabel htmlFor="bio" value="Bio" />
-                                    <textarea
-                                        id="bio"
-                                        rows={5}
-                                        maxLength={BIO_LIMIT}
-                                        value={data.bio}
-                                        onChange={(e) => setData('bio', e.target.value)}
-                                        placeholder="Your experience, the jobs you take on, how you work…"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-indigo-600 dark:focus:ring-indigo-600"
-                                    />
-                                    <p className="mt-1 text-right text-xs text-gray-500 dark:text-gray-400">
-                                        {data.bio.length}/{BIO_LIMIT}
-                                    </p>
-                                    <InputError message={errors.bio} className="mt-1" />
-                                </div>
-
-                                <div>
-                                    <InputLabel value="Your specialties" />
-                                    <div className="mt-2 flex flex-wrap gap-2">
-                                        {categories.map((category) => (
-                                            <button
-                                                type="button"
-                                                key={category.id}
-                                                onClick={() => toggleCategory(category.id)}
-                                                className={`px-3 py-1.5 rounded-full text-sm border ${
-                                                    data.categories.includes(category.id)
-                                                        ? 'border-indigo-600 bg-indigo-600 text-white'
-                                                        : 'border-gray-300 dark:border-gray-600'
-                                                }`}
-                                            >
-                                                {category.name}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <InputError message={errors.categories} className="mt-2" />
-                                </div>
-
-                                <div>
-                                    <InputLabel value="Availability" />
-                                    <div className="mt-2 grid grid-cols-3 gap-3">
-                                        {STATUSES.map((status) => (
-                                            <button
-                                                type="button"
-                                                key={status.value}
-                                                onClick={() => setData('availability_status', status.value)}
-                                                className={`px-4 py-3 rounded-md border text-sm font-medium ${
-                                                    data.availability_status === status.value
-                                                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30'
-                                                        : 'border-gray-300 dark:border-gray-600'
-                                                }`}
-                                            >
-                                                {status.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                        Shown on your public profile and used by the availability filter in search.
-                                    </p>
-                                    <InputError message={errors.availability_status} className="mt-2" />
-                                </div>
-                            </div>
+                    <SettingsSection title="About you" description="This is what customers see on your public profile.">
+                        <div>
+                            <InputLabel htmlFor="bio" value="Bio" />
+                            <textarea
+                                id="bio"
+                                rows={5}
+                                maxLength={BIO_LIMIT}
+                                value={data.bio}
+                                onChange={(e) => setData('bio', e.target.value)}
+                                placeholder="Your experience, the jobs you take on, how you work…"
+                                className={FIELD}
+                            />
+                            <p className="mt-1 text-right text-xs text-gray-500 dark:text-gray-400">
+                                {data.bio.length}/{BIO_LIMIT}
+                            </p>
+                            <InputError message={errors.bio} className="mt-1" />
                         </div>
-                    </section>
+
+                        <CategoryPicker
+                            label="Your specialties"
+                            categories={categories}
+                            value={data.categories}
+                            onChange={(ids) => setData('categories', ids)}
+                            hint="Customers can find you by these categories."
+                            error={errors.categories}
+                        />
+
+                        <div>
+                            <InputLabel value="Availability" />
+                            <div className="mt-2">
+                                <OptionCards
+                                    label="Availability"
+                                    options={STATUS_OPTIONS}
+                                    value={data.availability_status}
+                                    onChange={(value) => setData('availability_status', value)}
+                                />
+                            </div>
+                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                Shown on your public profile and used by the availability filter in search.
+                            </p>
+                            <InputError message={errors.availability_status} className="mt-2" />
+                        </div>
+                    </SettingsSection>
 
                     {/* Contact */}
-                    <section className="bg-white p-4 shadow sm:rounded-lg sm:p-8 dark:bg-gray-800">
-                        <div className="max-w-xl">
-                            <header>
-                                <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                                    Contact details
-                                </h2>
-                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                    Customers can always message you in the app. Choose whether to
-                                    show these too.
-                                </p>
-                            </header>
-
-                            <div className="mt-6 space-y-4">
-                                <div>
-                                    <InputLabel htmlFor="phone" value="Phone" />
-                                    <TextInput
-                                        id="phone"
-                                        type="tel"
-                                        className="mt-1 block w-full"
-                                        value={data.phone}
-                                        onChange={(e) => setData('phone', e.target.value)}
-                                        autoComplete="tel"
-                                    />
-                                    <InputError message={errors.phone} className="mt-2" />
-                                </div>
-
-                                <label className="flex items-center">
-                                    <Checkbox
-                                        checked={data.show_phone_publicly}
-                                        onChange={(e) => setData('show_phone_publicly', e.target.checked)}
-                                    />
-                                    <span className="ms-2 text-sm text-gray-600 dark:text-gray-400">
-                                        Show my phone number on my public profile
-                                    </span>
-                                </label>
-
-                                <label className="flex items-center">
-                                    <Checkbox
-                                        checked={data.show_email_publicly}
-                                        onChange={(e) => setData('show_email_publicly', e.target.checked)}
-                                    />
-                                    <span className="ms-2 text-sm text-gray-600 dark:text-gray-400">
-                                        Show my email ({user.email}) on my public profile
-                                    </span>
-                                </label>
-                            </div>
+                    <SettingsSection
+                        title="Contact details"
+                        description="Customers can always message you in the app. Choose whether to show these too."
+                    >
+                        <div>
+                            <InputLabel htmlFor="phone" value="Phone" />
+                            <TextInput
+                                id="phone"
+                                type="tel"
+                                className="mt-1 block w-full"
+                                value={data.phone}
+                                onChange={(e) => setData('phone', e.target.value)}
+                                autoComplete="tel"
+                            />
+                            <InputError message={errors.phone} className="mt-2" />
                         </div>
-                    </section>
+
+                        <div className="space-y-5 border-t border-gray-100 pt-6 dark:border-gray-700">
+                            <ToggleRow
+                                checked={data.show_phone_publicly}
+                                onChange={(checked) => setData('show_phone_publicly', checked)}
+                                label="Show my phone number"
+                                description="On my public profile."
+                            />
+                            <ToggleRow
+                                checked={data.show_email_publicly}
+                                onChange={(checked) => setData('show_email_publicly', checked)}
+                                label="Show my email"
+                                description={`${user.email}, on my public profile.`}
+                            />
+                        </div>
+                    </SettingsSection>
 
                     {/* Links: a website, social networks... */}
-                    <section className="bg-white p-4 shadow sm:rounded-lg sm:p-8 dark:bg-gray-800">
-                        <div className="max-w-xl">
-                            <header>
-                                <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Links</h2>
-                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                    Add your website or social networks. They are shown on your public profile.
-                                </p>
-                            </header>
-
-                            <div className="mt-6">
-                                <LinksEditor
-                                    links={data.links}
-                                    onChange={(links) => setData('links', links)}
-                                    errors={errors}
-                                    max={linkLimits.max}
-                                    labelMax={linkLimits.label_max}
-                                    urlMax={linkLimits.url_max}
-                                />
-                            </div>
-                        </div>
-                    </section>
+                    <SettingsSection
+                        title="Links"
+                        description="Add your website or social networks. They are shown on your public profile."
+                    >
+                        <LinksEditor
+                            links={data.links}
+                            onChange={(links) => setData('links', links)}
+                            errors={errors}
+                            max={linkLimits.max}
+                            labelMax={linkLimits.label_max}
+                            urlMax={linkLimits.url_max}
+                        />
+                    </SettingsSection>
 
                     {/* Automatic reply */}
-                    <section className="bg-white p-4 shadow sm:rounded-lg sm:p-8 dark:bg-gray-800">
-                        <div className="max-w-xl">
-                            <header>
-                                <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                                    Automatic reply
-                                </h2>
-                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                    Send a message on your behalf when a customer writes to you for
-                                    the first time. It is sent once per customer, and it is marked
-                                    as automatic so they know it isn&apos;t a personal answer.
-                                </p>
-                            </header>
+                    <SettingsSection
+                        title="Automatic reply"
+                        description="Send a message on your behalf when a customer writes to you for the first time. It is sent once per customer, and it is marked as automatic so they know it isn't a personal answer."
+                    >
+                        <ToggleRow
+                            checked={data.auto_reply_enabled}
+                            onChange={(checked) => setData('auto_reply_enabled', checked)}
+                            label="Reply automatically"
+                            description="To a customer's first message."
+                        />
 
-                            <div className="mt-6 space-y-4">
-                                <label className="flex items-center">
-                                    <Checkbox
-                                        checked={data.auto_reply_enabled}
-                                        onChange={(e) => setData('auto_reply_enabled', e.target.checked)}
-                                    />
-                                    <span className="ms-2 text-sm text-gray-600 dark:text-gray-400">
-                                        Reply automatically to a customer&apos;s first message
-                                    </span>
-                                </label>
-
-                                {data.auto_reply_enabled && (
-                                    <div className="space-y-4">
-                                        <div className="grid gap-3 sm:grid-cols-2">
-                                            {[
-                                                { value: 'default', label: 'Default message' },
-                                                { value: 'custom', label: 'My own message' },
-                                            ].map((option) => (
-                                                <button
-                                                    type="button"
-                                                    key={option.value}
-                                                    onClick={() => {
-                                                        setReplyMode(option.value);
-                                                        clearErrors('auto_reply_message');
-                                                    }}
-                                                    className={`px-4 py-3 rounded-md border text-sm font-medium ${
-                                                        replyMode === option.value
-                                                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30'
-                                                            : 'border-gray-300 dark:border-gray-600'
-                                                    }`}
-                                                >
-                                                    {option.label}
-                                                </button>
-                                            ))}
-                                        </div>
-
-                                        {replyMode === 'default' ? (
-                                            <p className="whitespace-pre-line rounded-md bg-gray-100 px-4 py-3 text-sm text-gray-700 dark:bg-gray-700 dark:text-gray-200">
-                                                {autoReplyDefault}
-                                            </p>
-                                        ) : (
-                                            <div>
-                                                <InputLabel htmlFor="auto_reply_message" value="Your message" />
-                                                <textarea
-                                                    id="auto_reply_message"
-                                                    rows={4}
-                                                    maxLength={autoReplyMaxLength}
-                                                    value={data.auto_reply_message}
-                                                    onChange={(e) => setData('auto_reply_message', e.target.value)}
-                                                    placeholder="Hi {name}, thanks for your message! I usually answer within a few hours."
-                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-indigo-600 dark:focus:ring-indigo-600"
-                                                />
-                                                <p className="mt-1 text-right text-xs text-gray-500 dark:text-gray-400">
-                                                    {data.auto_reply_message.length}/{autoReplyMaxLength}
-                                                </p>
-                                            </div>
-                                        )}
-
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                                            <code>{'{name}'}</code> is replaced with the customer&apos;s first name.
-                                        </p>
-                                        <InputError message={errors.auto_reply_message} className="mt-1" />
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* Location */}
-                    <section className="bg-white p-4 shadow sm:rounded-lg sm:p-8 dark:bg-gray-800">
-                        <div className="max-w-xl">
-                            <header>
-                                <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                                    Location
-                                </h2>
-                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                    Search for your address or drop a pin on the map. Only your city
-                                    is shown publicly.
-                                </p>
-                            </header>
-
-                            <div className="mt-6 space-y-6">
-                                <LocationPicker
-                                    address={data.address}
-                                    latitude={data.latitude}
-                                    longitude={data.longitude}
-                                    errors={errors}
-                                    onChange={(fields) =>
-                                        setData((current) => ({ ...current, ...fields }))
-                                    }
+                        {data.auto_reply_enabled && (
+                            <div className="space-y-4 border-t border-gray-100 pt-6 dark:border-gray-700">
+                                <OptionCards
+                                    label="Which message is sent"
+                                    options={REPLY_OPTIONS}
+                                    value={replyMode}
+                                    onChange={(value) => {
+                                        setReplyMode(value);
+                                        clearErrors('auto_reply_message');
+                                    }}
                                 />
 
-                                <div>
-                                    <InputLabel htmlFor="city" value="City" />
-                                    <TextInput
-                                        id="city"
-                                        className="mt-1 block w-full"
-                                        value={data.city}
-                                        onChange={(e) => setData('city', e.target.value)}
-                                        autoComplete="address-level2"
-                                    />
-                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                        Filled in from the map, and you can edit it. Customers who
-                                        search by city need an exact match, so use the spelling they
-                                        would type.
+                                {replyMode === 'default' ? (
+                                    <p className="whitespace-pre-line rounded-xl bg-gray-100 px-4 py-3 text-sm text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                                        {autoReplyDefault}
                                     </p>
-                                    <InputError message={errors.city} className="mt-2" />
-                                </div>
+                                ) : (
+                                    <div>
+                                        <InputLabel htmlFor="auto_reply_message" value="Your message" />
+                                        <textarea
+                                            id="auto_reply_message"
+                                            rows={4}
+                                            maxLength={autoReplyMaxLength}
+                                            value={data.auto_reply_message}
+                                            onChange={(e) => setData('auto_reply_message', e.target.value)}
+                                            placeholder="Hi {name}, thanks for your message! I usually answer within a few hours."
+                                            className={FIELD}
+                                        />
+                                        <p className="mt-1 text-right text-xs text-gray-500 dark:text-gray-400">
+                                            {data.auto_reply_message.length}/{autoReplyMaxLength}
+                                        </p>
+                                    </div>
+                                )}
+
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    <code>{'{name}'}</code> is replaced with the customer&apos;s first name.
+                                </p>
+                                <InputError message={errors.auto_reply_message} className="mt-1" />
                             </div>
+                        )}
+                    </SettingsSection>
+
+                    {/* Location */}
+                    <SettingsSection
+                        title="Location"
+                        description="Search for your address or drop a pin on the map. Only your city is shown publicly."
+                        wide
+                    >
+                        <LocationPicker
+                            address={data.address}
+                            latitude={data.latitude}
+                            longitude={data.longitude}
+                            errors={errors}
+                            onChange={(fields) => setData((current) => ({ ...current, ...fields }))}
+                        />
+
+                        <div className="max-w-xl">
+                            <InputLabel htmlFor="city" value="City" />
+                            <TextInput
+                                id="city"
+                                className="mt-1 block w-full"
+                                value={data.city}
+                                onChange={(e) => setData('city', e.target.value)}
+                                autoComplete="address-level2"
+                            />
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Filled in from the map, and you can edit it. Customers who search by city need an exact
+                                match, so use the spelling they would type.
+                            </p>
+                            <InputError message={errors.city} className="mt-2" />
                         </div>
-                    </section>
+                    </SettingsSection>
 
-                    <div className="flex items-center gap-4 px-4 sm:px-0">
-                        <PrimaryButton disabled={processing}>Save</PrimaryButton>
-
-                        <Transition
-                            show={recentlySuccessful}
-                            enter="transition ease-in-out"
-                            enterFrom="opacity-0"
-                            leave="transition ease-in-out"
-                            leaveTo="opacity-0"
-                        >
-                            <p className="text-sm text-gray-600 dark:text-gray-400">Saved.</p>
-                        </Transition>
-
+                    <SaveBar processing={processing} saved={recentlySuccessful}>
                         <Link
                             href={route('technician.offers.index')}
-                            className="ms-auto text-sm text-indigo-600 underline hover:text-indigo-500 dark:text-indigo-400"
+                            className="text-indigo-600 hover:underline dark:text-indigo-400"
                         >
                             Manage offers
                         </Link>
-
-                        <Link
-                            href={route('technicians.show', user.id)}
-                            className="text-sm text-gray-600 underline dark:text-gray-400"
-                        >
-                            View public profile
-                        </Link>
-                    </div>
+                    </SaveBar>
                 </form>
             </div>
         </AuthenticatedLayout>
