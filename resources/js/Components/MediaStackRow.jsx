@@ -1,5 +1,7 @@
 import Avatar from '@/Components/Avatar';
+import { PushpinIcon } from '@/Components/Icons';
 import MediaLightbox from '@/Components/MediaLightbox';
+import MessageDetailsModal from '@/Components/MessageDetailsModal';
 import MessageStatus from '@/Components/MessageStatus';
 import PlayIcon from '@/Components/PlayIcon';
 import ReportModal from '@/Components/ReportModal';
@@ -85,9 +87,10 @@ function StackThumb({ attachments, onOpen }) {
 // `id`), which is what lets the viewer delete or report one item on its own;
 // the card's own menu below acts on the whole stack at once, since that is
 // how it was sent.
-export default function MediaStackRow({ messages, isMine, author, myId, otherName, reported, reasons, onMessagesChange, onImageLoad, onReply }) {
+export default function MediaStackRow({ messages, isMine, author, myId, otherName, reported, reasons, onMessagesChange, onImageLoad, onReply, isLast }) {
     const [viewingIndex, setViewingIndex] = useState(null);
     const [reporting, setReporting] = useState(false);
+    const [viewingDetails, setViewingDetails] = useState(false);
     const [removing, setRemoving] = useState(false);
     const [dragX, setDragX] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
@@ -193,6 +196,16 @@ export default function MediaStackRow({ messages, isMine, author, myId, otherNam
         });
     }
 
+    // Pinning targets the first row of the batch, the same one a reply
+    // attaches to - that is where the server keeps it for the stack as a whole.
+    function togglePin() {
+        router.post(
+            route(first.pinned_at ? 'messages.unpin' : 'messages.pin', first.id),
+            {},
+            { preserveScroll: true, onSuccess: (page) => onMessagesChange(page.props.messages) },
+        );
+    }
+
     const menuButton = (
         <Menu>
             <MenuButton
@@ -225,6 +238,18 @@ export default function MediaStackRow({ messages, isMine, author, myId, otherNam
                             className={menuItemClass}
                         >
                             Reply
+                        </button>
+                    </MenuItem>
+                )}
+                <MenuItem>
+                    <button type="button" onClick={togglePin} className={menuItemClass}>
+                        {first.pinned_at ? 'Unpin message' : 'Pin message'}
+                    </button>
+                </MenuItem>
+                {isMine && (
+                    <MenuItem>
+                        <button type="button" onClick={() => setViewingDetails(true)} className={menuItemClass}>
+                            View details
                         </button>
                     </MenuItem>
                 )}
@@ -269,7 +294,6 @@ export default function MediaStackRow({ messages, isMine, author, myId, otherNam
         <div id={`message-${first.id}`} className={`group relative flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}>
             {!isMine && <Avatar user={author} size="sm" />}
             {isMine && sentAt}
-            {isMine && <MessageStatus seen={!!last.read_at} />}
             {isMine && menuButton}
 
             {canReply && dragX !== 0 && (
@@ -308,11 +332,21 @@ export default function MediaStackRow({ messages, isMine, author, myId, otherNam
                         </span>
                     </button>
                 )}
+                {first.pinned_at && (
+                    <p className="mb-1 flex items-center gap-1 px-1 text-[11px] text-indigo-500 dark:text-indigo-400">
+                        <PushpinIcon className="h-3 w-3" />
+                        Pinned{first.pinned_by ? ` by ${first.pinned_by}` : ''}
+                    </p>
+                )}
                 {/* The thumbnails fan out upward, so leave them room above the caption. */}
                 <p className="relative z-20 text-xs text-gray-500 dark:text-gray-400" style={{ marginBottom: fan + 8 }}>
                     {isMine ? 'You' : otherName} sent {attachments.length} attachment{attachments.length === 1 ? '' : 's'}
                 </p>
                 <StackThumb attachments={attachments} onOpen={() => setViewingIndex(0)} />
+
+                {/* Only the last message in the conversation shows this here; any
+                    other one has the same info in "View details". */}
+                {isMine && isLast && <MessageStatus seen={!!last.read_at} readAt={last.read_at} />}
             </div>
 
             {!isMine && menuButton}
@@ -338,6 +372,8 @@ export default function MediaStackRow({ messages, isMine, author, myId, otherNam
                 action={route('messages.report', last.id)}
                 reasons={reasons}
             />
+
+            <MessageDetailsModal show={viewingDetails} onClose={() => setViewingDetails(false)} message={last} />
         </div>
     );
 }

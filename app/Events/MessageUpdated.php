@@ -9,7 +9,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-/** The sender edited a message: the other person's open conversation swaps in the new text. */
+/** The sender edited a message, or either person pinned/unpinned one: the other person's open conversation updates in place. */
 class MessageUpdated implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
@@ -37,6 +37,8 @@ class MessageUpdated implements ShouldBroadcast
             'edited_at' => $this->message->edited_at?->toIso8601String(),
             // A quote's card changes when the quote is edited or deleted (null for any other message).
             'quote' => $this->message->sharedQuote(),
+            'pinned_at' => $this->message->pinned_at?->toIso8601String(),
+            'pinned_by' => $this->message->pinned_at !== null ? $this->message->pinnedBy?->name : null,
         ];
     }
 }

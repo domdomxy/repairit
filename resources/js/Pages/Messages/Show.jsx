@@ -9,6 +9,7 @@ import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import SendLocationModal from '@/Components/SendLocationModal';
 import MessageRow from '@/Components/MessageRow';
 import MessagesShell from '@/Components/MessagesShell';
+import PinnedMessagesBar from '@/Components/PinnedMessagesBar';
 import TypingIndicator from '@/Components/TypingIndicator';
 import { formatChatSeparator, needsChatSeparator } from '@/lib/dates';
 import { formatSize } from '@/lib/files';
@@ -181,7 +182,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
 
             previous = last;
 
-            return { ...group, separator, hasUnreadDivider };
+            return { ...group, separator, hasUnreadDivider, isLastMessage: last.id === messages[messages.length - 1]?.id };
         });
     }, [messages, firstUnreadId]);
 
@@ -198,12 +199,19 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
         refreshList();
     });
 
-    // The other person edited a message...
+    // The other person edited a message, or pinned/unpinned one...
     useEcho(`conversation.${conversation.id}`, '.message.updated', (event) => {
         setMessages((current) =>
             current.map((message) =>
                 message.id === event.id
-                    ? { ...message, body: event.body, edited_at: event.edited_at, quote: event.quote ?? message.quote }
+                    ? {
+                          ...message,
+                          body: event.body,
+                          edited_at: event.edited_at,
+                          quote: event.quote ?? message.quote,
+                          pinned_at: event.pinned_at,
+                          pinned_by: event.pinned_by,
+                      }
                     : message,
             ),
         );
@@ -298,6 +306,26 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
     function cancelReply() {
         setReplyingTo(null);
         setData('reply_to_id', '');
+    }
+
+    // For the pinned bar: only what's still visible to this person, most
+    // recently pinned first (the bar itself does the sorting).
+    const pinnedMessages = useMemo(
+        () => messages.filter((message) => message.pinned_at && !message.deleted),
+        [messages],
+    );
+
+    function jumpToPinned(id) {
+        const el = document.getElementById(`message-${id}`);
+        if (!el) return;
+
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-indigo-400', 'rounded-lg');
+        window.setTimeout(() => el.classList.remove('ring-2', 'ring-indigo-400', 'rounded-lg'), 1200);
+    }
+
+    function unpinMessage(id) {
+        router.post(route('messages.unpin', id), {}, { preserveScroll: true, onSuccess: (page) => setMessages(page.props.messages) });
     }
 
     // A short, client-side version of the same preview the server sends for
@@ -488,6 +516,13 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                 </p>
             )}
 
+            <PinnedMessagesBar
+                messages={pinnedMessages}
+                myId={auth.user.id}
+                onJump={jumpToPinned}
+                onUnpin={unpinMessage}
+            />
+
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden p-4">
                 {groups.map((group) => (
                     <Fragment key={group.key}>
@@ -519,6 +554,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                                 onMessagesChange={setMessages}
                                 onImageLoad={scrollToBottom}
                                 onReply={startReply}
+                                isLast={group.isLastMessage}
                             />
                         ) : (
                             <MessageRow
@@ -532,6 +568,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                                 onMessagesChange={setMessages}
                                 onImageLoad={scrollToBottom}
                                 onReply={startReply}
+                                isLast={group.isLastMessage}
                             />
                         )}
                     </Fragment>

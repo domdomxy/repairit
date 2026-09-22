@@ -52,11 +52,14 @@ class Message extends Model
         'location_lng',
         'location_label',
         'read_at',
+        'pinned_at',
+        'pinned_by_id',
         'is_automated',
     ];
 
     protected $casts = [
         'read_at' => 'datetime',
+        'pinned_at' => 'datetime',
         'is_automated' => 'boolean',
         'edited_at' => 'datetime',
         'deleted_for_everyone_at' => 'datetime',
@@ -72,6 +75,12 @@ class Message extends Model
     public function sender(): BelongsTo
     {
         return $this->belongsTo(User::class, 'sender_id');
+    }
+
+    /** Who pinned this message, if anyone. Load it with `with('pinnedBy:id,name')`. */
+    public function pinnedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'pinned_by_id');
     }
 
     /** The message this one replies to, if any. Load it with `with('replyTo.sender')`. */
@@ -239,6 +248,9 @@ class Message extends Model
             // When the other person has read this message: null until then. Lets
             // the sender's bubble show "Delivered" vs "Seen".
             'read_at' => $this->read_at?->toIso8601String(),
+            // Pinning is shared: whoever pinned it, both people see it pinned.
+            'pinned_at' => $this->pinned_at?->toIso8601String(),
+            'pinned_by' => $this->pinned_at !== null && $this->relationLoaded('pinnedBy') ? $this->pinnedBy?->name : null,
             'deleted' => $deleted,
             'automated' => (bool) $this->is_automated,
         ];

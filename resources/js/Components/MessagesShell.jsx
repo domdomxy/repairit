@@ -202,11 +202,8 @@ function ConversationList({ conversations, activeId, className }) {
                                             <PushpinIcon className="h-3.5 w-3.5" />
                                         </button>
                                         {last && (
-                                            <span className="flex shrink-0 items-center gap-1">
-                                                {last.from_me && <MessageStatus seen={!!last.read_at} compact />}
-                                                <span className="text-[11px] text-gray-400 dark:text-gray-500">
-                                                    {relativeTime(last.created_at)}
-                                                </span>
+                                            <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                                                {relativeTime(last.created_at)}
                                             </span>
                                         )}
                                     </span>
@@ -228,7 +225,7 @@ function ConversationList({ conversations, activeId, className }) {
                                             {last?.preview ? `${last.from_me ? 'You: ' : ''}${last.preview}` : 'No messages yet'}
                                         </span>
                                     )}
-                                    {unread > 0 && (
+                                    {unread > 0 ? (
                                         <span
                                             className={`inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-xs font-semibold text-white ${
                                                 quiet ? 'bg-gray-400 dark:bg-gray-500' : 'bg-indigo-600'
@@ -236,6 +233,8 @@ function ConversationList({ conversations, activeId, className }) {
                                         >
                                             {unread}
                                         </span>
+                                    ) : (
+                                        last?.from_me && <MessageStatus seen={!!last.read_at} compact />
                                     )}
                                 </span>
                             </span>

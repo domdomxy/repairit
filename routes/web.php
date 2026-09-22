@@ -75,6 +75,8 @@ Route::middleware('auth')->group(function () {
     // One message: edit it, delete it (scope "me" or "everyone"), or report it.
     Route::patch('/message/{message}', [MessageController::class, 'update'])->name('messages.update');
     Route::delete('/message/{message}', [MessageController::class, 'destroy'])->name('messages.destroy');
+    Route::post('/message/{message}/pin', [MessageController::class, 'pin'])->name('messages.pin');
+    Route::post('/message/{message}/unpin', [MessageController::class, 'unpin'])->name('messages.unpin');
     Route::post('/message/{message}/report', [ReportController::class, 'storeMessage'])->middleware('throttle:10,1,reports')->name('messages.report');
     Route::get('/message-attachments/{attachment}', [MessageController::class, 'attachment'])->name('messages.attachment');
     // Blocking, muting, favoriting and restricting people (and undoing each): one route per action, the kind is the last segment.

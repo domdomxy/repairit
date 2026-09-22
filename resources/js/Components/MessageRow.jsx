@@ -1,5 +1,7 @@
 import Avatar from '@/Components/Avatar';
+import { PushpinIcon } from '@/Components/Icons';
 import MessageAttachments from '@/Components/MessageAttachments';
+import MessageDetailsModal from '@/Components/MessageDetailsModal';
 import MessageStatus from '@/Components/MessageStatus';
 import ReportModal from '@/Components/ReportModal';
 import SharedLocationCard from '@/Components/SharedLocationCard';
@@ -52,12 +54,14 @@ export default function MessageRow({
     onMessagesChange,
     onImageLoad,
     onReply,
+    isLast,
 }) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState('');
     const [editError, setEditError] = useState(null);
     const [saving, setSaving] = useState(false);
     const [reporting, setReporting] = useState(false);
+    const [viewingDetails, setViewingDetails] = useState(false);
     const [dragX, setDragX] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
 
@@ -162,6 +166,16 @@ export default function MessageRow({
         });
     }
 
+    // Pinning is shared, not personal like pinning a whole conversation:
+    // either person can pin or unpin, and both see the same pinned bar.
+    function togglePin() {
+        router.post(
+            route(message.pinned_at ? 'messages.unpin' : 'messages.pin', message.id),
+            {},
+            { preserveScroll: true, onSuccess: (page) => onMessagesChange(page.props.messages) },
+        );
+    }
+
     // The ⋯ button opens a small dialog with what can be done to the message.
     // It floats above the chat (so the scrolling list never clips it) and flips
     // upward when there is no room below.
@@ -185,6 +199,20 @@ export default function MessageRow({
                     <MenuItem>
                         <button type="button" onClick={() => onReply(message)} className={menuItem}>
                             Reply
+                        </button>
+                    </MenuItem>
+                )}
+                {!message.deleted && (
+                    <MenuItem>
+                        <button type="button" onClick={togglePin} className={menuItem}>
+                            {message.pinned_at ? 'Unpin message' : 'Pin message'}
+                        </button>
+                    </MenuItem>
+                )}
+                {isMine && (
+                    <MenuItem>
+                        <button type="button" onClick={() => setViewingDetails(true)} className={menuItem}>
+                            View details
                         </button>
                     </MenuItem>
                 )}
@@ -241,7 +269,6 @@ export default function MessageRow({
         <div id={`message-${message.id}`} className={`group relative flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}>
             {!isMine && <Avatar user={author} size="sm" />}
             {isMine && sentAt}
-            {isMine && !message.deleted && <MessageStatus seen={!!message.read_at} />}
             {isMine && menuButton}
 
             {/* Fades in as the swipe passes the threshold, on the side the content is pulling away from. */}
@@ -314,6 +341,24 @@ export default function MessageRow({
                     </form>
                 ) : (
                     <div className={`flex flex-col gap-2 ${isMine ? 'items-end' : 'items-start'}`}>
+                        {/* Above the bubble, not inside it. */}
+                        {message.pinned_at && (
+                            <p className="-mb-1 flex items-center gap-1 px-1 text-[11px] text-indigo-500 dark:text-indigo-400">
+                                <PushpinIcon className="h-3 w-3" />
+                                Pinned{message.pinned_by ? ` by ${message.pinned_by}` : ''}
+                            </p>
+                        )}
+
+                        {/* A quote says it was edited on its own card. */}
+                        {message.edited_at && !message.quote && (
+                            <p
+                                className="-mb-1 px-1 text-[11px] text-gray-500 dark:text-gray-400"
+                                title={`Edited ${formatDateTime(message.edited_at)}`}
+                            >
+                                edited
+                            </p>
+                        )}
+
                         {message.offer && <SharedOfferCard offer={message.offer} onImageLoad={onImageLoad} />}
 
                         {message.request && <SharedRequestCard request={message.request} onImageLoad={onImageLoad} />}
@@ -341,14 +386,11 @@ export default function MessageRow({
                             </div>
                         )}
 
-                        {/* Under the bubble, not inside it. A quote says it was edited on its own card. */}
-                        {message.edited_at && !message.quote && (
-                            <p
-                                className="-mt-1 px-1 text-[11px] text-gray-500 dark:text-gray-400"
-                                title={`Edited ${formatDateTime(message.edited_at)}`}
-                            >
-                                edited
-                            </p>
+                        {/* Under the bubble: "Delivered", or "Seen" and how long ago. Only
+                            the last message in the conversation shows it here; for any
+                            other one, "View details" in the ⋯ menu has the same info. */}
+                        {isMine && isLast && (
+                            <MessageStatus seen={!!message.read_at} readAt={message.read_at} />
                         )}
                     </div>
                 )}
@@ -365,6 +407,8 @@ export default function MessageRow({
                 action={route('messages.report', message.id)}
                 reasons={reasons}
             />
+
+            <MessageDetailsModal show={viewingDetails} onClose={() => setViewingDetails(false)} message={message} />
         </div>
     );
 }

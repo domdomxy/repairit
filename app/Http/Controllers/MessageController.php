@@ -340,6 +340,45 @@ class MessageController extends Controller
     }
 
     /**
+     * Pin a message so both people see it in the pinned bar at the top of the
+     * conversation. Either participant can pin or unpin - nothing here is
+     * per-person, unlike pinning the conversation itself.
+     */
+    public function pin(Message $message): RedirectResponse
+    {
+        $user = Auth::user();
+        $conversation = $message->conversation;
+
+        abort_unless($conversation->hasParticipant($user), 403);
+        abort_unless(Message::whereKey($message->id)->visibleTo($user)->exists(), 404);
+        abort_if($message->isDeletedForEveryone(), 403, 'This message was deleted.');
+
+        if ($message->pinned_at === null) {
+            $message->forceFill(['pinned_at' => now(), 'pinned_by_id' => $user->id])->save();
+
+            broadcast(new MessageUpdated($message))->toOthers();
+        }
+
+        return back();
+    }
+
+    public function unpin(Message $message): RedirectResponse
+    {
+        $user = Auth::user();
+        $conversation = $message->conversation;
+
+        abort_unless($conversation->hasParticipant($user), 403);
+
+        if ($message->pinned_at !== null) {
+            $message->forceFill(['pinned_at' => null, 'pinned_by_id' => null])->save();
+
+            broadcast(new MessageUpdated($message))->toOthers();
+        }
+
+        return back();
+    }
+
+    /**
      * Delete a message, either for the person asking only ("me") or for both
      * people ("everyone", the sender's right alone).
      *
@@ -374,7 +413,8 @@ class MessageController extends Controller
             return back();
         }
 
-        $message->forceFill(['deleted_for_everyone_at' => now()])->save();
+        // A deleted message can't stay pinned - there is nothing left to show in the pinned bar.
+        $message->forceFill(['deleted_for_everyone_at' => now(), 'pinned_at' => null, 'pinned_by_id' => null])->save();
 
         broadcast(new MessageDeleted($message))->toOthers();
         broadcast(new InboxUpdated($conversation->participantFor($user)->id));

@@ -173,11 +173,8 @@ function MessagesPanel({ inbox, requests, hidden, activeId, unreadInbox, unreadR
                                             <PushpinIcon className="h-3 w-3 shrink-0 text-indigo-500" />
                                         )}
                                     </span>
-                                    <span className="flex shrink-0 items-center gap-1">
-                                        {last.from_me && <MessageStatus seen={!!last.read_at} compact />}
-                                        <span className="text-[11px] text-gray-400 dark:text-gray-500">
-                                            {relativeTime(last.created_at)}
-                                        </span>
+                                    <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">
+                                        {relativeTime(last.created_at)}
                                     </span>
                                 </span>
                                 <span className="mt-0.5 flex items-center justify-between gap-2">
@@ -196,10 +193,12 @@ function MessagesPanel({ inbox, requests, hidden, activeId, unreadInbox, unreadR
                                             {last.preview ? `${last.from_me ? 'You: ' : ''}${last.preview}` : ''}
                                         </span>
                                     )}
-                                    {unread > 0 && (
+                                    {unread > 0 ? (
                                         <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 px-1.5 text-xs font-semibold text-white">
                                             {unread}
                                         </span>
+                                    ) : (
+                                        last.from_me && <MessageStatus seen={!!last.read_at} compact />
                                     )}
                                 </span>
                             </span>
