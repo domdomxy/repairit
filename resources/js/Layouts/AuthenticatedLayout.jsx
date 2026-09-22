@@ -1,6 +1,7 @@
 import Avatar from '@/Components/Avatar';
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
+import { PlusIcon } from '@/Components/Icons';
 import MessagesMenu from '@/Components/MessagesMenu';
 import NotificationBell from '@/Components/NotificationBell';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
@@ -20,6 +21,10 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
 
+    // Admins don't post, so they don't get the composer shortcut. Only
+    // technicians can post an offer as well as a request.
+    const canCompose = user.role === 'technician' || user.role === 'customer';
+
     return (
         <div className="flex min-h-screen flex-col bg-gray-100 dark:bg-gray-900">
             <nav
@@ -37,9 +42,52 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                             </div>
                         </div>
 
-                        {/* Search: a bar on every page, for every role. */}
-                        <div className="flex min-w-0 flex-1 items-center justify-center px-3 sm:px-4">
-                            <SearchBar className="w-full max-w-md" />
+                        {/* Search + compose: positioned as a cluster right before the
+                            account icons, per the reference layout — resized search bar,
+                            then the compose button, then the divider that separates this
+                            cluster from messages/notifications/account. */}
+                        <div className="flex min-w-0 flex-1 items-center justify-end gap-3 px-3 sm:px-4">
+                            <SearchBar className="w-full max-w-xs" />
+
+                            {/* Create post: a shortcut to the feed's composer from anywhere in
+                                the app. Technicians choose between a request and an offer;
+                                customers only post requests. */}
+                            {canCompose && (
+                                <Dropdown>
+                                    <Dropdown.Trigger>
+                                        <button
+                                            type="button"
+                                            title="Create new post"
+                                            aria-label="Create new post"
+                                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                        >
+                                            <PlusIcon className="h-5 w-5" />
+                                        </button>
+                                    </Dropdown.Trigger>
+
+                                    <Dropdown.Content align="right" width="48">
+                                        <Dropdown.Link
+                                            href={route('feed.index', { compose: 'request' })}
+                                        >
+                                            New request
+                                        </Dropdown.Link>
+                                        {user.role === 'technician' && (
+                                            <Dropdown.Link
+                                                href={route('feed.index', { compose: 'offer' })}
+                                            >
+                                                New offer
+                                            </Dropdown.Link>
+                                        )}
+                                    </Dropdown.Content>
+                                </Dropdown>
+                            )}
+
+                            {/* Vertical divider, separating the search/compose cluster from
+                                messages, notifications, and the account menu. */}
+                            <div
+                                aria-hidden="true"
+                                className="hidden h-8 w-px shrink-0 bg-gray-200 dark:bg-gray-700 sm:block"
+                            />
                         </div>
 
                         <div className="hidden sm:ms-6 sm:flex sm:items-center">
@@ -53,8 +101,7 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                                                 type="button"
                                                 className="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none dark:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
                                             >
-                                                <Avatar user={user} size="sm" className="lg:me-2" />
-                                                <span className="hidden lg:inline">{user.name}</span>
+                                                <Avatar user={user} size="sm" />
 
                                                 <svg
                                                     className="-me-0.5 ms-2 h-4 w-4"
@@ -73,6 +120,9 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                                     </Dropdown.Trigger>
 
                                     <Dropdown.Content>
+                                        <div className="truncate border-b border-gray-100 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:text-gray-200">
+                                            {user.name}
+                                        </div>
                                         <Dropdown.Link
                                             href={route('profile.edit')}
                                         >

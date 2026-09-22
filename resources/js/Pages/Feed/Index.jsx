@@ -63,6 +63,15 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
     // The post being edited from its menu, if any: { kind: 'request' | 'offer', post }.
     const [editing, setEditing] = useState(null);
 
+    // Arriving from the nav bar's "create new post" button (feed?compose=request
+    // or ?compose=offer) opens straight into that panel.
+    useEffect(() => {
+        const compose = new URLSearchParams(window.location.search).get('compose');
+
+        if (compose === 'request' && requestForm) setPanel('request');
+        if (compose === 'offer' && offerForm) setPanel('offer');
+    }, []);
+
     const [form, setForm] = useState({
         filter: initialFilter(filters),
         category: filters.category ?? '',

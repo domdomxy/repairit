@@ -18,16 +18,24 @@ const TABS = [
         label: 'Requests',
         empty: 'No new requests. When a customer writes to you, the conversation waits here until you reply.',
     },
+    {
+        key: 'hidden',
+        label: 'Hidden',
+        empty: 'Nothing hidden. Conversations you hide are kept here until you unhide them.',
+    },
 ];
 
 // The dropdown opened by the chat icon: the newest conversations, split into
-// the inbox and the requests like the tabs of the messages page. Everything
+// the inbox, requests and hidden tabs like the messages page. Everything
 // else lives on that page ("View all").
-function MessagesPanel({ inbox, requests, activeId, unreadInbox, unreadRequests, onClose }) {
+function MessagesPanel({ inbox, requests, hidden, activeId, unreadInbox, unreadRequests, unreadHidden, onClose }) {
     // Opens on the requests when the inbox has nothing in it but they do.
     const [tab, setTab] = useState(inbox.length === 0 && requests.length > 0 ? 'requests' : 'inbox');
+    const [query, setQuery] = useState('');
 
-    const conversations = tab === 'requests' ? requests : inbox;
+    const base = tab === 'requests' ? requests : tab === 'hidden' ? hidden : inbox;
+    const term = query.trim().toLowerCase();
+    const conversations = term === '' ? base : base.filter((conversation) => conversation.name.toLowerCase().includes(term));
     const unreadOf = (conversation) => (conversation.id === activeId ? 0 : conversation.unread_count);
 
     return (
@@ -36,10 +44,33 @@ function MessagesPanel({ inbox, requests, activeId, unreadInbox, unreadRequests,
                 <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">Messages</p>
             </div>
 
+            <div className="border-b border-gray-100 px-4 py-2 dark:border-gray-700">
+                <div className="relative">
+                    <svg
+                        className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth="2"
+                        stroke="currentColor"
+                        aria-hidden="true"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                    </svg>
+                    <input
+                        type="text"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Search messages"
+                        aria-label="Search messages"
+                        className="w-full rounded-md border-gray-300 bg-gray-50 py-1.5 pl-8 pr-3 text-xs placeholder:text-gray-400 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:focus:border-indigo-500 dark:focus:ring-indigo-500"
+                    />
+                </div>
+            </div>
+
             <div role="tablist" className="flex items-center gap-1 border-b border-gray-100 px-4 py-2 dark:border-gray-700">
                 {TABS.map(({ key, label }) => {
                     const selected = tab === key;
-                    const unread = key === 'requests' ? unreadRequests : unreadInbox;
+                    const unread = key === 'requests' ? unreadRequests : key === 'hidden' ? unreadHidden : unreadInbox;
 
                     return (
                         <button
@@ -82,7 +113,7 @@ function MessagesPanel({ inbox, requests, activeId, unreadInbox, unreadRequests,
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d={MESSAGES_ICON_PATH} />
                         </svg>
                         <p className="text-sm text-gray-400 dark:text-gray-500">
-                            {TABS.find(({ key }) => key === tab).empty}
+                            {term === '' ? TABS.find(({ key }) => key === tab).empty : `No conversations match "${query.trim()}".`}
                         </p>
                     </div>
                 )}
@@ -166,7 +197,7 @@ function LiveUpdates({ userId }) {
 
 export default function MessagesMenu({ className = '' }) {
     const { auth } = usePage().props;
-    const { recent, requests, activeId, unread, unreadInbox, unreadRequests } = useInbox();
+    const { recent, requests, hidden, activeId, unread, unreadInbox, unreadRequests, unreadHidden } = useInbox();
     const [open, setOpen] = useState(false);
     const containerRef = useRef(null);
 
@@ -210,9 +241,11 @@ export default function MessagesMenu({ className = '' }) {
                     <MessagesPanel
                         inbox={recent}
                         requests={requests}
+                        hidden={hidden}
                         activeId={activeId}
                         unreadInbox={unreadInbox}
                         unreadRequests={unreadRequests}
+                        unreadHidden={unreadHidden}
                         onClose={() => setOpen(false)}
                     />
                 )}

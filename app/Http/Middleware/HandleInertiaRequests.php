@@ -46,10 +46,10 @@ class HandleInertiaRequests extends Middleware
                     ->map(fn ($notification) => NotificationItem::make($notification))
                     ->all() ?? [],
             ],
-            // The messages panel in the top bar: unread conversations, and the newest few of the inbox and of the requests.
+            // The messages panel in the top bar: unread conversations, and the newest few of the inbox, requests and hidden.
             'inbox' => fn () => $request->user()
                 ? ConversationList::panel($request->user())
-                : ['unread' => 0, 'unread_requests' => 0, 'recent' => [], 'requests' => []],
+                : ['unread' => 0, 'unread_requests' => 0, 'unread_hidden' => 0, 'recent' => [], 'requests' => [], 'hidden' => []],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
             ],

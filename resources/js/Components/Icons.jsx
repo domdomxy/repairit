@@ -90,6 +90,14 @@ export function WrenchIcon({ className = 'h-5 w-5' }) {
     );
 }
 
+export function PlusIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg {...outline} className={className}>
+            <path d="M12 5v14M5 12h14" />
+        </svg>
+    );
+}
+
 export function TagIcon({ className = 'h-5 w-5' }) {
     return (
         <svg {...outline} className={className}>

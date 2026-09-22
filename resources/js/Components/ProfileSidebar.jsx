@@ -60,7 +60,7 @@ export default function ProfileSidebar({ user, className = '' }) {
                 </div>
             </Link>
 
-            <nav aria-label="Your pages" className="space-y-1 px-2 pb-2">
+            <nav aria-label="Your pages" className="space-y-1 px-2 pb-2 pt-2">
                 <NavLink href={route('dashboard')} active={route().current('dashboard')} icon={<DashboardIcon />}>
                     {user.role === 'admin' ? 'Administration' : 'Dashboard'}
                 </NavLink>

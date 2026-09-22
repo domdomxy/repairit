@@ -29,10 +29,14 @@ function ConversationList({ conversations, activeId, className }) {
     // Opens on the tab the open conversation belongs to, the inbox otherwise.
     const home = active?.is_hidden ? 'hidden' : active?.is_request ? 'requests' : 'inbox';
     const [tab, setTab] = useState(home);
+    const [query, setQuery] = useState('');
 
     // Follows the open conversation: choosing another one, or replying to a
     // request (which moves it to the inbox).
     useEffect(() => setTab(home), [activeId, home]);
+
+    const otherPartyOf = (conversation) =>
+        auth.user.id === conversation.customer_id ? conversation.technician : conversation.customer;
 
     const inTab = (key) =>
         conversations.filter((conversation) =>
@@ -44,12 +48,38 @@ function ConversationList({ conversations, activeId, className }) {
             .filter((conversation) => conversation.id !== activeId && !conversation.is_muted && !conversation.is_restricted)
             .reduce((sum, conversation) => sum + conversation.unread_count, 0);
 
-    const visible = inTab(tab);
+    const term = query.trim().toLowerCase();
+    const visible = inTab(tab).filter(
+        (conversation) => term === '' || otherPartyOf(conversation).name.toLowerCase().includes(term),
+    );
 
     return (
         <section
             className={`min-h-0 flex-col overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800 ${className}`}
         >
+            <div className="border-b border-gray-200 p-3 dark:border-gray-700">
+                <div className="relative">
+                    <svg
+                        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth="2"
+                        stroke="currentColor"
+                        aria-hidden="true"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                    </svg>
+                    <input
+                        type="text"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Search conversations"
+                        aria-label="Search conversations"
+                        className="w-full rounded-md border-gray-300 bg-gray-50 py-2 pl-9 pr-3 text-sm placeholder:text-gray-400 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:focus:border-indigo-500 dark:focus:ring-indigo-500"
+                    />
+                </div>
+            </div>
+
             <div role="tablist" className="flex gap-1.5 border-b border-gray-200 p-3 dark:border-gray-700">
                 {TABS.map(({ key, label }) => {
                     const selected = tab === key;
@@ -86,13 +116,12 @@ function ConversationList({ conversations, activeId, className }) {
             <div className="min-h-0 flex-1 overflow-y-auto">
                 {visible.length === 0 && (
                     <p className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                        {TABS.find(({ key }) => key === tab).empty}
+                        {term === '' ? TABS.find(({ key }) => key === tab).empty : `No conversations match "${query.trim()}".`}
                     </p>
                 )}
 
                 {visible.map((conversation) => {
-                    const otherParty =
-                        auth.user.id === conversation.customer_id ? conversation.technician : conversation.customer;
+                    const otherParty = otherPartyOf(conversation);
                     const isActive = conversation.id === activeId;
                     const unread = isActive ? 0 : conversation.unread_count;
                     const last = conversation.last_message;

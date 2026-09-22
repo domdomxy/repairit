@@ -15,21 +15,26 @@ export function useInbox() {
     const { inbox } = usePage().props;
     const recent = inbox?.recent ?? [];
     const requests = inbox?.requests ?? [];
+    const hidden = inbox?.hidden ?? [];
     const activeId = route().current('conversations.show') ? Number(route().params.conversation) : null;
 
     const isActiveUnread = (list) => list.some((conversation) => conversation.id === activeId && conversation.unread_count > 0);
     const activeInRequests = isActiveUnread(requests) ? 1 : 0;
     const activeInInbox = isActiveUnread(recent) ? 1 : 0;
+    const activeInHidden = isActiveUnread(hidden) ? 1 : 0;
 
     const unreadRequests = Math.max(0, (inbox?.unread_requests ?? 0) - activeInRequests);
+    const unreadHidden = Math.max(0, (inbox?.unread_hidden ?? 0) - activeInHidden);
     const unreadTotal = Math.max(0, (inbox?.unread ?? 0) - activeInRequests - activeInInbox);
 
     return {
         recent,
         requests,
+        hidden,
         activeId,
         unread: unreadTotal,
         unreadRequests,
+        unreadHidden,
         unreadInbox: Math.max(0, unreadTotal - unreadRequests),
     };
 }

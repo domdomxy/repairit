@@ -155,21 +155,25 @@ class ConversationList
     /**
      * What the messages panel in the top bar shows, split like the messages
      * page: `recent` is the inbox, `requests` the conversations a customer
-     * started that the technician hasn't answered yet. Each holds the newest
-     * few, and `unread` (both together) and `unread_requests` count
-     * conversations with something unread, over all of them rather than just
-     * the ones listed.
+     * started that the technician hasn't answered yet, and `hidden` the ones
+     * this person hid. Each holds the newest few, and `unread`,
+     * `unread_requests` and `unread_hidden` count conversations with
+     * something unread, over all of them rather than just the ones listed.
+     * `unread` (the bell's badge) counts only the inbox and requests, not
+     * hidden conversations.
      *
-     * Hidden conversations stay out of all of it (they are on the person's
-     * "Hidden" tab), and so do ones with nothing in them yet.
+     * Conversations with nothing in them yet are left out of all three groups.
      *
-     * @return array{unread: int, unread_requests: int, recent: list<array<string, mixed>>, requests: list<array<string, mixed>>}
+     * @return array{unread: int, unread_requests: int, unread_hidden: int, recent: list<array<string, mixed>>, requests: list<array<string, mixed>>, hidden: list<array<string, mixed>>}
      */
     public static function panel(User $user, int $limit = 8): array
     {
-        $visible = self::for($user)
-            ->reject(fn (Conversation $conversation) => $conversation->is_hidden || $conversation->last_message === null)
+        $all = self::for($user)
+            ->reject(fn (Conversation $conversation) => $conversation->last_message === null)
             ->values();
+
+        $visible = $all->reject(fn (Conversation $conversation) => $conversation->is_hidden)->values();
+        $hidden = $all->filter(fn (Conversation $conversation) => $conversation->is_hidden)->values();
 
         [$requests, $inbox] = $visible->partition(fn (Conversation $conversation) => $conversation->is_request);
 
@@ -200,8 +204,10 @@ class ConversationList
         return [
             'unread' => $unreadIn($visible),
             'unread_requests' => $unreadIn($requests),
+            'unread_hidden' => $unreadIn($hidden),
             'recent' => $present($inbox),
             'requests' => $present($requests),
+            'hidden' => $present($hidden),
         ];
     }
 }
