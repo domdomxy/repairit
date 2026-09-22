@@ -7,8 +7,8 @@
    blue-tinted surfaces, so no component markup has to change.
 
    Surface ladder (darkest to lightest):
-     page      #0B0D14   (dark:bg-gray-900)
-     card      #13151F   (dark:bg-gray-800, also the zinc-900 cards on Welcome)
+     page      #000000   (dark:bg-gray-900)
+     card      #141414   (dark:bg-gray-800, also the zinc-900 cards on Welcome)
      raised    #1D2030   (dark:bg-gray-700)
      hover     #23273A   (dark:hover:bg-gray-700)
 
@@ -20,8 +20,8 @@
 
 /* Backgrounds */
 
-html.dark .dark\:bg-gray-900 { background-color: #0B0D14 !important; }
-html.dark .dark\:bg-gray-800 { background-color: #13151F !important; }
+html.dark .dark\:bg-gray-900 { background-color: #000000 !important; }
+html.dark .dark\:bg-gray-800 { background-color: #141414 !important; }
 html.dark .dark\:bg-gray-700 { background-color: #1D2030 !important; }
 html.dark .dark\:bg-gray-600 { background-color: #2A2E42 !important; }
 html.dark .dark\:bg-gray-500 { background-color: #3C4159 !important; }
@@ -30,22 +30,22 @@ html.dark .dark\:bg-gray-200 { background-color: #E7E9F5 !important; }
 html.dark .dark\:bg-gray-100 { background-color: #F5F6FA !important; }
 
 /* The Welcome page cards use zinc-900 instead of gray-800; same card surface. */
-html.dark .dark\:bg-zinc-900 { background-color: #13151F !important; }
+html.dark .dark\:bg-zinc-900 { background-color: #141414 !important; }
 
 /* Translucent variants (modal backdrop, nav bars, tinted rows) */
 
-html.dark .dark\:bg-gray-900\/40 { background-color: rgba(11, 13, 20, 0.50) !important; }
-html.dark .dark\:bg-gray-900\/50 { background-color: rgba(11, 13, 20, 0.60) !important; }
-html.dark .dark\:bg-gray-900\/60 { background-color: rgba(11, 13, 20, 0.70) !important; }
-html.dark .dark\:bg-gray-900\/70 { background-color: rgba(11, 13, 20, 0.80) !important; }
-html.dark .dark\:bg-gray-900\/75 { background-color: rgba(11, 13, 20, 0.85) !important; }
-html.dark .dark\:bg-gray-900\/80 { background-color: rgba(11, 13, 20, 0.90) !important; }
+html.dark .dark\:bg-gray-900\/40 { background-color: rgba(0, 0, 0, 0.50) !important; }
+html.dark .dark\:bg-gray-900\/50 { background-color: rgba(0, 0, 0, 0.60) !important; }
+html.dark .dark\:bg-gray-900\/60 { background-color: rgba(0, 0, 0, 0.70) !important; }
+html.dark .dark\:bg-gray-900\/70 { background-color: rgba(0, 0, 0, 0.80) !important; }
+html.dark .dark\:bg-gray-900\/75 { background-color: rgba(0, 0, 0, 0.85) !important; }
+html.dark .dark\:bg-gray-900\/80 { background-color: rgba(0, 0, 0, 0.90) !important; }
 
-html.dark .dark\:bg-gray-800\/30 { background-color: rgba(19, 21, 31, 0.40) !important; }
-html.dark .dark\:bg-gray-800\/50 { background-color: rgba(19, 21, 31, 0.60) !important; }
-html.dark .dark\:bg-gray-800\/60 { background-color: rgba(19, 21, 31, 0.70) !important; }
-html.dark .dark\:bg-gray-800\/90 { background-color: rgba(19, 21, 31, 0.95) !important; }
-html.dark .dark\:bg-gray-800\/95 { background-color: rgba(19, 21, 31, 0.97) !important; }
+html.dark .dark\:bg-gray-800\/30 { background-color: rgba(20, 20, 20, 0.40) !important; }
+html.dark .dark\:bg-gray-800\/50 { background-color: rgba(20, 20, 20, 0.60) !important; }
+html.dark .dark\:bg-gray-800\/60 { background-color: rgba(20, 20, 20, 0.70) !important; }
+html.dark .dark\:bg-gray-800\/90 { background-color: rgba(20, 20, 20, 0.95) !important; }
+html.dark .dark\:bg-gray-800\/95 { background-color: rgba(20, 20, 20, 0.97) !important; }
 
 html.dark .dark\:bg-gray-700\/40 { background-color: rgba(29, 32, 48, 0.50) !important; }
 html.dark .dark\:bg-gray-700\/50 { background-color: rgba(29, 32, 48, 0.60) !important; }
@@ -59,11 +59,11 @@ html.dark .dark\:hover\:bg-gray-700\/40:hover { background-color: rgba(29, 32, 4
 html.dark .dark\:hover\:bg-gray-500\/50:hover { background-color: rgba(60, 65, 89, 0.50) !important; }
 /* Cards (gray-800) lift to the "raised" surface on hover, e.g. the Messages list rows. */
 html.dark .dark\:hover\:bg-gray-800:hover { background-color: #1D2030 !important; }
-html.dark .dark\:hover\:bg-gray-900:hover { background-color: #0B0D14 !important; }
+html.dark .dark\:hover\:bg-gray-900:hover { background-color: #000000 !important; }
 
 html.dark .dark\:focus\:bg-gray-700:focus { background-color: #23273A !important; }
 html.dark .dark\:focus\:bg-gray-800:focus { background-color: #1D2030 !important; }
-html.dark .dark\:focus\:bg-gray-900:focus { background-color: #0B0D14 !important; }
+html.dark .dark\:focus\:bg-gray-900:focus { background-color: #000000 !important; }
 
 html.dark .dark\:active\:bg-gray-300:active { background-color: #CDD1E5 !important; }
 
@@ -109,17 +109,17 @@ html.dark .dark\:hover\:ring-zinc-700:hover { --tw-ring-color: #2B2F46 !importan
 
 /* The ring offset is the gap colour behind a focus ring, so it has to match the
    surface the control sits on (the card colour), or a light halo shows. */
-html.dark .dark\:focus\:ring-offset-gray-800:focus { --tw-ring-offset-color: #13151F !important; }
+html.dark .dark\:focus\:ring-offset-gray-800:focus { --tw-ring-offset-color: #141414 !important; }
 
 /* Gradient stops. Tailwind builds gradients from custom properties rather than a
    flat colour, so the zinc-900 fade at the bottom of the Welcome hero card needs
    its stops re-pointed at the card colour, otherwise it fades to a different
    grey than the card behind it. */
 html.dark .dark\:via-zinc-900 {
-    --tw-gradient-to: rgb(19 21 31 / 0) var(--tw-gradient-to-position) !important;
-    --tw-gradient-stops: var(--tw-gradient-from), #13151F var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+    --tw-gradient-to: rgb(20 20 20 / 0) var(--tw-gradient-to-position) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), #141414 var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
 }
-html.dark .dark\:to-zinc-900 { --tw-gradient-to: #13151F var(--tw-gradient-to-position) !important; }
+html.dark .dark\:to-zinc-900 { --tw-gradient-to: #141414 var(--tw-gradient-to-position) !important; }
 
 /* Text */
 
@@ -133,7 +133,7 @@ html.dark .dark\:text-gray-600 { color: #5C6080 !important; }
 html.dark .dark\:text-gray-700 { color: #454863 !important; }
 html.dark .dark\:text-gray-800 { color: #20232F !important; }
 /* Dark text on the light chart tooltip (dark:bg-gray-100). */
-html.dark .dark\:text-gray-900 { color: #0B0D14 !important; }
+html.dark .dark\:text-gray-900 { color: #000000 !important; }
 
 html.dark .dark\:hover\:text-gray-100:hover { color: #F5F6FA !important; }
 html.dark .dark\:hover\:text-gray-200:hover { color: #E4E6F0 !important; }
