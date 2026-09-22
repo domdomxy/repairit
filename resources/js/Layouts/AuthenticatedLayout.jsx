@@ -31,7 +31,7 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
             {/* Fixed, so it never scrolls with the page; the pt-16 above (the
                 bar's height) keeps the rest of the content clear of it. */}
             <nav
-                className="fixed inset-x-0 top-0 z-40 border-b border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800"
+                className="fixed inset-x-0 top-0 z-40 border-b border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900"
             >
                 <div className="w-full px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 justify-between">
@@ -60,7 +60,7 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                                             type="button"
                                             title="Create new post"
                                             aria-label="Create new post"
-                                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-gray-500 transition hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:text-gray-400 dark:hover:text-gray-300 dark:focus:ring-offset-gray-800"
+                                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-gray-300 text-gray-500 transition hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 dark:focus:ring-offset-gray-800"
                                         >
                                             <PlusIcon className="h-6 w-6" />
                                         </button>
@@ -91,10 +91,10 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                             />
                         </div>
 
-                        <div className="hidden sm:ms-6 sm:flex sm:items-center">
+                        <div className="hidden sm:ms-6 sm:flex sm:items-center sm:gap-2">
                             <MessagesMenu />
                             <NotificationBell />
-                            <div className="relative ms-3">
+                            <div className="relative">
                                 <Dropdown>
                                     <Dropdown.Trigger>
                                         <button

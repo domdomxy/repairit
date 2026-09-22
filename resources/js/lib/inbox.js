@@ -1,7 +1,10 @@
 import { usePage } from '@inertiajs/react';
 
 /** The paper plane, seen from the side, used for messages throughout the app (outline, 24x24). */
-export const MESSAGES_ICON_PATH = 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z';
+// An inbox tray outline, drawn in the same rounded, thin-stroke family as the
+// notification bell so the two header icons read as a matched pair.
+export const MESSAGES_ICON_PATH =
+    'M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-3.586a1 1 0 00-.707.293l-1.414 1.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-1.414-1.414A1 1 0 006.586 13H3';
 
 /**
  * The messages panel's data: the newest conversations of the inbox and of the

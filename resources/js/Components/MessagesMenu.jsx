@@ -258,10 +258,10 @@ export default function MessagesMenu({ className = '' }) {
                 <button
                     type="button"
                     onClick={toggle}
-                    className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition ${
+                    className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition ${
                         unread > 0 || onMessagesPage
-                            ? 'text-indigo-600 dark:text-indigo-400'
-                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                            ? 'border-indigo-200 text-indigo-600 dark:border-indigo-800 dark:text-indigo-400'
+                            : 'border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300'
                     } ${className}`}
                     aria-label={unread > 0 ? `Messages, ${unread} unread` : 'Messages'}
                     aria-haspopup="true"

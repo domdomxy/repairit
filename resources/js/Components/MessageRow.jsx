@@ -3,6 +3,7 @@ import { PushpinIcon } from '@/Components/Icons';
 import MessageAttachments from '@/Components/MessageAttachments';
 import MessageDetailsModal from '@/Components/MessageDetailsModal';
 import MessageStatus from '@/Components/MessageStatus';
+import Modal from '@/Components/Modal';
 import ReportModal from '@/Components/ReportModal';
 import SharedLocationCard from '@/Components/SharedLocationCard';
 import SharedOfferCard from '@/Components/SharedOfferCard';
@@ -40,8 +41,34 @@ function jumpToMessage(id) {
     window.setTimeout(() => el.classList.remove('ring-2', 'ring-indigo-400', 'rounded-lg'), 1200);
 }
 
+// The panel opened by "Unsend": which of the two scopes to unsend in, laid
+// out as a plain list of options (like the ⋯ menu itself) rather than a pair
+// of action buttons, since neither choice is more "primary" than the other.
+function UnsendPanel({ show, onClose, onChoose }) {
+    const row = 'block w-full px-4 py-3 text-start text-sm hover:bg-gray-50 dark:hover:bg-gray-700';
+
+    return (
+        <Modal show={show} onClose={onClose} maxWidth="sm">
+            <div className="px-4 pb-1 pt-4">
+                <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100">Unsend this message?</h2>
+            </div>
+            <div className="mt-2 divide-y divide-gray-100 border-t border-gray-100 dark:divide-gray-700 dark:border-gray-700">
+                <button type="button" onClick={() => onChoose('everyone')} className={`${row} text-red-600 dark:text-red-400`}>
+                    Unsend for everyone
+                </button>
+                <button type="button" onClick={() => onChoose('me')} className={`${row} text-gray-700 dark:text-gray-300`}>
+                    Unsend for me
+                </button>
+                <button type="button" onClick={onClose} className={`${row} text-gray-500 dark:text-gray-400`}>
+                    Cancel
+                </button>
+            </div>
+        </Modal>
+    );
+}
+
 // One message in the conversation, with what its owner can do to it: edit it
-// or delete it (for me / for everyone) when it is theirs, delete it for
+// or unsend it (for me / for everyone) when it is theirs, delete it for
 // themselves or report it when it is the other person's.
 export default function MessageRow({
     message,
@@ -158,7 +185,10 @@ export default function MessageRow({
         );
     }
 
+    const [unsending, setUnsending] = useState(false);
+
     function remove(scope) {
+        setUnsending(false);
         router.delete(route('messages.destroy', message.id), {
             data: { scope },
             preserveScroll: true,
@@ -223,19 +253,20 @@ export default function MessageRow({
                         </button>
                     </MenuItem>
                 )}
-                <MenuItem>
-                    <button type="button" onClick={() => remove('me')} className={menuItem}>
-                        Delete for me
-                    </button>
-                </MenuItem>
-                {isMine && !message.deleted && (
+                {isMine && !message.deleted ? (
                     <MenuItem>
                         <button
                             type="button"
-                            onClick={() => remove('everyone')}
+                            onClick={() => setUnsending(true)}
                             className={`${menuItem} text-red-600 dark:text-red-400`}
                         >
-                            Delete for everyone
+                            Unsend
+                        </button>
+                    </MenuItem>
+                ) : (
+                    <MenuItem>
+                        <button type="button" onClick={() => remove('me')} className={menuItem}>
+                            Delete for me
                         </button>
                     </MenuItem>
                 )}
@@ -452,6 +483,8 @@ export default function MessageRow({
             />
 
             <MessageDetailsModal show={viewingDetails} onClose={() => setViewingDetails(false)} message={message} />
+
+            <UnsendPanel show={unsending} onClose={() => setUnsending(false)} onChoose={remove} />
         </div>
     );
 }
