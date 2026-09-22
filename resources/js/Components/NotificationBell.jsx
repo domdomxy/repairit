@@ -6,7 +6,7 @@ import { useEchoNotification } from '@laravel/echo-react';
 import { useEffect, useRef, useState } from 'react';
 
 const BELL_PATH =
-    'M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9';
+    'M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0';
 
 // What each kind of notification looks like in the list, and its name in the
 // category filter. A kind that isn't listed here falls back to the bell.
@@ -290,7 +290,7 @@ export default function NotificationBell({ className = '' }) {
                 <button
                     type="button"
                     onClick={() => setOpen((value) => !value)}
-                    className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition ${
+                    className={`relative flex h-8 w-10 shrink-0 items-center justify-center rounded-md border transition ${
                         unread > 0
                             ? 'border-indigo-200 text-indigo-600 dark:border-indigo-800 dark:text-indigo-400'
                             : 'border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300'
@@ -299,7 +299,7 @@ export default function NotificationBell({ className = '' }) {
                     aria-haspopup="true"
                     aria-expanded={open}
                 >
-                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d={BELL_PATH} />
                     </svg>
                     {unread > 0 && (

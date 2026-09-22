@@ -61,9 +61,9 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                                             type="button"
                                             title="Create new post"
                                             aria-label="Create new post"
-                                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-gray-300 text-gray-500 transition hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 dark:focus:ring-offset-gray-800"
+                                            className="flex h-8 w-10 shrink-0 items-center justify-center rounded-md border border-gray-300 text-gray-500 transition hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 dark:focus:ring-offset-gray-800"
                                         >
-                                            <PlusIcon className="h-6 w-6" />
+                                            <PlusIcon className="h-5 w-5" />
                                         </button>
                                     </Dropdown.Trigger>
 
@@ -102,9 +102,9 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                                             type="button"
                                             title="Account"
                                             aria-label="Account"
-                                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                                         >
-                                            <Avatar user={user} size="md" />
+                                            <Avatar user={user} size="sm" />
                                         </button>
                                     </Dropdown.Trigger>
 

@@ -258,7 +258,7 @@ export default function MessagesMenu({ className = '' }) {
                 <button
                     type="button"
                     onClick={toggle}
-                    className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition ${
+                    className={`relative flex h-8 w-10 shrink-0 items-center justify-center rounded-md border transition ${
                         unread > 0 || onMessagesPage
                             ? 'border-indigo-200 text-indigo-600 dark:border-indigo-800 dark:text-indigo-400'
                             : 'border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300'
@@ -267,7 +267,7 @@ export default function MessagesMenu({ className = '' }) {
                     aria-haspopup="true"
                     aria-expanded={open}
                 >
-                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d={MESSAGES_ICON_PATH} />
                     </svg>
                     {unread > 0 && (
