@@ -106,8 +106,14 @@ export default function Show({ ticket, thread }) {
                             </div>
                         </div>
                         <p className="mt-1 text-xs capitalize text-gray-500">
-                            {ticket.user.role}
-                            {ticket.user.suspended && <span className="ms-2 text-red-600">Suspended</span>}
+                            {ticket.user.is_guest ? (
+                                'Guest — no account'
+                            ) : (
+                                <>
+                                    {ticket.user.role}
+                                    {ticket.user.suspended && <span className="ms-2 text-red-600">Suspended</span>}
+                                </>
+                            )}
                         </p>
                     </section>
 

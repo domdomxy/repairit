@@ -10,6 +10,7 @@ use App\Notifications\SupportTicketStatusChanged;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -30,6 +31,8 @@ class SupportController extends Controller
                 fn ($query) => $query
                     ->where('tracking_id', 'like', "%{$term}%")
                     ->orWhere('subject', 'like', "%{$term}%")
+                    ->orWhere('guest_name', 'like', "%{$term}%")
+                    ->orWhere('guest_email', 'like', "%{$term}%")
                     ->orWhereHas('user', fn ($q) => $q
                         ->where('name', 'like', "%{$term}%")
                         ->orWhere('email', 'like', "%{$term}%"))
@@ -50,9 +53,10 @@ class SupportController extends Controller
                 'status' => $ticket->status,
                 'last_activity_at' => $ticket->last_activity_at->toIso8601String(),
                 'user' => [
-                    'name' => $ticket->user->name,
-                    'email' => $ticket->user->email,
-                    'avatar_url' => $ticket->user->avatar_url,
+                    'name' => $ticket->ownerName(),
+                    'email' => $ticket->ownerEmail(),
+                    'avatar_url' => $ticket->user?->avatar_url,
+                    'is_guest' => $ticket->isGuest(),
                 ],
             ]);
 
@@ -82,11 +86,12 @@ class SupportController extends Controller
                 'created_at' => $ticket->created_at->toIso8601String(),
                 'closed_at' => $ticket->closed_at?->toIso8601String(),
                 'user' => [
-                    'name' => $ticket->user->name,
-                    'email' => $ticket->user->email,
-                    'avatar_url' => $ticket->user->avatar_url,
-                    'role' => $ticket->user->role,
-                    'suspended' => $ticket->user->isSuspended(),
+                    'name' => $ticket->ownerName(),
+                    'email' => $ticket->ownerEmail(),
+                    'avatar_url' => $ticket->user?->avatar_url,
+                    'role' => $ticket->user?->role,
+                    'suspended' => $ticket->user?->isSuspended() ?? false,
+                    'is_guest' => $ticket->isGuest(),
                 ],
             ],
             'thread' => $ticket->threadFor($request->user()),
@@ -123,7 +128,7 @@ class SupportController extends Controller
             AdminLog::record(
                 $request->user(),
                 'support.replied',
-                "Replied to ticket {$ticket->tracking_id} from {$ticket->user->name}".($status !== 'open' ? " (now {$status})" : ''),
+                "Replied to ticket {$ticket->tracking_id} from {$ticket->ownerName()}".($status !== 'open' ? " (now {$status})" : ''),
                 $ticket,
             );
 
@@ -164,6 +169,14 @@ class SupportController extends Controller
     /** A suspended owner can't sign in to read it, so there is nothing to tell them. */
     private function notifyOwner(SupportTicket $ticket, $notification): void
     {
+        // A guest has no account to notify in-app, so email is the only channel —
+        // routed on demand to the address they left, not to a User row.
+        if ($ticket->isGuest()) {
+            Notification::route('mail', $ticket->guest_email)->notify($notification);
+
+            return;
+        }
+
         $owner = $ticket->user;
 
         if (! $owner->isSuspended()) {

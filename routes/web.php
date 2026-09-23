@@ -10,6 +10,7 @@ use App\Http\Controllers\AvatarController;
 use App\Http\Controllers\CustomerProfileController;
 use App\Http\Controllers\CustomerReviewController;
 use App\Http\Controllers\FeedController;
+use App\Http\Controllers\GuestSupportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\ProfileController;
@@ -49,6 +50,16 @@ Route::get('/', function () {
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
+
+// Support for someone with no account. Kept under /support/guest/... (never a
+// bare /support/{ticket} shape) so it can never be mistaken for the
+// authenticated ticket routes below, which sit behind the 'auth' middleware.
+Route::get('/support/guest/new', [GuestSupportController::class, 'create'])->name('support.guest.create');
+Route::post('/support/guest', [GuestSupportController::class, 'store'])->middleware('throttle:6,1')->name('support.guest.store');
+Route::get('/support/guest/track', [GuestSupportController::class, 'track'])->name('support.guest.track');
+Route::post('/support/guest/track', [GuestSupportController::class, 'lookup'])->middleware('throttle:10,1')->name('support.guest.lookup');
+Route::get('/support/guest/{ticket}/{token}', [GuestSupportController::class, 'show'])->name('support.guest.show');
+Route::post('/support/guest/{ticket}/{token}/reply', [GuestSupportController::class, 'reply'])->middleware('throttle:20,1')->name('support.guest.reply');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

@@ -206,6 +206,9 @@ export default function Welcome({ auth, canLogin, canRegister, categories = [] }
                             </span>
                         </div>
                         <div className="flex gap-5 text-sm text-gray-500 dark:text-gray-400">
+                            <Link href={route('support.guest.create')} className="hover:text-gray-900 dark:hover:text-gray-200">
+                                Get support
+                            </Link>
                             {canLogin && (
                                 <Link href={route('login')} className="hover:text-gray-900 dark:hover:text-gray-200">
                                     Log in

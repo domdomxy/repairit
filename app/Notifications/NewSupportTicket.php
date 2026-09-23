@@ -11,7 +11,7 @@ class NewSupportTicket extends SupportNotification
     {
         return [
             'kind' => 'support',
-            'title' => "New support ticket from {$this->ticket->user->name}",
+            'title' => "New support ticket from {$this->ticket->ownerName()}",
             'body' => "{$this->ticket->categoryLabel()}: {$this->ticket->subject}",
             'ticket_id' => $this->ticket->id,
             'url' => $this->staffUrl(false),
@@ -23,7 +23,7 @@ class NewSupportTicket extends SupportNotification
         return (new MailMessage)
             ->subject("New support ticket {$this->ticket->tracking_id}")
             ->greeting('Hi '.$this->escapeForMail($notifiable->name).',')
-            ->line($this->escapeForMail($this->ticket->user->name)." opened a support ticket ({$this->ticket->tracking_id}, {$this->ticket->categoryLabel()}).")
+            ->line($this->escapeForMail($this->ticket->ownerName())." opened a support ticket ({$this->ticket->tracking_id}, {$this->ticket->categoryLabel()}).")
             ->action('Open the ticket', $this->staffUrl(true))
             ->line('You can turn these emails off in your profile settings.');
     }

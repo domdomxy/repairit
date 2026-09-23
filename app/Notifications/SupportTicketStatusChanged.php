@@ -33,11 +33,15 @@ class SupportTicketStatusChanged extends SupportNotification
 
     public function toMail(object $notifiable): MailMessage
     {
+        // The recipient is always the ticket's owner, who may be a guest with
+        // no account (and so no ->name of their own) — greet by ticket owner.
         return (new MailMessage)
             ->subject("Your ticket {$this->ticket->tracking_id} is now {$this->label()}")
-            ->greeting('Hi '.$this->escapeForMail($notifiable->name).',')
+            ->greeting('Hi '.$this->escapeForMail($this->ticket->ownerName()).',')
             ->line("The status of your support ticket ({$this->ticket->tracking_id}) changed to {$this->label()}.")
             ->action('View the ticket', $this->ownerUrl(true))
-            ->line('You can turn these emails off in your profile settings.');
+            ->line($this->ticket->isGuest()
+                ? 'This link is how you read and reply — there is no account or notification tied to this ticket.'
+                : 'You can turn these emails off in your profile settings.');
     }
 }

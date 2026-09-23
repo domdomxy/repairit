@@ -125,7 +125,14 @@ export default function Index({ tickets, filters, categories, counts }) {
                                         <div className="flex items-center gap-3">
                                             <Avatar user={ticket.user} size="sm" />
                                             <div>
-                                                <div>{ticket.user.name}</div>
+                                                <div className="flex items-center gap-1.5">
+                                                    {ticket.user.name}
+                                                    {ticket.user.is_guest && (
+                                                        <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                                                            Guest
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div className="text-xs text-gray-500">{ticket.user.email}</div>
                                             </div>
                                         </div>
