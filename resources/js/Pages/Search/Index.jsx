@@ -2,8 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { PinIcon, StarIcon, TagIcon, WrenchIcon } from '@/Components/Icons';
 import KeywordSearchBar from '@/Components/KeywordSearchBar';
+import OfferListing from '@/Components/OfferListing';
 import Pagination from '@/Components/Pagination';
-import { OfferResult, RequestResult, TechnicianResult } from '@/Components/SearchResults';
+import RequestCard from '@/Components/RequestCard';
+import RequestMenu from '@/Components/RequestMenu';
+import RequestQuoteAction from '@/Components/RequestQuoteAction';
+import { TechnicianResult } from '@/Components/SearchResults';
 import TechnicianMap from '@/Components/TechnicianMap';
 import { AVAILABILITY } from '@/lib/availability';
 import { findPlace } from '@/lib/geocode';
@@ -47,11 +51,12 @@ const SORT_OPTIONS = {
 
 const RADIUS_DEFAULT = '10';
 
-// Grids that fill the width they are given: as many columns as fit.
+// Technicians are cards that fill the width they are given: as many columns as fit.
+// Offers and requests are the cards of the feed, one under the other, like there.
 const GRIDS = {
-    technicians: 'grid-cols-[repeat(auto-fill,minmax(min(17rem,100%),1fr))]',
-    offers: 'grid-cols-[repeat(auto-fill,minmax(min(21rem,100%),1fr))]',
-    requests: 'grid-cols-[repeat(auto-fill,minmax(min(21rem,100%),1fr))]',
+    technicians: 'gap-4 grid-cols-[repeat(auto-fill,minmax(min(17rem,100%),1fr))]',
+    offers: 'gap-5 grid-cols-1',
+    requests: 'gap-5 grid-cols-1',
 };
 
 const LABEL = 'mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400';
@@ -217,20 +222,38 @@ function EmptyState({ canReset, onReset }) {
 }
 
 // One kind of result as a grid of cards.
-function ResultGrid({ kind, items }) {
+function ResultGrid({ kind, items, reportReasons, quoteLimits }) {
     return (
-        <div className={`grid gap-4 ${GRIDS[kind]}`}>
+        <div className={`grid ${GRIDS[kind]}`}>
             {items.map((item) => {
                 if (kind === 'technicians') return <TechnicianResult key={item.id} technician={item} />;
-                if (kind === 'offers') return <OfferResult key={item.id} offer={item} />;
+                if (kind === 'offers') return <OfferListing key={item.id} offer={item} reportReasons={reportReasons} />;
 
-                return <RequestResult key={item.id} request={item} />;
+                return (
+                    <RequestCard
+                        key={item.id}
+                        request={item}
+                        footer={<RequestQuoteAction request={item} limits={quoteLimits} />}
+                        menu={<RequestMenu request={item} reasons={reportReasons} />}
+                    />
+                );
             })}
         </div>
     );
 }
 
-export default function Index({ technicians, offers, requests, searching, counts, mapPoints, categories, filters }) {
+export default function Index({
+    technicians,
+    offers,
+    requests,
+    searching,
+    counts,
+    mapPoints,
+    categories,
+    filters,
+    reportReasons,
+    quoteLimits,
+}) {
     const [form, setForm] = useState({
         type: normalizeType(filters.type),
         q: filters.q ?? '',
@@ -752,7 +775,7 @@ export default function Index({ technicians, offers, requests, searching, counts
                             </div>
                         </div>
 
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
+                        <div className="flex flex-col gap-4 lg:gap-6">
                             <section
                                 aria-busy={loading}
                                 className={`min-w-0 flex-1 transition-opacity ${loading ? 'opacity-60' : ''}`}
@@ -773,7 +796,12 @@ export default function Index({ technicians, offers, requests, searching, counts
                                                             shown={results[kind].data.length}
                                                             onSeeAll={() => changeType(kind)}
                                                         />
-                                                        <ResultGrid kind={kind} items={results[kind].data} />
+                                                        <ResultGrid
+                                                            kind={kind}
+                                                            items={results[kind].data}
+                                                            reportReasons={reportReasons}
+                                                            quoteLimits={quoteLimits}
+                                                        />
                                                     </div>
                                                 ) : null,
                                             )}
@@ -812,7 +840,12 @@ export default function Index({ technicians, offers, requests, searching, counts
                                         {results[shownType].data.length === 0 ? (
                                             <EmptyState canReset={activeFilters > 0} onReset={resetFilters} />
                                         ) : (
-                                            <ResultGrid kind={shownType} items={results[shownType].data} />
+                                            <ResultGrid
+                                                kind={shownType}
+                                                items={results[shownType].data}
+                                                reportReasons={reportReasons}
+                                                quoteLimits={quoteLimits}
+                                            />
                                         )}
 
                                         <Pagination links={results[shownType].links} />
@@ -820,9 +853,9 @@ export default function Index({ technicians, offers, requests, searching, counts
                                 )}
                             </section>
 
-                            {/* The map, only when it was asked for: beside the results on a wide screen, above them on a small one. */}
+                            {/* The map, only when it was asked for: as wide as the results, and above them. */}
                             {mapOpen && (
-                                <aside className="isolate order-first w-full overflow-hidden rounded-xl bg-white shadow dark:bg-gray-800 lg:sticky lg:top-[5.0625rem] lg:order-last lg:w-[42%] lg:shrink-0 2xl:w-[38%]">
+                                <aside className="isolate order-first w-full overflow-hidden rounded-xl bg-white shadow dark:bg-gray-800">
                                     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-sm">
                                         <p className="font-medium text-gray-900 dark:text-gray-100">
                                             {mapPoints.length} technician{mapPoints.length === 1 ? '' : 's'} on the map
@@ -836,7 +869,7 @@ export default function Index({ technicians, offers, requests, searching, counts
                                         origin={showLocationPanel ? { lat: latNum, lng: lngNum } : null}
                                         radiusKm={showLocationPanel && Number(form.radius) > 0 ? Number(form.radius) : null}
                                         onPick={(lat, lng) => placeLocation(lat, lng, 'map')}
-                                        className="h-80 w-full lg:h-[calc(100vh-11.5rem)]"
+                                        className="h-80 w-full lg:h-[28rem]"
                                     />
                                 </aside>
                             )}

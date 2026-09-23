@@ -15,7 +15,7 @@ export default function CategoryPicker({ categories, value, onChange, hint, erro
             <InputLabel value={label} />
             {hint && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{hint}</p>}
 
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-1.5">
                 {categories.map((category) => {
                     const selected = value.includes(category.id);
 
@@ -25,7 +25,7 @@ export default function CategoryPicker({ categories, value, onChange, hint, erro
                             type="button"
                             onClick={() => toggle(category.id)}
                             aria-pressed={selected}
-                            className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 ${
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 ${
                                 selected
                                     ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
                                     : 'border-gray-200 bg-white text-gray-700 hover:border-indigo-300 hover:bg-indigo-50 dark:border-gray-600 dark:bg-transparent dark:text-gray-300 dark:hover:border-indigo-500 dark:hover:bg-indigo-900/20'

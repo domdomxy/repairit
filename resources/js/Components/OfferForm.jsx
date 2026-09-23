@@ -2,6 +2,8 @@ import CategoryPicker from '@/Components/CategoryPicker';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import MediaPicker from '@/Components/MediaPicker';
+import MoneyInput from '@/Components/MoneyInput';
+import PanelFooter from '@/Components/PanelFooter';
 import SecondaryButton from '@/Components/SecondaryButton';
 import SubmitButton from '@/Components/SubmitButton';
 import TextInput from '@/Components/TextInput';
@@ -45,31 +47,30 @@ export default function OfferForm({ offer = null, categories = [], limits, onDon
     }
 
     return (
-        <form onSubmit={submit} className="space-y-6">
-            <div>
-                <InputLabel htmlFor={`title-${offer?.id ?? 'new'}`} value="Title" />
-                <TextInput
-                    id={`title-${offer?.id ?? 'new'}`}
-                    className="mt-1 block w-full"
-                    value={data.title}
-                    maxLength={120}
-                    onChange={(e) => setData('title', e.target.value)}
-                    placeholder="e.g. Boiler service and safety check"
-                />
-                <InputError message={errors.title} className="mt-2" />
-            </div>
+        <form onSubmit={submit} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_16rem]">
+                <div>
+                    <InputLabel htmlFor={`title-${offer?.id ?? 'new'}`} value="Title" />
+                    <TextInput
+                        id={`title-${offer?.id ?? 'new'}`}
+                        className="mt-1 block w-full text-sm"
+                        value={data.title}
+                        maxLength={120}
+                        onChange={(e) => setData('title', e.target.value)}
+                        placeholder="e.g. Boiler service and safety check"
+                    />
+                    <InputError message={errors.title} className="mt-1" />
+                </div>
 
-            <div>
-                <InputLabel htmlFor={`price-${offer?.id ?? 'new'}`} value="Price (optional)" />
-                <TextInput
+                <MoneyInput
                     id={`price-${offer?.id ?? 'new'}`}
-                    className="mt-1 block w-full"
+                    label="Price (optional)"
                     value={data.price}
+                    onChange={(value) => setData('price', value)}
                     maxLength={60}
-                    onChange={(e) => setData('price', e.target.value)}
-                    placeholder="e.g. From 50 TND, or 80 TND / hour"
+                    placeholder="e.g. from 50"
+                    error={errors.price}
                 />
-                <InputError message={errors.price} className="mt-2" />
             </div>
 
             <CategoryPicker
@@ -81,7 +82,12 @@ export default function OfferForm({ offer = null, categories = [], limits, onDon
             />
 
             <div>
-                <InputLabel htmlFor={`description-${offer?.id ?? 'new'}`} value="Description (optional)" />
+                <div className="flex items-baseline justify-between gap-3">
+                    <InputLabel htmlFor={`description-${offer?.id ?? 'new'}`} value="Description (optional)" />
+                    <span className="text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                        {data.description.length}/{DESCRIPTION_LIMIT}
+                    </span>
+                </div>
                 <textarea
                     id={`description-${offer?.id ?? 'new'}`}
                     rows={4}
@@ -89,11 +95,8 @@ export default function OfferForm({ offer = null, categories = [], limits, onDon
                     value={data.description}
                     onChange={(e) => setData('description', e.target.value)}
                     placeholder="What is included, how long it takes, any conditions…"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-indigo-600 dark:focus:ring-indigo-600"
+                    className="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-indigo-600 dark:focus:ring-indigo-600"
                 />
-                <p className="mt-1 text-right text-xs text-gray-500 dark:text-gray-400">
-                    {data.description.length}/{DESCRIPTION_LIMIT}
-                </p>
                 <InputError message={errors.description} className="mt-1" />
             </div>
 
@@ -111,7 +114,7 @@ export default function OfferForm({ offer = null, categories = [], limits, onDon
                 hint={null}
             />
 
-            <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-5 dark:border-gray-700">
+            <PanelFooter>
                 {onCancel && (
                     <SecondaryButton onClick={onCancel} disabled={processing}>
                         Cancel
@@ -120,7 +123,7 @@ export default function OfferForm({ offer = null, categories = [], limits, onDon
                 <SubmitButton disabled={processing}>
                     {processing && progress ? `Uploading ${progress.percentage}%` : offer ? 'Save offer' : 'Add offer'}
                 </SubmitButton>
-            </div>
+            </PanelFooter>
         </form>
     );
 }

@@ -39,7 +39,7 @@ class ServiceRequestController extends Controller
             'categories' => $this->categories(),
             'limits' => $this->limits(),
             // Their public city is a sensible starting point.
-            'defaultCity' => $request->user()->city,
+            'defaultCity' => $request->user()->city ?: $request->user()->technicianProfile?->city,
         ]);
     }
 
@@ -350,14 +350,29 @@ class ServiceRequestController extends Controller
             ->withCount('quotes')
             // Lets a technician see which requests they have already answered.
             ->withExists(['quotes as has_my_quote' => fn ($query) => $query->where('technician_id', $viewer->id)])
+            // Their own quote, to change it from the card. Quotes are private: nobody else's is loaded.
+            ->with(['quotes' => fn ($query) => $query->where('technician_id', $viewer->id)])
             ->latest()
             ->latest('id')
             ->when($viewer->isNot($owner), fn ($query) => $query->limit(self::PROFILE_LIMIT))
             ->get()
             ->map(fn (ServiceRequest $serviceRequest) => $serviceRequest->toCard() + [
                 'has_my_quote' => (bool) $serviceRequest->has_my_quote,
+                'my_quote' => $serviceRequest->quotes->first()?->only(['id', 'price', 'estimated_time', 'message']),
             ])
             ->all();
+    }
+
+    /**
+     * The limits the quote form on a request's card needs: only for a viewer who
+     * can send quotes (a technician with a profile), null for everyone else.
+     * Shared by the pages that list requests beside the feed.
+     *
+     * @return array<string, int>|null
+     */
+    public static function quoteLimitsFor(User $viewer): ?array
+    {
+        return $viewer->role === 'technician' && $viewer->technicianProfile !== null ? Quote::limits() : null;
     }
 
     /**

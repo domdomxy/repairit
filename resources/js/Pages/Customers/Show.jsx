@@ -1,9 +1,11 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
 import { MailIcon, PencilIcon, PhoneIcon, PinIcon, StarIcon } from '@/Components/Icons';
 import CreatePanel from '@/Components/CreatePanel';
 import RequestCard from '@/Components/RequestCard';
 import RequestForm from '@/Components/RequestForm';
+import RequestMenu from '@/Components/RequestMenu';
+import RequestQuoteAction from '@/Components/RequestQuoteAction';
 import ProfileLinksSection from '@/Components/ProfileLinks';
 import { Banner, ContactRow, SIDE_PANEL, Section, Stat } from '@/Components/ProfileParts';
 import RelationActions from '@/Components/RelationActions';
@@ -16,7 +18,16 @@ import { useState } from 'react';
 // in the middle, what technicians say about them on the right.
 const PANEL = 'rounded-lg bg-white p-6 shadow dark:bg-gray-800';
 
-export default function Show({ customer, requests, relations, requestForm, canReview, myReview, reportReasons }) {
+export default function Show({
+    customer,
+    requests,
+    relations,
+    requestForm,
+    canReview,
+    myReview,
+    reportReasons,
+    quoteLimits,
+}) {
     const { auth } = usePage().props;
     const isOwnProfile = auth.user.id === customer.id;
     const isTechnician = auth.user.role === 'technician';
@@ -27,6 +38,15 @@ export default function Show({ customer, requests, relations, requestForm, canRe
 
     // The request form opens in a panel, like a technician's offer form.
     const [creating, setCreating] = useState(false);
+    // The request open in the edit form, if any.
+    const [editing, setEditing] = useState(null);
+
+    // Deleting from a request's menu: the person stays on their profile.
+    function deleteRequest(request) {
+        if (!window.confirm('Delete this request and its quotes? This cannot be undone.')) return;
+
+        router.delete(route('requests.destroy', { serviceRequest: request.id, from_panel: 1 }), { preserveScroll: true });
+    }
 
     return (
         <AuthenticatedLayout stickyNav>
@@ -181,10 +201,22 @@ export default function Show({ customer, requests, relations, requestForm, canRe
                                         : `${customer.name} has no open requests.`}
                                 </p>
                             )}
-                            <ul className="space-y-3">
+                            {/* The requests are cards of the feed: the same design and the same menu. */}
+                            <ul className="space-y-5">
                                 {requests.map((request) => (
                                     <li key={request.id}>
-                                        <RequestCard request={request} scope={isOwnProfile ? 'mine' : 'all'} showAuthor={false} />
+                                        <RequestCard
+                                            request={request}
+                                            footer={<RequestQuoteAction request={request} limits={quoteLimits} />}
+                                            menu={
+                                                <RequestMenu
+                                                    request={request}
+                                                    reasons={reportReasons}
+                                                    onEdit={() => setEditing(request)}
+                                                    onDelete={() => deleteRequest(request)}
+                                                />
+                                            }
+                                        />
                                     </li>
                                 ))}
                             </ul>
@@ -207,6 +239,29 @@ export default function Show({ customer, requests, relations, requestForm, canRe
                                 onDone={() => setCreating(false)}
                                 onCancel={() => setCreating(false)}
                             />
+                        </CreatePanel>
+                    )}
+
+                    {isOwnProfile && requestForm && (
+                        <CreatePanel
+                            kind="request"
+                            show={editing !== null}
+                            onClose={() => setEditing(null)}
+                            title="Edit request"
+                            description="Change what you wrote, or add and remove pictures and videos. Technicians see the new version."
+                        >
+                            {editing && (
+                                <RequestForm
+                                    key={editing.id}
+                                    serviceRequest={editing}
+                                    categories={requestForm.categories}
+                                    limits={requestForm.limits}
+                                    defaultCity={requestForm.defaultCity}
+                                    inPanel
+                                    onDone={() => setEditing(null)}
+                                    onCancel={() => setEditing(null)}
+                                />
+                            )}
                         </CreatePanel>
                     )}
 

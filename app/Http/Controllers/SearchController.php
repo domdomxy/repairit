@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Offer;
+use App\Models\Report;
 use App\Models\ServiceRequest;
 use App\Models\User;
 use App\Models\UserRelation;
@@ -172,6 +173,9 @@ class SearchController extends Controller
             'counts' => $counts,
             'mapPoints' => $mapQuery ? $this->mapPoints($mapQuery) : [],
             'categories' => Category::orderBy('name')->get(),
+            // What the menu and the quote form on the offers' and requests' cards need.
+            'reportReasons' => Report::REASONS,
+            'quoteLimits' => ServiceRequestController::quoteLimitsFor($viewer),
             // Cast to an object: an empty PHP array reaches the browser as a JS
             // array, where `filters.sort` is Array.prototype.sort, not "unset".
             'filters' => (object) $this->echoFilters($request, $type),
@@ -448,10 +452,18 @@ class SearchController extends Controller
      */
     private function cards(string $kind, LengthAwarePaginator $page, User $viewer, array $favoriteIds): LengthAwarePaginator
     {
+        if ($kind === 'requests') {
+            // Their own quote, to change it from the card. Quotes are private: nobody else's is loaded.
+            $page->getCollection()->load(['quotes' => fn ($query) => $query->where('technician_id', $viewer->id)]);
+        }
+
         return $page->through(fn ($model) => match ($kind) {
             'technicians' => TechnicianController::summary($model) + ['is_favorite' => in_array($model->id, $favoriteIds, true)],
             'offers' => OfferController::card($model),
-            'requests' => $model->toCard() + ['has_my_quote' => (bool) $model->has_my_quote],
+            'requests' => $model->toCard() + [
+                'has_my_quote' => (bool) $model->has_my_quote,
+                'my_quote' => $model->quotes->first()?->only(['id', 'price', 'estimated_time', 'message']),
+            ],
         });
     }
 

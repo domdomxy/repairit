@@ -175,51 +175,51 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
                                     <button
                                         type="button"
                                         onClick={() => setPanel(mainPanel)}
-                                        className="min-w-0 flex-1 truncate rounded-full border border-gray-200 bg-gray-50 px-4 py-2.5 text-start text-gray-500 transition hover:border-indigo-300 hover:bg-white dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-400 dark:hover:border-indigo-500 dark:hover:bg-gray-900"
+                                        className="h-8 min-w-0 flex-1 truncate rounded-md border border-gray-200 bg-gray-50 px-4 py-0 text-start text-gray-500 transition hover:border-indigo-300 hover:bg-white dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-400 dark:hover:border-indigo-500 dark:hover:bg-gray-900"
                                     >
                                         {mainPanel === 'offer'
                                             ? 'Share an offer or ask for a repair…'
                                             : 'What needs fixing?'}
                                     </button>
-                                </div>
-
-                                {/* Customers post requests; technicians choose between a request and an
-                                    offer — the same "+" compose button as the nav bar, opening the
-                                    same panels right here instead of navigating. */}
-                                <div className="mt-3 flex items-center border-t border-gray-100 pt-3 dark:border-gray-700">
-                                    <Dropdown>
-                                        <Dropdown.Trigger>
-                                            <button
-                                                type="button"
-                                                title="Create new post"
-                                                aria-label="Create new post"
-                                                className="flex h-8 w-10 shrink-0 items-center justify-center rounded-md border border-gray-300 text-gray-500 transition hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 dark:focus:ring-offset-gray-800"
-                                            >
-                                                <PlusIcon className="h-5 w-5" />
-                                            </button>
-                                        </Dropdown.Trigger>
-
-                                        <Dropdown.Content align="left" width="48">
-                                            {requestForm && (
+                                    {/* Technicians choose between a request and an offer with the same "+"
+                                        compose button as the nav bar, opening the same panels right here.
+                                        Customers only ever post a request, which the input already opens,
+                                        so they get no button. */}
+                                    {requestForm && offerForm && (
+                                        <Dropdown>
+                                            <Dropdown.Trigger>
                                                 <button
                                                     type="button"
-                                                    onClick={() => setPanel('request')}
-                                                    className="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 transition duration-150 ease-in-out hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-300 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
+                                                    title="Create new post"
+                                                    aria-label="Create new post"
+                                                    className="flex h-8 w-10 shrink-0 items-center justify-center rounded-md border border-gray-300 text-gray-500 transition hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 dark:focus:ring-offset-gray-800"
                                                 >
-                                                    New request
+                                                    <PlusIcon className="h-5 w-5" />
                                                 </button>
-                                            )}
-                                            {offerForm && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setPanel('offer')}
-                                                    className="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 transition duration-150 ease-in-out hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-300 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
-                                                >
-                                                    New offer
-                                                </button>
-                                            )}
-                                        </Dropdown.Content>
-                                    </Dropdown>
+                                            </Dropdown.Trigger>
+
+                                            <Dropdown.Content align="right" width="48">
+                                                {requestForm && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setPanel('request')}
+                                                        className="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 transition duration-150 ease-in-out hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-300 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
+                                                    >
+                                                        New request
+                                                    </button>
+                                                )}
+                                                {offerForm && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setPanel('offer')}
+                                                        className="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 transition duration-150 ease-in-out hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-300 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
+                                                    >
+                                                        New offer
+                                                    </button>
+                                                )}
+                                            </Dropdown.Content>
+                                        </Dropdown>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -338,6 +338,7 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
                             serviceRequest={editing.post}
                             categories={requestForm.categories}
                             limits={requestForm.limits}
+                            defaultCity={requestForm.defaultCity}
                             inPanel
                             onDone={() => setEditing(null)}
                             onCancel={() => setEditing(null)}

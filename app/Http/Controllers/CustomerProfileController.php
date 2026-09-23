@@ -163,6 +163,8 @@ class CustomerProfileController extends Controller
             // `myReview` prefills the form.
             // The reasons the report form on each review offers.
             'reportReasons' => Report::REASONS,
+            // The quote form on the customer's requests: only technicians send quotes.
+            'quoteLimits' => ServiceRequestController::quoteLimitsFor($viewer),
             'canReview' => $isTechnician && CustomerReview::conversationFor($viewer, $customer) !== null,
             'myReview' => $isTechnician
                 ? CustomerReview::where('technician_id', $viewer->id)

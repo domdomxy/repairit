@@ -26,11 +26,12 @@ class TechnicianOfferController extends Controller
     {
         $offers = $request->user()
             ->offers()
-            ->with(['media', 'categories'])
+            ->with(['media', 'categories', 'technician.technicianProfile'])
             ->latest()
             ->latest('id')
             ->get()
-            ->map(fn (Offer $offer) => $offer->toCard())
+            // The same card the feed lists: the technician behind it and when it was posted come with it.
+            ->map(fn (Offer $offer) => OfferController::card($offer))
             ->all();
 
         return Inertia::render('Technicians/Offers', [

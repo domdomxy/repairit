@@ -1,4 +1,5 @@
 import Avatar from '@/Components/Avatar';
+import ClampedText from '@/Components/ClampedText';
 import FeedKindBadge from '@/Components/FeedKindBadge';
 import PostMedia from '@/Components/PostMedia';
 import { formatDateTime, formatMessageTime, relativeTime } from '@/lib/dates';
@@ -11,7 +12,7 @@ import { Link } from '@inertiajs/react';
 // top right (RequestMenu: copy link, edit, delete, report) sits above that link.
 // `scope` is 'mine' on the customer's own list, where the status
 // matters more than the name. In the feed, `showKind` marks it as a request
-// among the offers, and `className` gives it the look of the offers' cards.
+// among the offers, and `className` can give it another look.
 // On the customer's own profile, `showAuthor` is off: the page already says who.
 // Pictures and videos attached to the request are stacked as a collage (PostMedia),
 // the same as an offer's; a click on one opens them in a viewer to browse.
@@ -20,6 +21,11 @@ import { Link } from '@inertiajs/react';
 // when it was posted underneath. At the bottom left, `footer` holds what a
 // technician can do about the request (the button to send a quote), before the
 // categories.
+// The card of a post in the feed, for requests and offers alike: every page that lists
+// them (the feed, profiles, search) uses it, so a post looks the same wherever it is.
+export const FEED_CARD =
+    'rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-900/5 transition hover:ring-indigo-300 dark:bg-gray-800 dark:ring-white/10 dark:hover:ring-indigo-500';
+
 export default function RequestCard({
     request,
     scope = 'all',
@@ -27,7 +33,7 @@ export default function RequestCard({
     showAuthor = true,
     menu = null,
     footer = null,
-    className = 'rounded-lg bg-white p-4 shadow transition hover:shadow-md dark:bg-gray-800',
+    className = FEED_CARD,
 }) {
     return (
         <div className={`relative space-y-3 ${className}`}>
@@ -76,7 +82,7 @@ export default function RequestCard({
             </div>
 
             {/* A request has no title: what the customer wrote is the post. */}
-            <p className="line-clamp-4 whitespace-pre-line break-words text-gray-900 dark:text-gray-100">
+            <ClampedText className="whitespace-pre-line break-words text-gray-900 dark:text-gray-100">
                 {/* The text around a link opens the request; the link itself opens the URL.
                     They are siblings, never nested, since a link cannot sit inside a link. */}
                 {linkify(request.description, {
@@ -87,7 +93,7 @@ export default function RequestCard({
                         </Link>
                     ),
                 })}
-            </p>
+            </ClampedText>
 
             {/* Above the stretched link: a click on a picture opens the viewer, not the request. */}
             {request.media?.length > 0 && (

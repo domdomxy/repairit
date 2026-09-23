@@ -180,7 +180,7 @@ export default function MediaPicker({
             {hint && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{hint}</p>}
 
             {saved.length > 0 && (
-                <ul className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4">
+                <ul className="mt-2 grid grid-cols-3 gap-3 sm:grid-cols-4">
                     {saved.map((item) => {
                         const removing = removeIds.includes(item.id);
 
@@ -217,7 +217,7 @@ export default function MediaPicker({
             )}
 
             {files.length > 0 && (
-                <ul className="mt-3 space-y-2">
+                <ul className="mt-2 space-y-2">
                     {files.map((file, index) => (
                         <PendingFile
                             key={`${file.name}-${file.size}-${file.lastModified}`}
@@ -240,19 +240,23 @@ export default function MediaPicker({
                 onDragLeave={() => setDragging(false)}
                 onDrop={dropFiles}
                 disabled={full}
-                className={`mt-3 flex w-full flex-col items-center gap-1 rounded-xl border-2 border-dashed px-4 py-5 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 ${
+                className={`mt-2 flex w-full items-center gap-3 rounded-xl border-2 border-dashed px-4 py-3 text-start transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 ${
                     dragging
                         ? 'border-indigo-500 bg-indigo-50 dark:border-indigo-400 dark:bg-indigo-900/20'
                         : 'border-gray-300 hover:border-indigo-400 hover:bg-indigo-50/50 dark:border-gray-600 dark:hover:border-indigo-500 dark:hover:bg-indigo-900/10'
                 }`}
             >
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300">
-                    <ImageIcon className="h-5 w-5" />
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300">
+                    <ImageIcon className="h-4 w-4" />
                 </span>
-                <span className="text-sm font-medium text-gray-800 dark:text-gray-100">Add pictures or videos</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                    Up to {limits.max_files} files · pictures {limits.image_max_kb / 1024} MB each · videos{' '}
-                    {limits.video_max_kb / 1024} MB each
+                <span className="min-w-0">
+                    <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">
+                        Add pictures or videos
+                    </span>
+                    <span className="block text-xs text-gray-500 dark:text-gray-400">
+                        Up to {limits.max_files} files · pictures {limits.image_max_kb / 1024} MB each · videos{' '}
+                        {limits.video_max_kb / 1024} MB each
+                    </span>
                 </span>
             </button>
 

@@ -71,7 +71,7 @@ class FeedController extends Controller
             // neither, and only technicians have offers.
             'requestForm' => $user->role === 'admin'
                 ? null
-                : ServiceRequestController::formProps() + ['defaultCity' => $user->city],
+                : ServiceRequestController::formProps() + ['defaultCity' => $user->city ?: $user->technicianProfile?->city],
             'offerForm' => $user->role === 'technician' ? TechnicianOfferController::formProps() : null,
             // The quote form on a request's card: only technicians send quotes.
             'quoteLimits' => $user->role === 'technician' && $user->technicianProfile !== null ? Quote::limits() : null,

@@ -15,7 +15,7 @@ const DEFAULT_ZOOM = 6;
 const PIN_ZOOM = 15;
 
 // Leaflet's default icon paths break under bundlers, so build the icon explicitly.
-const pinIcon = L.icon({
+export const pinIcon = L.icon({
     iconUrl: markerIcon,
     iconRetinaUrl: markerIcon2x,
     shadowUrl: markerShadow,
@@ -29,7 +29,7 @@ function round(value) {
     return Number(value.toFixed(7));
 }
 
-function cityFrom(address = {}) {
+export function cityFrom(address = {}) {
     return (
         address.city ||
         address.town ||
@@ -40,7 +40,7 @@ function cityFrom(address = {}) {
     );
 }
 
-async function nominatim(endpoint, params) {
+export async function nominatim(endpoint, params) {
     const query = new URLSearchParams({
         format: 'jsonv2',
         addressdetails: 1,

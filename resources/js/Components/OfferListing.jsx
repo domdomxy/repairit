@@ -3,6 +3,7 @@ import FeedKindBadge from '@/Components/FeedKindBadge';
 import OfferCard, { OfferPrice } from '@/Components/OfferCard';
 import OfferMenu from '@/Components/OfferMenu';
 import OfferShareActions from '@/Components/OfferShareActions';
+import { formatDateTime, formatMessageTime, relativeTime } from '@/lib/dates';
 import { Link } from '@inertiajs/react';
 
 const AVAILABILITY_STYLES = {
@@ -11,8 +12,9 @@ const AVAILABILITY_STYLES = {
 };
 
 // Who the offer belongs to: the top of every card, with the offer's menu at the
-// top right.
-function TechnicianHeader({ technician, menu, showKind }) {
+// top right. Like a request's header: the name with the city and rating beside
+// it, and when it was posted underneath.
+function TechnicianHeader({ technician, createdAt, menu, showKind }) {
     return (
         <div className="flex items-start justify-between gap-3">
             <Link
@@ -21,10 +23,20 @@ function TechnicianHeader({ technician, menu, showKind }) {
             >
                 <Avatar user={technician} size="md" />
                 <div className="min-w-0">
-                    <p className="truncate font-semibold">{technician.name}</p>
-                    <p className="truncate text-sm text-gray-500">
-                        {technician.city && <>{technician.city} · </>}⭐ {technician.rating_avg ?? '—'} ({technician.rating_count ?? 0})
+                    <p className="flex min-w-0 items-baseline gap-1.5">
+                        <span className="truncate font-semibold">{technician.name}</span>
+                        {technician.city && (
+                            <span className="truncate text-sm text-gray-500">· {technician.city}</span>
+                        )}
+                        <span className="shrink-0 text-sm text-gray-500">
+                            · ⭐ {technician.rating_avg ?? '—'} ({technician.rating_count ?? 0})
+                        </span>
                     </p>
+                    {createdAt && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400" title={formatDateTime(createdAt)}>
+                            {formatMessageTime(createdAt)} · {relativeTime(createdAt)}
+                        </p>
+                    )}
                 </div>
             </Link>
             <div className="flex shrink-0 items-center gap-2">
@@ -58,6 +70,7 @@ export default function OfferListing({ offer, reportReasons, showKind = false, o
                 header={
                     <TechnicianHeader
                         technician={offer.technician}
+                        createdAt={offer.created_at}
                         menu={<OfferMenu offer={offer} reasons={reportReasons} onEdit={onEdit} onDelete={onDelete} />}
                         showKind={showKind}
                     />

@@ -1,10 +1,12 @@
 import CategoryPicker from '@/Components/CategoryPicker';
+import CityPicker from '@/Components/CityPicker';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import MediaPicker from '@/Components/MediaPicker';
+import MoneyInput from '@/Components/MoneyInput';
+import PanelFooter from '@/Components/PanelFooter';
 import SecondaryButton from '@/Components/SecondaryButton';
 import SubmitButton from '@/Components/SubmitButton';
-import TextInput from '@/Components/TextInput';
 import { Link, useForm } from '@inertiajs/react';
 
 // The form to post a repair request, or (with `serviceRequest`) to edit one.
@@ -55,24 +57,26 @@ export default function RequestForm({
     }
 
     return (
-        <form onSubmit={submit} className="space-y-6">
+        <form onSubmit={submit} className="space-y-4">
             <div>
-                <InputLabel htmlFor="description" value="What needs fixing?" />
+                <div className="flex items-baseline justify-between gap-3">
+                    <InputLabel htmlFor="description" value="What needs fixing?" />
+                    <span className="text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                        {data.description.length}/{limits.description_max}
+                    </span>
+                </div>
                 <textarea
                     id="description"
-                    rows={6}
+                    rows={5}
                     autoFocus
                     value={data.description}
                     onChange={(e) => setData('description', e.target.value)}
                     maxLength={limits.description_max}
                     placeholder="e.g. My phone screen cracked. It is a Samsung A52, and I need it fixed this week."
                     required
-                    className="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                    className="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
                 />
-                <p className="mt-1 text-right text-xs text-gray-500">
-                    {data.description.length}/{limits.description_max}
-                </p>
-                <InputError message={errors.description} className="mt-2" />
+                <InputError message={errors.description} className="mt-1" />
             </div>
 
             <CategoryPicker
@@ -83,32 +87,24 @@ export default function RequestForm({
                 error={errors.categories ?? errors['categories.0']}
             />
 
-            <div className="grid gap-6 sm:grid-cols-2">
-                <div>
-                    <InputLabel htmlFor="budget" value="Budget (optional)" />
-                    <TextInput
-                        id="budget"
-                        className="mt-1 block w-full"
-                        value={data.budget}
-                        onChange={(e) => setData('budget', e.target.value)}
-                        maxLength={limits.budget_max}
-                        placeholder="e.g. Up to 100 TND"
-                    />
-                    <InputError message={errors.budget} className="mt-2" />
-                </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+                <MoneyInput
+                    id="budget"
+                    label="Budget (optional)"
+                    value={data.budget}
+                    onChange={(value) => setData('budget', value)}
+                    maxLength={limits.budget_max}
+                    placeholder="e.g. up to 100"
+                    error={errors.budget}
+                />
 
-                <div>
-                    <InputLabel htmlFor="city" value="City (optional)" />
-                    <TextInput
-                        id="city"
-                        className="mt-1 block w-full"
-                        value={data.city}
-                        onChange={(e) => setData('city', e.target.value)}
-                        maxLength={limits.city_max}
-                        autoComplete="address-level2"
-                    />
-                    <InputError message={errors.city} className="mt-2" />
-                </div>
+                <CityPicker
+                    value={data.city}
+                    onChange={(value) => setData('city', value)}
+                    myCity={defaultCity}
+                    maxLength={limits.city_max}
+                    error={errors.city}
+                />
             </div>
 
             <MediaPicker
@@ -122,7 +118,7 @@ export default function RequestForm({
                 noun="request"
             />
 
-            <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-5 dark:border-gray-700">
+            <PanelFooter>
                 {onCancel ? (
                     <SecondaryButton onClick={onCancel} disabled={processing}>
                         Cancel
@@ -137,7 +133,7 @@ export default function RequestForm({
                 <SubmitButton disabled={processing}>
                     {processing && progress ? `Uploading ${progress.percentage}%` : editing ? 'Save changes' : 'Post request'}
                 </SubmitButton>
-            </div>
+            </PanelFooter>
         </form>
     );
 }

@@ -1,3 +1,4 @@
+import ClampedText from '@/Components/ClampedText';
 import PostMedia from '@/Components/PostMedia';
 import { linkify, POST_LINK_CLASS } from '@/lib/linkify';
 
@@ -62,9 +63,9 @@ export default function OfferCard({
             </div>
 
             {offer.description && (
-                <p className="whitespace-pre-line break-words text-sm text-gray-600 dark:text-gray-300">
+                <ClampedText className="whitespace-pre-line break-words text-sm text-gray-600 dark:text-gray-300">
                     {links ? linkify(offer.description, { linkClassName: POST_LINK_CLASS }) : offer.description}
-                </p>
+                </ClampedText>
             )}
 
             {!listing && <OfferCategories categories={offer.categories} />}

@@ -2,14 +2,13 @@ import { Link, router, usePage } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
 import { ChatIcon, MailIcon, PencilIcon, PhoneIcon, PinIcon, StarIcon } from '@/Components/Icons';
 import FeedFilterMenu from '@/Components/FeedFilterMenu';
-import FeedKindBadge from '@/Components/FeedKindBadge';
 import CreatePanel from '@/Components/CreatePanel';
-import OfferCard from '@/Components/OfferCard';
 import OfferForm from '@/Components/OfferForm';
-import OfferMenu from '@/Components/OfferMenu';
-import OfferShareActions from '@/Components/OfferShareActions';
+import OfferListing from '@/Components/OfferListing';
 import RequestCard from '@/Components/RequestCard';
 import RequestForm from '@/Components/RequestForm';
+import RequestMenu from '@/Components/RequestMenu';
+import RequestQuoteAction from '@/Components/RequestQuoteAction';
 import ProfileLinksSection from '@/Components/ProfileLinks';
 import { Banner, ContactRow, SIDE_PANEL, Section, Stat } from '@/Components/ProfileParts';
 import RelationActions from '@/Components/RelationActions';
@@ -34,7 +33,17 @@ const FILTERS = [
 const NEW_POST_BUTTON =
     'rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60';
 
-export default function Show({ technician, requests, relations, canReview, myReview, offerForm, requestForm, reportReasons }) {
+export default function Show({
+    technician,
+    requests,
+    relations,
+    canReview,
+    myReview,
+    offerForm,
+    requestForm,
+    reportReasons,
+    quoteLimits,
+}) {
     const { auth } = usePage().props;
     const profile = technician.technician_profile;
     const isOwnProfile = auth.user.id === technician.id;
@@ -49,6 +58,7 @@ export default function Show({ technician, requests, relations, canReview, myRev
     // or an offer filled in to edit.
     const [creating, setCreating] = useState(null);
     const [editing, setEditing] = useState(null);
+    const [editingRequest, setEditingRequest] = useState(null);
     const atLimit = offerForm ? offers.length >= offerForm.limits.max_offers : false;
 
     // Offers and requests are listed together, and can be searched, narrowed to
@@ -58,8 +68,33 @@ export default function Show({ technician, requests, relations, canReview, myRev
     const [search, setSearch] = useState('');
     const [category, setCategory] = useState('');
 
+    // An offer of this page carries no technician of its own: it is the one of the page.
+    // The listing of the feed reads them from the offer, so they are added here.
+    const owner = {
+        id: technician.id,
+        name: technician.name,
+        avatar_url: technician.avatar_url,
+        city: profile?.city,
+        availability_status: profile?.availability_status,
+        rating_avg: profile?.rating_avg,
+        rating_count: profile?.rating_count,
+    };
+
+    // Deleting from a post's menu: the person stays on the page.
+    function deleteRequest(post) {
+        if (!window.confirm('Delete this request and its quotes? This cannot be undone.')) return;
+
+        router.delete(route('requests.destroy', { serviceRequest: post.id, from_panel: 1 }), { preserveScroll: true });
+    }
+
+    function deleteOffer(post) {
+        if (!window.confirm(`Delete "${post.title}"? Its pictures and videos will be deleted too.`)) return;
+
+        router.delete(route('technician.offers.destroy', post.id), { preserveScroll: true });
+    }
+
     const allPosts = [
-        ...offers.map((offer) => ({ kind: 'offer', ...offer })),
+        ...offers.map((offer) => ({ kind: 'offer', ...offer, technician: owner })),
         ...(requests ?? []).map((request) => ({ kind: 'request', ...request })),
     ];
 
@@ -340,37 +375,32 @@ export default function Show({ technician, requests, relations, canReview, myRev
                                           : `${technician.name} has no ${noun} yet.`}
                                 </p>
                             )}
-                            <ul className="space-y-3">
+                            {/* The posts are cards of the feed: the same design and the same menu. */}
+                            <ul className="space-y-5">
                                 {posts.map((post) => (
                                     <li key={`${post.kind}-${post.id}`}>
                                         {post.kind === 'request' ? (
                                             <RequestCard
                                                 request={post}
-                                                scope={isOwnProfile ? 'mine' : 'all'}
-                                                showAuthor={false}
                                                 showKind={showKind}
+                                                footer={<RequestQuoteAction request={post} limits={quoteLimits} />}
+                                                menu={
+                                                    <RequestMenu
+                                                        request={post}
+                                                        reasons={reportReasons}
+                                                        onEdit={() => setEditingRequest(post)}
+                                                        onDelete={() => deleteRequest(post)}
+                                                    />
+                                                }
                                             />
                                         ) : (
-                                            <OfferCard
+                                            <OfferListing
                                                 offer={post}
-                                                className="rounded-lg bg-white p-4 shadow dark:bg-gray-800"
-                                                menu={
-                                                    <>
-                                                        {showKind && <FeedKindBadge kind="offer" />}
-                                                        <OfferMenu
-                                                            offer={post}
-                                                            isOwn={isOwnProfile}
-                                                            onEdit={() => setEditing(post)}
-                                                        />
-                                                    </>
-                                                }
-                                            >
-                                                <OfferShareActions
-                                                    offer={post}
-                                                    technicianId={technician.id}
-                                                    showCopy={false}
-                                                />
-                                            </OfferCard>
+                                                reportReasons={reportReasons}
+                                                showKind={showKind}
+                                                onEdit={() => setEditing(post)}
+                                                onDelete={() => deleteOffer(post)}
+                                            />
                                         )}
                                     </li>
                                 ))}
@@ -394,6 +424,29 @@ export default function Show({ technician, requests, relations, canReview, myRev
                                 onDone={() => setCreating(null)}
                                 onCancel={() => setCreating(null)}
                             />
+                        </CreatePanel>
+                    )}
+
+                    {isOwnProfile && requestForm && (
+                        <CreatePanel
+                            kind="request"
+                            show={editingRequest !== null}
+                            onClose={() => setEditingRequest(null)}
+                            title="Edit request"
+                            description="Change what you wrote, or add and remove pictures and videos. Technicians see the new version."
+                        >
+                            {editingRequest && (
+                                <RequestForm
+                                    key={editingRequest.id}
+                                    serviceRequest={editingRequest}
+                                    categories={requestForm.categories}
+                                    limits={requestForm.limits}
+                                    defaultCity={requestForm.defaultCity}
+                                    inPanel
+                                    onDone={() => setEditingRequest(null)}
+                                    onCancel={() => setEditingRequest(null)}
+                                />
+                            )}
                         </CreatePanel>
                     )}
 

@@ -38,8 +38,10 @@ class TechnicianController extends Controller
             'requestForm' => $viewer->is($technician)
                 ? ServiceRequestController::formProps() + ['defaultCity' => $technician->technicianProfile?->city]
                 : null,
-            // The reasons the report form on each review offers.
+            // The reasons the report form on each review, offer and request offers.
             'reportReasons' => Report::REASONS,
+            // The quote form on the technician's requests: only technicians send quotes.
+            'quoteLimits' => ServiceRequestController::quoteLimitsFor($viewer),
             // What the viewer did about this technician (null on their own profile, and for admins).
             'relations' => $viewer->is($technician) ? null : $viewer->relationFlagsFor($technician),
             'canReview' => Review::conversationFor($viewer, $technician) !== null,

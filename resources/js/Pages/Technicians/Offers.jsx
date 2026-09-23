@@ -1,6 +1,6 @@
-import OfferCard from '@/Components/OfferCard';
 import OfferForm from '@/Components/OfferForm';
-import OfferShareActions from '@/Components/OfferShareActions';
+import OfferListing from '@/Components/OfferListing';
+import { FEED_CARD } from '@/Components/RequestCard';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
@@ -45,65 +45,47 @@ export default function Offers({ offers, categories, limits }) {
                         </div>
                     </section>
 
-                    <section className="bg-white p-4 shadow sm:rounded-lg sm:p-8 dark:bg-gray-800">
-                        <header className="flex items-start justify-between gap-4">
-                            <div>
-                                <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                                    Your offers
-                                </h2>
-                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                    {offers.length} of {limits.max_offers}
-                                </p>
-                            </div>
+                    {/* Your offers, listed with the cards of the feed: the same design and the same menu. */}
+                    <section aria-label="Your offers" className="space-y-5 px-4 sm:px-0">
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                <span className="font-semibold text-gray-900 dark:text-gray-100">Your offers</span> ·{' '}
+                                {offers.length} of {limits.max_offers}
+                            </p>
                             <Link
                                 href={route('technicians.show', user.id)}
                                 className="shrink-0 text-sm text-gray-600 underline dark:text-gray-400"
                             >
                                 View public profile
                             </Link>
-                        </header>
-
-                        <div className="mt-6 space-y-4">
-                            {offers.length === 0 && (
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    You have not added any offers yet.
-                                </p>
-                            )}
-
-                            {offers.map((offer) =>
-                                editingId === offer.id ? (
-                                    <div key={offer.id} className="rounded-md border p-4 dark:border-gray-700">
-                                        <OfferForm
-                                            offer={offer}
-                                            limits={limits}
-                                            categories={categories}
-                                            onDone={() => setEditingId(null)}
-                                            onCancel={() => setEditingId(null)}
-                                        />
-                                    </div>
-                                ) : (
-                                    <OfferCard key={offer.id} offer={offer}>
-                                        <div className="flex flex-wrap items-center gap-4 text-sm">
-                                            <button
-                                                type="button"
-                                                onClick={() => setEditingId(offer.id)}
-                                                className="text-indigo-600 underline hover:text-indigo-500 dark:text-indigo-400"
-                                            >
-                                                Edit
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => remove(offer)}
-                                                className="text-red-600 underline hover:text-red-500"
-                                            >
-                                                Delete
-                                            </button>
-                                            <OfferShareActions offer={offer} technicianId={user.id} className="ms-auto" />
-                                        </div>
-                                    </OfferCard>
-                                ),
-                            )}
                         </div>
+
+                        {offers.length === 0 && (
+                            <div className="rounded-2xl border border-dashed border-gray-300 bg-white/60 px-6 py-12 text-center text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-800/40 dark:text-gray-400">
+                                You have not added any offers yet.
+                            </div>
+                        )}
+
+                        {offers.map((offer) =>
+                            editingId === offer.id ? (
+                                <div key={offer.id} className={FEED_CARD}>
+                                    <OfferForm
+                                        offer={offer}
+                                        limits={limits}
+                                        categories={categories}
+                                        onDone={() => setEditingId(null)}
+                                        onCancel={() => setEditingId(null)}
+                                    />
+                                </div>
+                            ) : (
+                                <OfferListing
+                                    key={offer.id}
+                                    offer={offer}
+                                    onEdit={() => setEditingId(offer.id)}
+                                    onDelete={() => remove(offer)}
+                                />
+                            ),
+                        )}
                     </section>
                 </div>
             </div>
