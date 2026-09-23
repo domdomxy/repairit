@@ -25,6 +25,11 @@ export default function SupportThread({ thread, viewerIsStaff }) {
                             <div className={`mb-1 text-xs ${mine ? 'text-indigo-200' : 'text-gray-500'}`}>
                                 {message.author} · {formatDateTime(message.created_at)}
                             </div>
+                            {message.automated && (
+                                <p className={`mb-1 text-[11px] ${mine ? 'text-indigo-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                                    Automatic reply
+                                </p>
+                            )}
                             {/* whitespace-pre-line keeps the writer's line breaks; React escapes the text itself. */}
                             <p className="whitespace-pre-line break-words text-sm">{message.body}</p>
                         </div>

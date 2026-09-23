@@ -12,10 +12,12 @@ class SupportMessage extends Model
         'user_id',
         'from_staff',
         'body',
+        'is_automated',
     ];
 
     protected $casts = [
         'from_staff' => 'boolean',
+        'is_automated' => 'boolean',
     ];
 
     public function ticket(): BelongsTo

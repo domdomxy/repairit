@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AutoResponse;
 use App\Models\SupportTicket;
 use App\Models\User;
 use App\Notifications\NewSupportTicket;
@@ -66,6 +67,8 @@ class GuestSupportController extends Controller
                 'from_staff' => false,
                 'body' => trim($data['body']),
             ]);
+
+            $this->sendAutoResponse($ticket, $data['category']);
 
             return $ticket;
         });
@@ -139,6 +142,29 @@ class GuestSupportController extends Controller
         Notification::send($this->admins(), new SupportReply($ticket, $message));
 
         return back();
+    }
+
+    /**
+     * Post the category's canned reply as soon as the ticket exists, if an
+     * admin hasn't turned it off. Not a real answer, so it doesn't touch the
+     * ticket's status — only its last-activity time, so it still surfaces.
+     */
+    private function sendAutoResponse(SupportTicket $ticket, string $category): void
+    {
+        $body = AutoResponse::textFor(AutoResponse::TYPE_SUPPORT, $category);
+
+        if ($body === null) {
+            return;
+        }
+
+        $ticket->messages()->create([
+            'user_id' => null,
+            'from_staff' => true,
+            'is_automated' => true,
+            'body' => $body,
+        ]);
+
+        $ticket->update(['last_activity_at' => now()]);
     }
 
     /** A wrong or missing token is a 404, same as someone else's ticket for a signed-in user. */

@@ -145,6 +145,7 @@ class SupportTicket extends Model
                     'id' => $message->id,
                     'body' => $message->body,
                     'from_staff' => $message->from_staff,
+                    'automated' => $message->is_automated,
                     // A guest's own messages have no user_id at all (there was never
                     // an account), so they fall back to their name, not "Deleted user".
                     'author' => $anonymous

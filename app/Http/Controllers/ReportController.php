@@ -6,11 +6,13 @@ use App\Models\Conversation;
 use App\Models\CustomerReview;
 use App\Models\Message;
 use App\Models\Offer;
+use App\Models\AutoResponse;
 use App\Models\Report;
 use App\Models\Review;
 use App\Models\ServiceRequest;
 use App\Models\User;
 use App\Notifications\NewReport;
+use App\Notifications\ReportAcknowledged;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
@@ -169,6 +171,12 @@ class ReportController extends Controller
             ->get();
 
         Notification::send($admins, new NewReport($report));
+
+        $autoBody = AutoResponse::textFor(AutoResponse::TYPE_REPORT, $data['reason']);
+
+        if ($autoBody !== null) {
+            $user->notify(new ReportAcknowledged($report, $autoBody));
+        }
 
         return back()->with('success', 'Thanks, your report was sent to the admins.');
     }

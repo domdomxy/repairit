@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AutoResponse;
 use App\Models\SupportTicket;
 use App\Models\User;
 use App\Notifications\NewSupportTicket;
@@ -76,6 +77,8 @@ class SupportController extends Controller
                 'body' => trim($data['body']),
             ]);
 
+            $this->sendAutoResponse($ticket, $data['category']);
+
             return $ticket;
         });
 
@@ -133,6 +136,29 @@ class SupportController extends Controller
         }
 
         return back()->with('success', 'Ticket closed.');
+    }
+
+    /**
+     * Post the category's canned reply as soon as the ticket exists, if an
+     * admin hasn't turned it off. Not a real answer, so it doesn't touch the
+     * ticket's status — only its last-activity time, so it still surfaces.
+     */
+    private function sendAutoResponse(SupportTicket $ticket, string $category): void
+    {
+        $body = AutoResponse::textFor(AutoResponse::TYPE_SUPPORT, $category);
+
+        if ($body === null) {
+            return;
+        }
+
+        $ticket->messages()->create([
+            'user_id' => null,
+            'from_staff' => true,
+            'is_automated' => true,
+            'body' => $body,
+        ]);
+
+        $ticket->update(['last_activity_at' => now()]);
     }
 
     /** Someone else's ticket is a 404, not a 403, so its existence is not confirmed. */

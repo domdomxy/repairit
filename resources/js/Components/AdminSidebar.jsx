@@ -7,6 +7,7 @@ const LINKS = [
     { label: 'Reviews', routeName: 'admin.reviews.index', match: 'admin.reviews.*' },
     { label: 'Support', routeName: 'admin.support.index', match: 'admin.support.*' },
     { label: 'Reports', routeName: 'admin.reports.index', match: 'admin.reports.*' },
+    { label: 'Auto-responses', routeName: 'admin.auto-responses.index', match: 'admin.auto-responses.*' },
     { label: 'Activity log', routeName: 'admin.logs.index', match: 'admin.logs.*' },
 ];
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AutoResponseController as AdminAutoResponseController;
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\LogController as AdminLogController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
@@ -225,6 +226,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::delete('/reports/{report}/review', [AdminReportController::class, 'destroyReview'])->name('reports.review.destroy');
 
     Route::get('/logs', [AdminLogController::class, 'index'])->name('logs.index');
+
+    Route::get('/auto-responses', [AdminAutoResponseController::class, 'index'])->name('auto-responses.index');
+    Route::put('/auto-responses/{type}/{category}', [AdminAutoResponseController::class, 'update'])->name('auto-responses.update');
 });
 
 require __DIR__.'/auth.php';
