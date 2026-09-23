@@ -32,7 +32,7 @@ function NavLink({ href, icon, active, children }) {
 // The account rail shown beside the feed: who you are up top, the pages that
 // belong to your role under that, then the theme toggle and support pinned
 // to the bottom so they're always in the same spot regardless of content height.
-export default function ProfileSidebar({ user, className = '' }) {
+export default function ProfileSidebar({ user, className = '', children }) {
     // Technicians and customers have a public profile; admins only have their account page.
     const profileHref =
         user.role === 'technician'
@@ -42,7 +42,7 @@ export default function ProfileSidebar({ user, className = '' }) {
               : route('profile.edit');
 
     return (
-        <section className={`flex flex-col overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800 ${className}`}>
+        <section className={`flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10 ${className}`}>
             {/* Who you are: a soft header that opens your profile. */}
             <Link
                 href={profileHref}
@@ -91,6 +91,10 @@ export default function ProfileSidebar({ user, className = '' }) {
                     </NavLink>
                 )}
             </nav>
+
+            {/* A page can add its own links here (e.g. Settings' sections),
+                between the role's nav and the toggle/Support pinned below. */}
+            {children}
 
             {/* Pushes the toggle and Support down to the bottom of the card. */}
             <div className="flex-1" />

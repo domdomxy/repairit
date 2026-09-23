@@ -1,8 +1,9 @@
 import Avatar from '@/Components/Avatar';
+import ProfileSidebar from '@/Components/ProfileSidebar';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PlatformIcon, platformOf } from '@/lib/platforms';
 import { getTrustedHosts, revokeAllTrustedHosts, revokeTrustedHost, subscribeTrustedHosts } from '@/lib/trustedHosts';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
 // A single-path outline icon, so each tab and empty state stays lightweight.
@@ -147,6 +148,7 @@ function TrustedSiteRow({ host, tone, undo, disabled, onRevoke }) {
 // can be undone even when there is no conversation or profile to do it from
 // (a blocked person can't be found in the search).
 export default function Index({ lists }) {
+    const { auth } = usePage().props;
     const [tab, setTab] = useState('favorite');
     const [processing, setProcessing] = useState(false);
     const current = TABS.find(({ key }) => key === tab);
@@ -208,139 +210,146 @@ export default function Index({ lists }) {
         <AuthenticatedLayout>
             <Head title="Settings" />
 
-            <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
-                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Settings</h1>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Only you can see these lists. Nobody is told when you add or remove them.
-                </p>
-
-                <div role="tablist" className="mt-6 grid grid-cols-5 border-b border-gray-200 dark:border-gray-700">
-                    {TABS.map(({ key, label, icon, tone: t }) => {
-                        const selected = tab === key;
-                        const count = key === 'trusted' ? hosts.length : (lists[key]?.length ?? 0);
-                        const tt = TONES[t];
-
-                        return (
-                            <button
-                                key={key}
-                                type="button"
-                                role="tab"
-                                aria-selected={selected}
-                                onClick={() => setTab(key)}
-                                className={`flex flex-col items-center gap-1.5 border-b-2 px-1 pb-3 pt-1 transition ${
-                                    selected
-                                        ? tt.activeTab
-                                        : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
-                                }`}
+            <div className="flex w-full flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">
+                <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:items-start">
+                    <aside className="w-full lg:sticky lg:top-20 lg:w-56 lg:shrink-0 lg:self-stretch">
+                        <ProfileSidebar user={auth.user} className="h-full">
+                            {/* The Settings sections, as a vertical nav instead of the row of
+                                tabs they used to be — this is the only page that shows them. */}
+                            <nav
+                                aria-label="Settings sections"
+                                role="tablist"
+                                aria-orientation="vertical"
+                                className="space-y-1 border-t border-gray-100 px-2 pb-2 pt-2 dark:border-gray-700"
                             >
-                                <span
-                                    className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
-                                        selected ? tt.iconOn : tt.iconOff
-                                    }`}
-                                >
-                                    <Icon path={icon} />
-                                </span>
-                                <span className="flex flex-wrap items-center justify-center gap-x-1 text-center text-xs font-medium leading-tight">
-                                    {label}
-                                    {count > 0 && (
-                                        <span
-                                            className={`rounded-full px-1.5 text-[11px] font-semibold ${
-                                                selected ? tt.count : 'bg-gray-100 text-gray-500 dark:bg-gray-900 dark:text-gray-400'
+                                {TABS.map(({ key, label, icon, tone: t }) => {
+                                    const selected = tab === key;
+                                    const count = key === 'trusted' ? hosts.length : (lists[key]?.length ?? 0);
+                                    const tt = TONES[t];
+
+                                    return (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={selected}
+                                            onClick={() => setTab(key)}
+                                            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                                                selected ? tt.badge : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
                                             }`}
                                         >
-                                            {count}
-                                        </span>
-                                    )}
-                                </span>
-                            </button>
-                        );
-                    })}
-                </div>
+                                            <Icon path={icon} className="h-5 w-5 shrink-0" />
+                                            <span className="flex-1 truncate text-start">{label}</span>
+                                            {count > 0 && (
+                                                <span
+                                                    className={`shrink-0 rounded-full px-1.5 text-[11px] font-semibold ${
+                                                        selected ? tt.count : 'bg-gray-100 text-gray-500 dark:bg-gray-900 dark:text-gray-400'
+                                                    }`}
+                                                >
+                                                    {count}
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </nav>
+                        </ProfileSidebar>
+                    </aside>
 
-                <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800">
-                    {(trusted ? hosts.length === 0 : people.length === 0) && (
-                        <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
-                            <span className={`flex h-12 w-12 items-center justify-center rounded-full ${tone.iconOn}`}>
-                                <Icon path={current.icon} className="h-6 w-6" />
-                            </span>
-                            <p className="max-w-sm text-sm text-gray-500 dark:text-gray-400">{current.empty}</p>
+                    <div className="min-w-0 flex-1 space-y-4">
+                        <div>
+                            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Settings</h1>
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                Only you can see these lists. Nobody is told when you add or remove them.
+                            </p>
                         </div>
-                    )}
 
-                    <ul className="divide-y divide-gray-100 dark:divide-gray-700">
-                        {people.map((person) => {
-                            const href = profileHref(person);
-                            const identity = (
-                                <>
-                                    <Avatar user={person} size="md" />
-                                    <span className="min-w-0">
-                                        <span className="block truncate text-sm font-medium text-gray-900 dark:text-gray-100">
-                                            {person.name}
-                                        </span>
-                                        <span
-                                            className={`mt-0.5 inline-block rounded-full px-1.5 py-0.5 text-[11px] font-medium capitalize ${tone.badge}`}
-                                        >
-                                            {person.role}
-                                        </span>
+                        <div className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800">
+                            {(trusted ? hosts.length === 0 : people.length === 0) && (
+                                <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
+                                    <span className={`flex h-12 w-12 items-center justify-center rounded-full ${tone.iconOn}`}>
+                                        <Icon path={current.icon} className="h-6 w-6" />
                                     </span>
-                                </>
-                            );
-
-                            return (
-                                <li
-                                    key={person.id}
-                                    className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-gray-50 dark:hover:bg-gray-700/40"
-                                >
-                                    {href ? (
-                                        <Link href={href} className="flex min-w-0 items-center gap-3">
-                                            {identity}
-                                        </Link>
-                                    ) : (
-                                        <div className="flex min-w-0 items-center gap-3">{identity}</div>
-                                    )}
-                                    <button
-                                        type="button"
-                                        onClick={() => undo(person)}
-                                        disabled={processing}
-                                        className={`shrink-0 rounded-md border px-3 py-1.5 text-sm font-medium transition disabled:opacity-60 ${tone.action}`}
-                                    >
-                                        {current.undo}
-                                    </button>
-                                </li>
-                            );
-                        })}
-                    </ul>
-
-                    {trusted && hosts.length > 0 && (
-                        <>
-                            <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-700">
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    {hosts.length} {hosts.length === 1 ? 'site opens' : 'sites open'} without asking first.
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={revokeAll}
-                                    disabled={processing}
-                                    className="shrink-0 rounded-md border border-rose-300 px-3 py-1.5 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:opacity-60 dark:border-rose-800 dark:text-rose-300 dark:hover:bg-rose-900/20"
-                                >
-                                    Remove all
-                                </button>
-                            </div>
+                                    <p className="max-w-sm text-sm text-gray-500 dark:text-gray-400">{current.empty}</p>
+                                </div>
+                            )}
 
                             <ul className="divide-y divide-gray-100 dark:divide-gray-700">
-                                {hosts.map((host) => (
-                                    <TrustedSiteRow
-                                        key={host}
-                                        host={host}
-                                        tone={tone}
-                                        undo={current.undo}
-                                        disabled={processing}
-                                        onRevoke={() => revokeHost(host)}
-                                    />
-                                ))}
+                                {people.map((person) => {
+                                    const href = profileHref(person);
+                                    const identity = (
+                                        <>
+                                            <Avatar user={person} size="md" />
+                                            <span className="min-w-0">
+                                                <span className="block truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                    {person.name}
+                                                </span>
+                                                <span
+                                                    className={`mt-0.5 inline-block rounded-full px-1.5 py-0.5 text-[11px] font-medium capitalize ${tone.badge}`}
+                                                >
+                                                    {person.role}
+                                                </span>
+                                            </span>
+                                        </>
+                                    );
+
+                                    return (
+                                        <li
+                                            key={person.id}
+                                            className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-gray-50 dark:hover:bg-gray-700/40"
+                                        >
+                                            {href ? (
+                                                <Link href={href} className="flex min-w-0 items-center gap-3">
+                                                    {identity}
+                                                </Link>
+                                            ) : (
+                                                <div className="flex min-w-0 items-center gap-3">{identity}</div>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => undo(person)}
+                                                disabled={processing}
+                                                className={`shrink-0 rounded-md border px-3 py-1.5 text-sm font-medium transition disabled:opacity-60 ${tone.action}`}
+                                            >
+                                                {current.undo}
+                                            </button>
+                                        </li>
+                                    );
+                                })}
                             </ul>
-                        </>
-                    )}
+
+                            {trusted && hosts.length > 0 && (
+                                <>
+                                    <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-700">
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                                            {hosts.length} {hosts.length === 1 ? 'site opens' : 'sites open'} without asking first.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={revokeAll}
+                                            disabled={processing}
+                                            className="shrink-0 rounded-md border border-rose-300 px-3 py-1.5 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:opacity-60 dark:border-rose-800 dark:text-rose-300 dark:hover:bg-rose-900/20"
+                                        >
+                                            Remove all
+                                        </button>
+                                    </div>
+
+                                    <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+                                        {hosts.map((host) => (
+                                            <TrustedSiteRow
+                                                key={host}
+                                                host={host}
+                                                tone={tone}
+                                                undo={current.undo}
+                                                disabled={processing}
+                                                onRevoke={() => revokeHost(host)}
+                                            />
+                                        ))}
+                                    </ul>
+                                </>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
         </AuthenticatedLayout>

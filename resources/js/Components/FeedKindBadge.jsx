@@ -1,20 +1,19 @@
-const STYLES = {
-    request: {
-        label: 'Request',
-        classes: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200',
-    },
-    offer: {
-        label: 'Offer',
-        classes: 'bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-200',
-    },
+const LABELS = {
+    request: 'Request',
+    offer: 'Offer',
 };
 
 // Says what a post in the feed is: a customer's repair request or a
-// technician's offer.
+// technician's offer. A plain, uncolored tag — no background fill, no
+// per-kind color, just a neutral outline and text.
 export default function FeedKindBadge({ kind }) {
-    const style = STYLES[kind];
+    const label = LABELS[kind];
 
-    if (!style) return null;
+    if (!label) return null;
 
-    return <span className={`rounded-full px-2 py-1 text-xs font-medium ${style.classes}`}>{style.label}</span>;
+    return (
+        <span className="inline-block shrink-0 rounded-full border border-gray-300 px-2 py-1 text-xs font-medium text-gray-600 dark:border-gray-600 dark:text-gray-300">
+            {label}
+        </span>
+    );
 }

@@ -6,8 +6,8 @@ import OfferShareActions from '@/Components/OfferShareActions';
 import { Link } from '@inertiajs/react';
 
 const AVAILABILITY_STYLES = {
-    available: 'bg-green-100 text-green-700',
-    busy: 'bg-yellow-100 text-yellow-700',
+    available: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+    busy: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
 };
 
 // Who the offer belongs to: the top of every card, with the offer's menu at the
@@ -31,7 +31,7 @@ function TechnicianHeader({ technician, menu, showKind }) {
                 {showKind && <FeedKindBadge kind="offer" />}
                 <span
                     className={`rounded-full px-2 py-1 text-xs capitalize ${
-                        AVAILABILITY_STYLES[technician.availability_status] ?? 'bg-gray-100 text-gray-600'
+                        AVAILABILITY_STYLES[technician.availability_status] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
                     }`}
                 >
                     {technician.availability_status}
@@ -50,10 +50,11 @@ function TechnicianHeader({ technician, menu, showKind }) {
 // `onEdit` / `onDelete` let its technician manage it from the menu.
 export default function OfferListing({ offer, reportReasons, showKind = false, onEdit, onDelete }) {
     return (
-        <div className="rounded-md bg-white dark:bg-gray-800">
+        <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-900/5 transition hover:ring-indigo-300 dark:bg-gray-800 dark:ring-white/10 dark:hover:ring-indigo-500">
             <OfferCard
                 offer={offer}
                 listing
+                className="space-y-3"
                 header={
                     <TechnicianHeader
                         technician={offer.technician}

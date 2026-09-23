@@ -166,10 +166,10 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
                     </aside>
 
                     {/* Search and results. The search is its own card above the posts. */}
-                    <div className="min-w-0 flex-1 space-y-4">
+                    <div className="min-w-0 flex-1 space-y-5">
                         {/* The composer: the feed's only way to post. Admins post nothing, so they don't get one. */}
                         {canPost && (
-                            <div className="rounded-xl bg-white p-4 shadow dark:bg-gray-800">
+                            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10">
                                 <div className="flex items-center gap-3">
                                     <Avatar user={auth.user} size="md" />
                                     <button
@@ -225,7 +225,7 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
                         )}
 
                         {/* The filter menu, and the category for the two choices that have one. */}
-                        <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10">
                             <div className="flex flex-wrap items-center gap-2">
                                 <FeedFilterMenu options={filterOptions} value={form.filter} onChange={chooseFilter} />
 
@@ -254,12 +254,12 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
                         </div>
 
                         {feed.data.length === 0 && (
-                            <div className="rounded-xl border border-dashed border-gray-300 bg-white/60 px-6 py-10 text-center text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-800/40 dark:text-gray-400">
+                            <div className="rounded-2xl border border-dashed border-gray-300 bg-white/60 px-6 py-12 text-center text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-800/40 dark:text-gray-400">
                                 No {noun}s match this filter.
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 gap-4">
+                        <div className="grid grid-cols-1 gap-5">
                             {feed.data.map((post) =>
                                 post.kind === 'request' ? (
                                     <RequestCard
@@ -275,7 +275,7 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
                                                 onDelete={() => deleteRequest(post)}
                                             />
                                         }
-                                        className="rounded-md border bg-white transition hover:border-indigo-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-indigo-500"
+                                        className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-900/5 transition hover:ring-indigo-300 dark:bg-gray-800 dark:ring-white/10 dark:hover:ring-indigo-500"
                                     />
                                 ) : (
                                     <OfferListing

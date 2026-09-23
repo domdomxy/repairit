@@ -27,10 +27,10 @@ export default function RequestCard({
     showAuthor = true,
     menu = null,
     footer = null,
-    className = 'rounded-lg bg-white shadow transition hover:shadow-md dark:bg-gray-800',
+    className = 'rounded-lg bg-white p-4 shadow transition hover:shadow-md dark:bg-gray-800',
 }) {
     return (
-        <div className={`relative space-y-3 p-4 ${className}`}>
+        <div className={`relative space-y-3 ${className}`}>
             <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                     {showAuthor && <Avatar user={request.customer} size="sm" />}

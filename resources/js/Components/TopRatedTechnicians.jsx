@@ -26,7 +26,7 @@ export default function TopRatedTechnicians({
     className = '',
 }) {
     return (
-        <section className={`rounded-lg bg-white p-4 shadow dark:bg-gray-800 ${className}`}>
+        <section className={`rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10 ${className}`}>
             <div className="flex items-center gap-2.5">
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-500 dark:bg-amber-500/10">
                     <StarIcon className="h-4 w-4" />
