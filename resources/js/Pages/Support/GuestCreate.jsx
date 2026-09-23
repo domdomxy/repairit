@@ -1,6 +1,12 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import InputError from '@/Components/InputError';
 import GuestLayout from '@/Layouts/GuestLayout';
+import { BUTTON, BUTTON_QUIET, CARD, FIELD, Field, SideCard, Steps, SupportHeader, WITH_SIDE, FILL } from '@/Components/SupportUI';
+
+const STEPS = [
+    { title: 'Send the form', text: 'You get a ticket ID straight away.' },
+    { title: 'Keep your ticket link', text: "It's your only way back in, so bookmark it. We'll email it to you too." },
+    { title: 'Check for our reply', text: 'Replies appear on your ticket page.' },
+];
 
 // The support form for someone without an account. Since there's nowhere to
 // notify them, we ask for a name and email up front and hand back a link
@@ -19,114 +25,97 @@ export default function GuestCreate({ categories }) {
         post(route('support.guest.store'));
     }
 
-    const field = 'mt-1 block w-full rounded-md border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-900';
-
     return (
-        <GuestLayout>
+        <GuestLayout wide>
             <Head title="Get support" />
 
-            <div className="mx-auto w-full max-w-md px-6 py-10 sm:px-10">
-                <h1 className="font-display text-2xl font-semibold">Get support</h1>
-                <p className="mt-1 text-sm text-gray-500">
-                    No account needed. We'll give you a ticket ID and a link to this page —
-                    since there's no account of yours to notify, that link is how you check for a reply.
-                </p>
+            <SupportHeader title="Get support">
+                No account needed. We'll give you a ticket ID and a private link to your ticket. That link is how you
+                check for a reply.
+            </SupportHeader>
 
-                <form onSubmit={submit} className="mt-6 space-y-5">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div>
-                            <label htmlFor="name" className="block text-sm font-medium">
-                                Your name
-                            </label>
+            <div className={`${WITH_SIDE} ${FILL}`}>
+                <form onSubmit={submit} className={`${CARD} flex flex-col gap-6 p-5 sm:p-8`}>
+                    <div className="grid gap-6 md:grid-cols-2">
+                        <Field id="name" label="Your name" error={errors.name}>
                             <input
                                 id="name"
                                 type="text"
                                 maxLength={100}
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
-                                className={field}
+                                className={FIELD}
                             />
-                            <InputError message={errors.name} className="mt-1" />
-                        </div>
+                        </Field>
 
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium">
-                                Your email
-                            </label>
+                        <Field id="email" label="Your email" error={errors.email}>
                             <input
                                 id="email"
                                 type="email"
                                 value={data.email}
                                 onChange={(e) => setData('email', e.target.value)}
-                                className={field}
+                                className={FIELD}
                             />
-                            <InputError message={errors.email} className="mt-1" />
-                        </div>
+                        </Field>
                     </div>
 
-                    <div>
-                        <label htmlFor="category" className="block text-sm font-medium">
-                            What is this about?
-                        </label>
-                        <select
-                            id="category"
-                            value={data.category}
-                            onChange={(e) => setData('category', e.target.value)}
-                            className={field}
-                        >
-                            <option value="">Choose a topic</option>
-                            {Object.entries(categories).map(([value, label]) => (
-                                <option key={value} value={value}>
-                                    {label}
-                                </option>
-                            ))}
-                        </select>
-                        <InputError message={errors.category} className="mt-1" />
+                    <div className="grid gap-6 md:grid-cols-2">
+                        <Field id="category" label="What is this about?" error={errors.category}>
+                            <select
+                                id="category"
+                                value={data.category}
+                                onChange={(e) => setData('category', e.target.value)}
+                                className={FIELD}
+                            >
+                                <option value="">Choose a topic</option>
+                                {Object.entries(categories).map(([value, label]) => (
+                                    <option key={value} value={value}>
+                                        {label}
+                                    </option>
+                                ))}
+                            </select>
+                        </Field>
+
+                        <Field id="subject" label="Subject" error={errors.subject}>
+                            <input
+                                id="subject"
+                                type="text"
+                                maxLength={150}
+                                value={data.subject}
+                                onChange={(e) => setData('subject', e.target.value)}
+                                className={FIELD}
+                            />
+                        </Field>
                     </div>
 
-                    <div>
-                        <label htmlFor="subject" className="block text-sm font-medium">
-                            Subject
-                        </label>
-                        <input
-                            id="subject"
-                            type="text"
-                            maxLength={150}
-                            value={data.subject}
-                            onChange={(e) => setData('subject', e.target.value)}
-                            className={field}
-                        />
-                        <InputError message={errors.subject} className="mt-1" />
-                    </div>
-
-                    <div>
-                        <label htmlFor="body" className="block text-sm font-medium">
-                            Tell us what happened
-                        </label>
+                    <Field id="body" label="Tell us what happened" error={errors.body} className="flex flex-1 flex-col">
                         <textarea
                             id="body"
-                            rows={6}
+                            rows={8}
                             maxLength={5000}
                             value={data.body}
                             onChange={(e) => setData('body', e.target.value)}
-                            className={field}
+                            className={`${FIELD} min-h-[12rem] flex-1`}
                         />
-                        <InputError message={errors.body} className="mt-1" />
-                    </div>
+                    </Field>
 
-                    <div className="flex items-center gap-4">
-                        <button
-                            type="submit"
-                            disabled={processing}
-                            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
-                        >
+                    <div className="flex flex-wrap items-center gap-4">
+                        <button type="submit" disabled={processing} className={BUTTON}>
                             Send ticket
                         </button>
-                        <Link href={route('support.guest.track')} className="text-sm text-gray-500 hover:underline">
-                            Already have a ticket?
-                        </Link>
                     </div>
                 </form>
+
+                <aside className="space-y-6">
+                    <Steps title="What happens next" steps={STEPS} />
+
+                    <SideCard title="Already have a ticket?">
+                        <p>Look it up with your ticket ID and the email you used.</p>
+                        <Link href={route('support.guest.track')} className={BUTTON_QUIET}>
+                            Find your ticket
+                        </Link>
+                    </SideCard>
+                </aside>
             </div>
         </GuestLayout>
     );

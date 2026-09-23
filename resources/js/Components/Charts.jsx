@@ -107,12 +107,21 @@ export function ChartEmpty({ children, height = 160 }) {
     );
 }
 
-/** The white card every chart sits in, matching the dashboards' other panels. */
-export function ChartCard({ title, description, className = '', children }) {
+/**
+ * The card every dashboard panel sits in. It shares the look of the feed's post
+ * cards (rounded-2xl, hairline ring), so the two areas of the app feel like one.
+ * `action` is an optional link or button aligned with the title.
+ */
+export function ChartCard({ title, description, action = null, className = '', children }) {
     return (
-        <section className={`min-w-0 rounded-lg bg-white p-5 shadow dark:bg-gray-800 ${className}`}>
-            <h3 className="font-semibold">{title}</h3>
-            {description && <p className="mt-0.5 text-xs text-gray-500">{description}</p>}
+        <section className={`min-w-0 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10 ${className}`}>
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <h2 className="font-semibold">{title}</h2>
+                    {description && <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{description}</p>}
+                </div>
+                {action}
+            </div>
             <div className="mt-4">{children}</div>
         </section>
     );

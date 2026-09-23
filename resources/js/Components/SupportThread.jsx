@@ -17,14 +17,14 @@ export default function SupportThread({ thread, viewerIsStaff }) {
                     >
                         {!mine && <Avatar src={message.avatar_url} name={message.author} size="sm" />}
                         <div
-                            className={`max-w-xl rounded-lg px-4 py-3 ${
+                            className={`max-w-2xl rounded-2xl px-4 py-3 ${
                                 mine
                                     ? 'bg-indigo-600 text-white'
-                                    : 'bg-white shadow dark:bg-gray-800'
+                                    : 'bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10'
                             }`}
                         >
                             <div className={`mb-1 text-xs ${mine ? 'text-indigo-200' : 'text-gray-500'}`}>
-                                {message.author} · {formatDateTime(message.created_at)}
+                                {message.author}, {formatDateTime(message.created_at)}
                             </div>
                             {message.automated && (
                                 <p className={`mb-1 text-[11px] ${mine ? 'text-indigo-200' : 'text-gray-500 dark:text-gray-400'}`}>

@@ -6,7 +6,7 @@ import { Link } from '@inertiajs/react';
  * `trend` is { current, previous }: the count for the last 30 days and for the
  * 30 days before that. Every figure it is used for is one where more is better.
  */
-function Trend({ trend, days = 30 }) {
+export function Trend({ trend, days = 30 }) {
     const { current, previous } = trend;
     const suffix = `vs previous ${days} days`;
 

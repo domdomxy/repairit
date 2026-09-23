@@ -12,7 +12,11 @@ const TRADES = ['Plumbing', 'Electrical', 'Appliance repair', 'HVAC', 'Carpentry
 // right. The plate stays dark in both themes — a stamped plate doesn't
 // change with the light — so it always uses the light (white-stroke) mark;
 // the toggle only affects the form side.
-export default function GuestLayout({ children }) {
+//
+// `wide` is for pages with more to show than a short form (support): instead of a
+// narrow centred column, the content fills the whole right-hand panel and lays
+// itself out in columns. Login, register and the like keep the narrow column.
+export default function GuestLayout({ children, wide = false }) {
     return (
         <div className="flex min-h-screen flex-col bg-white lg:flex-row dark:bg-gray-900">
             <div className="relative flex shrink-0 flex-col justify-between overflow-hidden bg-gray-900 px-6 py-10 sm:px-10 lg:w-[26rem] lg:px-12 lg:py-14">
@@ -57,14 +61,20 @@ export default function GuestLayout({ children }) {
                 </div>
             </div>
 
-            <div className="flex flex-1 flex-col">
+            <div className={`flex min-w-0 flex-1 flex-col ${wide ? 'bg-gray-50 dark:bg-gray-900' : ''}`}>
                 <div className="flex justify-end px-6 py-4 sm:px-10">
                     <ThemeToggle />
                 </div>
 
-                <div className="flex flex-1 items-center justify-center px-6 pb-16 sm:px-10">
-                    <div className="w-full max-w-sm">{children}</div>
-                </div>
+                {wide ? (
+                    <div className="flex flex-1 flex-col px-6 pb-10 sm:px-10 lg:px-14">
+                        <div className="mx-auto flex w-full max-w-[96rem] flex-1 flex-col">{children}</div>
+                    </div>
+                ) : (
+                    <div className="flex flex-1 items-center justify-center px-6 pb-16 sm:px-10">
+                        <div className="w-full max-w-sm">{children}</div>
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -1,10 +1,11 @@
-import { Head, Link } from '@inertiajs/react';
-import { BarChart, CHART_COLORS, ChartCard, HBarChart, LineChart } from '@/Components/Charts';
-import StatCard from '@/Components/StatCard';
+import { Head, usePage } from '@inertiajs/react';
+import { CHART_COLORS, ChartCard, HBarChart, LineChart } from '@/Components/Charts';
+import { ActionLink, DashboardHeader, Figures, RatingSummary, firstName } from '@/Components/Dashboard';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { formatShortDate } from '@/lib/dates';
 
 export default function Customer({ stats, charts }) {
+    const { auth } = usePage().props;
     const dayLabels = charts.sent.map((day) => formatShortDate(day.date));
 
     return (
@@ -12,35 +13,30 @@ export default function Customer({ stats, charts }) {
             <Head title="Dashboard" />
 
             <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">
-                <div className="flex flex-wrap gap-3">
-                    <Link
-                        href={route('search.index')}
-                        className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
-                    >
-                        Search
-                    </Link>
-                    <Link
-                        href={route('conversations.index')}
-                        className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
-                    >
-                        View messages
-                    </Link>
-                    <Link
-                        href={route('repairs.index')}
-                        className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
-                    >
-                        My repairs
-                    </Link>
-                </div>
+                <DashboardHeader
+                    title={`Welcome back, ${firstName(auth.user)}`}
+                    subtitle="Post what needs fixing, or find a technician who can help."
+                >
+                    <ActionLink href={route('feed.index', { compose: 'request' })} primary>
+                        Post a request
+                    </ActionLink>
+                    <ActionLink href={route('search.index')}>Find a technician</ActionLink>
+                    <ActionLink href={route('conversations.index')} badge={stats.unread} badgeLabel="unread">
+                        Messages
+                    </ActionLink>
+                    <ActionLink href={route('repairs.index')}>My repairs</ActionLink>
+                </DashboardHeader>
 
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                    <StatCard label="Conversations" value={stats.conversations} href={route('conversations.index')} />
-                    <StatCard label="Unread messages" value={stats.unread} alert href={route('conversations.index')} />
-                    <StatCard label="Reviews written" value={stats.reviews} />
-                    <StatCard label="Open support tickets" value={stats.tickets_open} href={route('support.index')} />
-                </div>
+                <Figures
+                    items={[
+                        { label: 'Conversations', value: stats.conversations, href: route('conversations.index') },
+                        { label: 'Unread messages', value: stats.unread, alert: true, href: route('conversations.index') },
+                        { label: 'Reviews written', value: stats.reviews },
+                        { label: 'Open support tickets', value: stats.tickets_open, href: route('support.index') },
+                    ]}
+                />
 
-                <ChartCard title="Your messages" description="Messages you sent and received, per day, last 30 days">
+                <ChartCard title="Your messages" description="Sent and received per day, last 30 days">
                     <LineChart
                         labels={dayLabels}
                         series={[
@@ -52,7 +48,7 @@ export default function Customer({ stats, charts }) {
                 </ChartCard>
 
                 <div className="grid gap-6 md:grid-cols-2">
-                    <ChartCard title="Repairs you asked about" description="Categories of the technicians you have contacted">
+                    <ChartCard title="What you asked about" description="Categories of the technicians you contacted">
                         <HBarChart
                             data={charts.categories.map((c) => ({ label: c.name, value: c.count }))}
                             color={CHART_COLORS.emerald}
@@ -60,12 +56,9 @@ export default function Customer({ stats, charts }) {
                         />
                     </ChartCard>
 
-                    <ChartCard title="Ratings you have given" description="How you rated the technicians you reviewed">
-                        <BarChart
-                            data={charts.ratings.map((r) => ({ label: `${r.rating} ★`, value: r.count }))}
-                            color={CHART_COLORS.amber}
-                            unit="reviews"
-                            showValues
+                    <ChartCard title="Ratings you gave" description="How you rated the technicians you reviewed">
+                        <RatingSummary
+                            distribution={charts.ratings}
                             emptyMessage="You have not reviewed a technician yet."
                         />
                     </ChartCard>

@@ -2,7 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import AdminSidebar from '@/Components/AdminSidebar';
 import Avatar from '@/Components/Avatar';
 import { BarChart, CHART_COLORS, ChartCard, DonutChart, HBarChart, LineChart } from '@/Components/Charts';
-import StatCard from '@/Components/StatCard';
+import { Attention, DashboardHeader, Figures, RatingSummary } from '@/Components/Dashboard';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { formatDate, formatDateTime, formatShortDate } from '@/lib/dates';
 
@@ -32,7 +32,6 @@ function slices(config, counts) {
 
 export default function Admin({ stats, trends, charts, recentUsers, recentLogs }) {
     const dayLabels = charts.signups.map((day) => formatShortDate(day.date));
-    const ratingsTotal = charts.ratings.reduce((sum, r) => sum + r.count, 0);
 
     return (
         <AuthenticatedLayout>
@@ -42,45 +41,57 @@ export default function Admin({ stats, trends, charts, recentUsers, recentLogs }
                 <AdminSidebar />
 
                 <div className="min-w-0 flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-                    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-                        <StatCard label="Total users" value={stats.users} href={route('admin.users.index')} />
-                        <StatCard
-                            label="Customers"
-                            value={stats.customers}
-                            href={route('admin.users.index', { role: 'customer' })}
-                        />
-                        <StatCard
-                            label="Technicians"
-                            value={stats.technicians}
-                            href={route('admin.users.index', { role: 'technician' })}
-                        />
-                        <StatCard
-                            label="Suspended"
-                            value={stats.suspended}
-                            alert
-                            href={route('admin.users.index', { status: 'suspended' })}
-                        />
-                        <StatCard label="Categories" value={stats.categories} href={route('admin.categories.index')} />
-                        <StatCard label="Conversations" value={stats.conversations} />
-                        <StatCard label="Reviews" value={stats.reviews} href={route('admin.reviews.index')} />
-                        <StatCard label="Open tickets" value={stats.tickets_open} alert href={route('admin.support.index')} />
-                        <StatCard
-                            label="Open reports"
-                            value={stats.reports_open}
-                            alert
-                            href={route('admin.reports.index', { status: 'open' })}
-                        />
-                    </div>
+                    <DashboardHeader title="Platform overview" subtitle="What is waiting for you, and how RepairIT is doing." />
 
-                    <div>
-                        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Last 30 days</h3>
-                        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                            <StatCard label="New users" value={trends.users.current} trend={trends.users} />
-                            <StatCard label="New conversations" value={trends.conversations.current} trend={trends.conversations} />
-                            <StatCard label="Messages sent" value={trends.messages.current} trend={trends.messages} />
-                            <StatCard label="New reviews" value={trends.reviews.current} trend={trends.reviews} />
-                        </div>
-                    </div>
+                    <Attention
+                        emptyMessage="Nothing is waiting: no open reports, support tickets or suspended accounts."
+                        items={[
+                            {
+                                count: stats.reports_open,
+                                singular: 'open report',
+                                plural: 'open reports',
+                                cta: 'Review reports',
+                                href: route('admin.reports.index', { status: 'open' }),
+                            },
+                            {
+                                count: stats.tickets_open,
+                                singular: 'open support ticket',
+                                plural: 'open support tickets',
+                                cta: 'Answer tickets',
+                                href: route('admin.support.index'),
+                            },
+                            {
+                                count: stats.suspended,
+                                singular: 'suspended account',
+                                plural: 'suspended accounts',
+                                cta: 'Manage users',
+                                href: route('admin.users.index', { status: 'suspended' }),
+                            },
+                        ]}
+                    />
+
+                    <Figures
+                        title="Overview"
+                        columns="grid-cols-2 md:grid-cols-3 lg:grid-cols-6"
+                        items={[
+                            { label: 'Users', value: stats.users, href: route('admin.users.index') },
+                            { label: 'Customers', value: stats.customers, href: route('admin.users.index', { role: 'customer' }) },
+                            { label: 'Technicians', value: stats.technicians, href: route('admin.users.index', { role: 'technician' }) },
+                            { label: 'Categories', value: stats.categories, href: route('admin.categories.index') },
+                            { label: 'Conversations', value: stats.conversations },
+                            { label: 'Reviews', value: stats.reviews, href: route('admin.reviews.index') },
+                        ]}
+                    />
+
+                    <Figures
+                        title="Last 30 days"
+                        items={[
+                            { label: 'New users', value: trends.users.current, trend: trends.users },
+                            { label: 'New conversations', value: trends.conversations.current, trend: trends.conversations },
+                            { label: 'Messages sent', value: trends.messages.current, trend: trends.messages },
+                            { label: 'New reviews', value: trends.reviews.current, trend: trends.reviews },
+                        ]}
+                    />
 
                     <div className="grid gap-6 md:grid-cols-2">
                         <ChartCard title="Sign-ups" description="New accounts per day, last 30 days">
@@ -106,7 +117,7 @@ export default function Admin({ stats, trends, charts, recentUsers, recentLogs }
                             <DonutChart data={slices(ROLE_SLICES, charts.roles)} centerLabel="users" />
                         </ChartCard>
 
-                        <ChartCard title="Technician availability" description="Status technicians have set on their profile">
+                        <ChartCard title="Technician availability" description="Status technicians set on their profile">
                             <DonutChart
                                 data={slices(AVAILABILITY_SLICES, charts.availability)}
                                 centerLabel="technicians"
@@ -124,21 +135,8 @@ export default function Admin({ stats, trends, charts, recentUsers, recentLogs }
                     </div>
 
                     <div className="grid gap-6 md:grid-cols-2">
-                        <ChartCard
-                            title="Review ratings"
-                            description={
-                                stats.average_rating === null
-                                    ? 'How customers rate technicians'
-                                    : `Average ${stats.average_rating} out of 5 from ${ratingsTotal} review${ratingsTotal === 1 ? '' : 's'}`
-                            }
-                        >
-                            <BarChart
-                                data={charts.ratings.map((r) => ({ label: `${r.rating} ★`, value: r.count }))}
-                                color={CHART_COLORS.amber}
-                                unit="reviews"
-                                showValues
-                                emptyMessage="No reviews yet."
-                            />
+                        <ChartCard title="Review ratings" description="How customers rate technicians">
+                            <RatingSummary distribution={charts.ratings} average={stats.average_rating} emptyMessage="No reviews yet." />
                         </ChartCard>
 
                         <ChartCard title="Technicians by category" description="Most popular categories, by technicians offering them">
@@ -151,51 +149,60 @@ export default function Admin({ stats, trends, charts, recentUsers, recentLogs }
                     </div>
 
                     <div className="grid gap-6 md:grid-cols-2">
-                        <section className="rounded-lg bg-white p-5 shadow dark:bg-gray-800">
-                            <div className="flex items-center justify-between">
-                                <h3 className="font-semibold">Recent sign-ups</h3>
-                                <Link href={route('admin.users.index')} className="text-sm text-indigo-600 hover:underline">
+                        <ChartCard
+                            title="Recent sign-ups"
+                            action={
+                                <Link
+                                    href={route('admin.users.index')}
+                                    className="shrink-0 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+                                >
                                     All users
                                 </Link>
-                            </div>
-                            <ul className="mt-3 divide-y divide-gray-100 text-sm dark:divide-gray-700">
+                            }
+                        >
+                            <ul className="-my-2 divide-y divide-gray-100 text-sm dark:divide-white/10">
                                 {recentUsers.map((user) => (
-                                    <li key={user.id} className="flex items-center justify-between py-2">
-                                        <div className="flex items-center gap-3">
+                                    <li key={user.id} className="flex items-center justify-between gap-3 py-3">
+                                        <div className="flex min-w-0 items-center gap-3">
                                             <Avatar user={user} size="sm" />
-                                            <div>
-                                                <div className="font-medium">{user.name}</div>
-                                                <div className="text-xs capitalize text-gray-500">{user.role}</div>
+                                            <div className="min-w-0">
+                                                <div className="truncate font-medium">{user.name}</div>
+                                                <div className="text-xs capitalize text-gray-500 dark:text-gray-400">{user.role}</div>
                                             </div>
                                         </div>
-                                        <span className="text-xs text-gray-500">{formatDate(user.created_at)}</span>
+                                        <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">{formatDate(user.created_at)}</span>
                                     </li>
                                 ))}
                             </ul>
-                        </section>
+                        </ChartCard>
 
-                        <section className="rounded-lg bg-white p-5 shadow dark:bg-gray-800">
-                            <div className="flex items-center justify-between">
-                                <h3 className="font-semibold">Recent admin activity</h3>
-                                <Link href={route('admin.logs.index')} className="text-sm text-indigo-600 hover:underline">
+                        <ChartCard
+                            title="Recent admin activity"
+                            action={
+                                <Link
+                                    href={route('admin.logs.index')}
+                                    className="shrink-0 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+                                >
                                     Full log
                                 </Link>
-                            </div>
+                            }
+                        >
                             {recentLogs.length === 0 ? (
-                                <p className="mt-3 text-sm text-gray-500">Nothing has been logged yet.</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Nothing has been logged yet.</p>
                             ) : (
-                                <ul className="mt-3 divide-y divide-gray-100 text-sm dark:divide-gray-700">
+                                <ul className="-my-2 divide-y divide-gray-100 text-sm dark:divide-white/10">
                                     {recentLogs.map((log) => (
-                                        <li key={log.id} className="py-2">
+                                        <li key={log.id} className="py-3">
                                             <div>{log.description}</div>
-                                            <div className="text-xs text-gray-500">
-                                                {log.admin ?? 'Deleted admin'} · {formatDateTime(log.created_at)}
+                                            <div className="mt-0.5 flex justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
+                                                <span className="truncate">{log.admin ?? 'Deleted admin'}</span>
+                                                <span className="shrink-0">{formatDateTime(log.created_at)}</span>
                                             </div>
                                         </li>
                                     ))}
                                 </ul>
                             )}
-                        </section>
+                        </ChartCard>
                     </div>
                 </div>
             </div>

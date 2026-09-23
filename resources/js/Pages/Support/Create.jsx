@@ -1,6 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import InputError from '@/Components/InputError';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { BUTTON, BUTTON_QUIET, CARD, FIELD, Field, SideCard, SupportHeader, WITH_SIDE, FILL } from '@/Components/SupportUI';
 
 export default function Create({ categories }) {
     const { data, setData, post, processing, errors } = useForm({
@@ -14,80 +14,74 @@ export default function Create({ categories }) {
         post(route('support.store'));
     }
 
-    const field = 'mt-1 block w-full rounded-md border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-900';
-
     return (
         <AuthenticatedLayout>
             <Head title="New support ticket" />
 
-            <div className="mx-auto max-w-2xl px-4 py-8">
-                <form onSubmit={submit} className="space-y-5 rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-                    <div>
-                        <label htmlFor="category" className="block text-sm font-medium">
-                            What is this about?
-                        </label>
-                        <select
-                            id="category"
-                            value={data.category}
-                            onChange={(e) => setData('category', e.target.value)}
-                            className={field}
-                        >
-                            <option value="">Choose a topic</option>
-                            {Object.entries(categories).map(([value, label]) => (
-                                <option key={value} value={value}>
-                                    {label}
-                                </option>
-                            ))}
-                        </select>
-                        <InputError message={errors.category} className="mt-1" />
-                    </div>
+            <div className="mx-auto flex w-full max-w-[96rem] flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
+                <SupportHeader title="New support ticket">
+                    Tell us what went wrong or what you need. Our replies show up on the ticket.
+                </SupportHeader>
 
-                    <div>
-                        <label htmlFor="subject" className="block text-sm font-medium">
-                            Subject
-                        </label>
-                        <input
-                            id="subject"
-                            type="text"
-                            maxLength={150}
-                            value={data.subject}
-                            onChange={(e) => setData('subject', e.target.value)}
-                            className={field}
-                        />
-                        <InputError message={errors.subject} className="mt-1" />
-                    </div>
+                <div className={`${WITH_SIDE} ${FILL}`}>
+                    <form onSubmit={submit} className={`${CARD} flex flex-col gap-6 p-5 sm:p-8`}>
+                        <div className="grid gap-6 md:grid-cols-2">
+                            <Field id="category" label="What is this about?" error={errors.category}>
+                                <select
+                                    id="category"
+                                    value={data.category}
+                                    onChange={(e) => setData('category', e.target.value)}
+                                    className={FIELD}
+                                >
+                                    <option value="">Choose a topic</option>
+                                    {Object.entries(categories).map(([value, label]) => (
+                                        <option key={value} value={value}>
+                                            {label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </Field>
 
-                    <div>
-                        <label htmlFor="body" className="block text-sm font-medium">
-                            Tell us what happened
-                        </label>
-                        <textarea
-                            id="body"
-                            rows={7}
-                            maxLength={5000}
-                            value={data.body}
-                            onChange={(e) => setData('body', e.target.value)}
-                            className={field}
-                        />
-                        <InputError message={errors.body} className="mt-1" />
-                        <p className="mt-1 text-xs text-gray-500">
-                            When reporting a user, include their name and what they did.
-                        </p>
-                    </div>
+                            <Field id="subject" label="Subject" error={errors.subject}>
+                                <input
+                                    id="subject"
+                                    type="text"
+                                    maxLength={150}
+                                    value={data.subject}
+                                    onChange={(e) => setData('subject', e.target.value)}
+                                    className={FIELD}
+                                />
+                            </Field>
+                        </div>
 
-                    <div className="flex items-center gap-4">
-                        <button
-                            type="submit"
-                            disabled={processing}
-                            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
-                        >
-                            Send ticket
-                        </button>
-                        <Link href={route('support.index')} className="text-sm text-gray-500 hover:underline">
-                            Cancel
-                        </Link>
-                    </div>
-                </form>
+                        <Field id="body" label="Tell us what happened" error={errors.body} className="flex flex-1 flex-col">
+                            <textarea
+                                id="body"
+                                rows={8}
+                                maxLength={5000}
+                                value={data.body}
+                                onChange={(e) => setData('body', e.target.value)}
+                                className={FIELD}
+                            />
+                        </Field>
+
+                        <div className="flex flex-wrap items-center gap-3">
+                            <button type="submit" disabled={processing} className={BUTTON}>
+                                Send ticket
+                            </button>
+                            <Link href={route('support.index')} className={BUTTON_QUIET}>
+                                Cancel
+                            </Link>
+                        </div>
+                    </form>
+
+                    <aside>
+                        <SideCard title="For a faster answer">
+                            <p>Say what you were doing and what you expected to happen.</p>
+                            <p>When reporting a user, include their name and what they did.</p>
+                        </SideCard>
+                    </aside>
+                </div>
             </div>
         </AuthenticatedLayout>
     );
