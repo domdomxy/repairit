@@ -103,7 +103,7 @@ test('the relations page lists each kind, and unblocking works from it', functio
 
     $this->actingAs($me)->get(route('relations.index'))
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Relations/Index')
+            ->component('Settings/Index')
             ->where('lists.block.0.name', 'Karim Blocked')
             ->where('lists.favorite.0.name', 'Nour Starred')
             ->where('lists.mute', [])

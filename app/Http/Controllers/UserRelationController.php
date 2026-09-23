@@ -44,7 +44,7 @@ class UserRelationController extends Controller
                 ->all();
         }
 
-        return Inertia::render('Relations/Index', ['lists' => $lists]);
+        return Inertia::render('Settings/Index', ['lists' => $lists]);
     }
 
     public function store(Request $request, User $user, string $relation): RedirectResponse

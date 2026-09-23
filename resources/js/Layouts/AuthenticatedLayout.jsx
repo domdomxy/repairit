@@ -120,7 +120,7 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                                             Account
                                         </Dropdown.Link>
                                         <Dropdown.Link href={route('relations.index')}>
-                                            Favorites &amp; blocked
+                                            Settings
                                         </Dropdown.Link>
                                         <Dropdown.Link
                                             href={route('logout')}
@@ -260,7 +260,7 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                                 Account
                             </ResponsiveNavLink>
                             <ResponsiveNavLink href={route('relations.index')}>
-                                Favorites &amp; blocked
+                                Settings
                             </ResponsiveNavLink>
                             <ThemeToggle variant="responsive" />
                             <ResponsiveNavLink

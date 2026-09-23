@@ -78,7 +78,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/message/{message}/report', [ReportController::class, 'storeMessage'])->middleware('throttle:10,1,reports')->name('messages.report');
     Route::get('/message-attachments/{attachment}', [MessageController::class, 'attachment'])->name('messages.attachment');
     // Blocking, muting, favoriting and restricting people (and undoing each): one route per action, the kind is the last segment.
-    Route::get('/relations', [UserRelationController::class, 'index'])->name('relations.index');
+    Route::get('/settings', [UserRelationController::class, 'index'])->name('relations.index');
     Route::post('/people/{user}/{relation}', [UserRelationController::class, 'store'])->whereIn('relation', UserRelation::TYPES)->name('relations.store');
     Route::delete('/people/{user}/{relation}', [UserRelationController::class, 'destroy'])->whereIn('relation', UserRelation::TYPES)->name('relations.destroy');
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
