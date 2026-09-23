@@ -39,7 +39,7 @@ export default function TopRatedTechnicians({
                     aria-label="Filter top rated technicians by category"
                     value={categoryValue ?? ''}
                     onChange={(e) => onCategoryChange?.(e.target.value)}
-                    className="mt-3 block w-full rounded-lg border-gray-200 bg-gray-50 py-1.5 text-sm text-gray-700 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                    className="mt-3 block w-full rounded-lg border-gray-200 bg-gray-50 py-1.5 text-sm text-gray-700 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300"
                 >
                     <option value="">All categories</option>
                     {categories.map((category) => (
