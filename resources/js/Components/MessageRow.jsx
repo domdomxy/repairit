@@ -373,25 +373,27 @@ export default function MessageRow({
                         {isMine ? 'You deleted this message' : 'This message was deleted'}
                     </div>
                 ) : editing ? (
-                    <form onSubmit={saveEdit} className="w-72 max-w-full space-y-2">
-                        <textarea
-                            autoFocus
-                            rows={3}
-                            maxLength={5000}
-                            value={draft}
-                            onChange={(e) => setDraft(e.target.value)}
-                            aria-label="Edit message"
-                            className="block w-full rounded-md border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-900"
-                        />
+                    <form onSubmit={saveEdit} className="w-72 max-w-full space-y-1.5">
+                        <div className="rounded-lg bg-indigo-600 px-4 py-2">
+                            <textarea
+                                autoFocus
+                                rows={3}
+                                maxLength={5000}
+                                value={draft}
+                                onChange={(e) => setDraft(e.target.value)}
+                                aria-label="Edit message"
+                                className="block w-full resize-none border-0 bg-transparent p-0 text-sm text-white placeholder-indigo-200 focus:ring-0"
+                            />
+                        </div>
                         {editError && <p className="text-xs text-red-600">{editError}</p>}
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-3 px-1">
                             <button type="button" onClick={() => setEditing(false)} className={ACTION}>
                                 Cancel
                             </button>
                             <button
                                 type="submit"
                                 disabled={saving}
-                                className="rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                                className="text-xs font-semibold text-indigo-600 hover:underline disabled:opacity-50 dark:text-indigo-400"
                             >
                                 Save
                             </button>

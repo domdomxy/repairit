@@ -11,7 +11,15 @@ const ITEM =
 
 // The "..." menu in the header of a conversation: hide it, delete it (for me
 // only) or report it. Hiding and deleting only change this person's own list.
-export default function ConversationMenu({ conversation, otherName, reported, reasons, pinnedCount = 0, onShowPinned }) {
+export default function ConversationMenu({
+    conversation,
+    otherName,
+    reported,
+    reasons,
+    pinnedCount = 0,
+    onShowPinned,
+    onShowAttachments,
+}) {
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [reporting, setReporting] = useState(false);
     const [processing, setProcessing] = useState(false);
@@ -40,6 +48,12 @@ export default function ConversationMenu({ conversation, otherName, reported, re
                     {onShowPinned && (
                         <button type="button" onClick={onShowPinned} className={ITEM}>
                             Pinned messages{pinnedCount > 0 ? ` (${pinnedCount})` : ''}
+                        </button>
+                    )}
+
+                    {onShowAttachments && (
+                        <button type="button" onClick={onShowAttachments} className={ITEM}>
+                            Shared files
                         </button>
                     )}
 

@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { useChannel, useEcho } from '@laravel/echo-react';
 import Avatar from '@/Components/Avatar';
+import AttachmentsModal from '@/Components/AttachmentsModal';
 import ConversationInfo from '@/Components/ConversationInfo';
 import ConversationMenu from '@/Components/ConversationMenu';
 import MediaStackRow from '@/Components/MediaStackRow';
@@ -319,8 +320,12 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
     // The inline bar under the header only shows a short, scrollable strip;
     // this modal is the dedicated place to browse every pinned message.
     const [pinnedModalOpen, setPinnedModalOpen] = useState(false);
+    // The dedicated place to browse every attachment shared in the conversation.
+    const [attachmentsModalOpen, setAttachmentsModalOpen] = useState(false);
 
-    function jumpToPinned(id) {
+    // Scrolls a message into view and briefly highlights it - used both for
+    // pinned messages and for "Jump to message" from the attachments modal.
+    function jumpToMessage(id) {
         const el = document.getElementById(`message-${id}`);
         if (!el) return;
 
@@ -487,6 +492,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                     reasons={moderation.reasons}
                     pinnedCount={pinnedMessages.length}
                     onShowPinned={() => setPinnedModalOpen(true)}
+                    onShowAttachments={() => setAttachmentsModalOpen(true)}
                 />
                 <button
                     type="button"
@@ -526,7 +532,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
             <PinnedMessagesBar
                 messages={pinnedMessages}
                 myId={auth.user.id}
-                onJump={jumpToPinned}
+                onJump={jumpToMessage}
                 onUnpin={unpinMessage}
                 onViewAll={() => setPinnedModalOpen(true)}
             />
@@ -536,8 +542,17 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                 onClose={() => setPinnedModalOpen(false)}
                 messages={pinnedMessages}
                 myId={auth.user.id}
-                onJump={jumpToPinned}
+                onJump={jumpToMessage}
                 onUnpin={unpinMessage}
+            />
+
+            <AttachmentsModal
+                show={attachmentsModalOpen}
+                onClose={() => setAttachmentsModalOpen(false)}
+                messages={messages}
+                people={people}
+                myId={auth.user.id}
+                onJump={jumpToMessage}
             />
 
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden p-4">
