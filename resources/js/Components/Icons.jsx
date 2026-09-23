@@ -152,6 +152,16 @@ export function CheckIcon({ className = 'h-4 w-4' }) {
     );
 }
 
+export function SmileyIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg {...outline} className={className}>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M8.5 10.5h.01M15.5 10.5h.01" strokeLinecap="round" />
+            <path d="M8.5 14.5c1 1.2 2.2 1.8 3.5 1.8s2.5-.6 3.5-1.8" strokeLinecap="round" />
+        </svg>
+    );
+}
+
 export function ImageIcon({ className = 'h-5 w-5' }) {
     return (
         <svg {...outline} className={className}>

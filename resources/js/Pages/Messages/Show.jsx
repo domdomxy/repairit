@@ -285,7 +285,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
         if (otherTyping) scrollToBottom();
     }, [otherTyping]);
 
-    const { data, setData, post, processing, progress, reset, errors, clearErrors } = useForm({
+    const { data, setData, post, patch, processing, progress, reset, errors, clearErrors } = useForm({
         body: '',
         attachments: [],
         reply_to_id: '',
@@ -296,6 +296,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
     const [replyingTo, setReplyingTo] = useState(null);
 
     function startReply(target) {
+        setEditingMessage(null);
         setReplyingTo({
             id: target.id,
             sender_id: target.sender_id,
@@ -310,6 +311,25 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
         setData('reply_to_id', '');
     }
 
+    // Editing works the same slot as the composer's "reply to" preview: the
+    // message's own text is loaded into the input, and a small bar with
+    // "Edit message" + a close button appears above it. Submitting the form
+    // while this is set patches the message instead of posting a new one.
+    const [editingMessage, setEditingMessage] = useState(null);
+
+    function startEdit(target) {
+        setReplyingTo(null);
+        setData('reply_to_id', '');
+        setEditingMessage(target);
+        setData('body', target.body ?? '');
+    }
+
+    function cancelEdit() {
+        setEditingMessage(null);
+        setData('body', '');
+        clearErrors('body');
+    }
+
     // For the pinned bar: only what's still visible to this person, most
     // recently pinned first (the bar itself does the sorting).
     const pinnedMessages = useMemo(
@@ -322,6 +342,51 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
     const [pinnedModalOpen, setPinnedModalOpen] = useState(false);
     // The dedicated place to browse every attachment shared in the conversation.
     const [attachmentsModalOpen, setAttachmentsModalOpen] = useState(false);
+
+    // In-conversation search: matches are computed from the messages already
+    // loaded on screen, newest first, so opening search jumps straight to the
+    // most recent hit and "previous"/"next" step through older/newer ones.
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [matchIndex, setMatchIndex] = useState(0);
+    const searchInputRef = useRef(null);
+
+    const searchMatches = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+        if (!query) return [];
+
+        return messages.filter((message) => !message.deleted && message.body?.toLowerCase().includes(query));
+    }, [messages, searchQuery]);
+
+    // Jumps to the newest match whenever the search text changes (not when
+    // new messages merely arrive while a search is already active).
+    useEffect(() => {
+        if (searchMatches.length === 0) return;
+
+        const lastIndex = searchMatches.length - 1;
+        setMatchIndex(lastIndex);
+        jumpToMessage(searchMatches[lastIndex].id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchQuery]);
+
+    function stepMatch(delta) {
+        if (searchMatches.length === 0) return;
+
+        const next = (matchIndex + delta + searchMatches.length) % searchMatches.length;
+        setMatchIndex(next);
+        jumpToMessage(searchMatches[next].id);
+    }
+
+    function openSearch() {
+        setSearchOpen(true);
+        window.setTimeout(() => searchInputRef.current?.focus(), 0);
+    }
+
+    function closeSearch() {
+        setSearchOpen(false);
+        setSearchQuery('');
+        setMatchIndex(0);
+    }
 
     // Scrolls a message into view and briefly highlights it - used both for
     // pinned messages and for "Jump to message" from the attachments modal.
@@ -439,6 +504,21 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
 
     function submit(e) {
         e.preventDefault();
+
+        if (editingMessage) {
+            if (!data.body.trim()) return;
+
+            patch(route('messages.update', editingMessage.id), {
+                preserveScroll: true,
+                onSuccess: (page) => {
+                    setMessages(page.props.messages);
+                    setEditingMessage(null);
+                    reset('body');
+                },
+            });
+            return;
+        }
+
         if (!data.body.trim() && data.attachments.length === 0) return;
 
         post(route('messages.store', conversation.id), {
@@ -485,6 +565,23 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                 </Link>
                 <Avatar user={otherParty} size="md" />
                 <h3 className="min-w-0 flex-1 truncate font-semibold">{otherParty.name}</h3>
+                <button
+                    type="button"
+                    onClick={searchOpen ? closeSearch : openSearch}
+                    aria-expanded={searchOpen}
+                    aria-label={searchOpen ? 'Close search' : 'Search in conversation'}
+                    title={searchOpen ? 'Close search' : 'Search in conversation'}
+                    className={`rounded-md p-1.5 transition ${
+                        searchOpen
+                            ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+                            : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
+                    }`}
+                >
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="m20 20-3.5-3.5" />
+                    </svg>
+                </button>
                 <ConversationMenu
                     conversation={conversation}
                     otherName={otherParty.name}
@@ -513,6 +610,65 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                     </svg>
                 </button>
             </div>
+
+            {searchOpen && (
+                <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-2 dark:border-gray-700">
+                    <svg className="h-4 w-4 shrink-0 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="m20 20-3.5-3.5" />
+                    </svg>
+                    <input
+                        ref={searchInputRef}
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Escape') closeSearch();
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                stepMatch(e.shiftKey ? -1 : 1);
+                            }
+                        }}
+                        placeholder="Search in conversation..."
+                        className="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm focus:outline-none focus:ring-0"
+                    />
+                    {searchQuery.trim() && (
+                        <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
+                            {searchMatches.length > 0 ? `${matchIndex + 1} of ${searchMatches.length}` : 'No results'}
+                        </span>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => stepMatch(-1)}
+                        disabled={searchMatches.length === 0}
+                        aria-label="Previous match"
+                        className="shrink-0 rounded p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30 dark:text-gray-400 dark:hover:bg-gray-700"
+                    >
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="m18 15-6-6-6 6" />
+                        </svg>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => stepMatch(1)}
+                        disabled={searchMatches.length === 0}
+                        aria-label="Next match"
+                        className="shrink-0 rounded p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30 dark:text-gray-400 dark:hover:bg-gray-700"
+                    >
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="m6 9 6 6 6-6" />
+                        </svg>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={closeSearch}
+                        aria-label="Close search"
+                        className="shrink-0 rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
 
             {conversation.is_hidden && (
                 <p className="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
@@ -600,7 +756,9 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                                 onMessagesChange={setMessages}
                                 onImageLoad={scrollToBottom}
                                 onReply={startReply}
+                                onEdit={startEdit}
                                 isLast={group.isLastMessage}
+                                highlight={searchOpen ? searchQuery.trim() : ''}
                             />
                         )}
                     </Fragment>
@@ -626,7 +784,20 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                 </p>
             ) : (
             <form onSubmit={submit} className="border-t border-gray-200 p-3 dark:border-gray-700">
-                {replyingTo && (
+                {editingMessage && (
+                    <div className="mb-2 flex items-center justify-between rounded-md bg-gray-50 px-3 py-1.5 dark:bg-gray-900/40">
+                        <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400">Edit message</p>
+                        <button
+                            type="button"
+                            onClick={cancelEdit}
+                            aria-label="Cancel editing"
+                            className="shrink-0 rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                )}
+                {replyingTo && !editingMessage && (
                     <div className="mb-2 flex items-start gap-2 rounded-md bg-gray-50 px-3 py-1.5 dark:bg-gray-900/40">
                         <div className="min-w-0 flex-1">
                             <p className="truncate text-xs font-medium text-indigo-600 dark:text-indigo-400">
@@ -681,7 +852,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                         <MenuButton
                             title="Attach"
                             aria-label="Attach a file or a location"
-                            disabled={sendingLocation}
+                            disabled={sendingLocation || !!editingMessage}
                             className="h-full rounded-md bg-gray-100 px-3 py-2 text-lg leading-none text-gray-700 hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
                         >
                             {sendingLocation ? '…' : '+'}
@@ -720,17 +891,22 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                             setData('body', e.target.value);
                             notifyTyping();
                         }}
-                        placeholder="Type a message..."
+                        onKeyDown={(e) => {
+                            if (e.key === 'Escape' && editingMessage) cancelEdit();
+                        }}
+                        placeholder={editingMessage ? 'Edit your message...' : 'Type a message...'}
                         className="flex-1 rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900"
                     />
                     <button
                         type="submit"
-                        disabled={processing}
+                        disabled={processing || (editingMessage && !data.body.trim())}
                         className="px-4 py-2 bg-indigo-600 text-white rounded-md disabled:opacity-50"
                     >
-                        {processing && data.attachments.length > 0 && progress
-                            ? `${progress.percentage}%`
-                            : 'Send'}
+                        {editingMessage
+                            ? 'Save'
+                            : processing && data.attachments.length > 0 && progress
+                              ? `${progress.percentage}%`
+                              : 'Send'}
                     </button>
                 </div>
             </form>

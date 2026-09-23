@@ -14,8 +14,6 @@ import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { router } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 
-const ACTION = 'text-xs text-gray-500 underline-offset-2 hover:text-gray-800 hover:underline dark:text-gray-400 dark:hover:text-gray-200';
-
 // How far a swipe must travel before releasing it counts as "reply", and the
 // most it can drag (with resistance built in via the clamp, not eased).
 const REPLY_THRESHOLD = 56;
@@ -67,6 +65,24 @@ function UnsendPanel({ show, onClose, onChoose }) {
     );
 }
 
+function highlightText(text, query) {
+    if (!query) return text;
+
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
+    if (parts.length === 1) return text;
+
+    return parts.map((part, index) =>
+        part.toLowerCase() === query.toLowerCase() ? (
+            <mark key={index} className="rounded bg-yellow-300 px-0.5 text-gray-900 dark:bg-yellow-500">
+                {part}
+            </mark>
+        ) : (
+            part
+        ),
+    );
+}
+
 // One message in the conversation, with what its owner can do to it: edit it
 // or unsend it (for me / for everyone) when it is theirs, delete it for
 // themselves or report it when it is the other person's.
@@ -81,12 +97,10 @@ export default function MessageRow({
     onMessagesChange,
     onImageLoad,
     onReply,
+    onEdit,
     isLast,
+    highlight,
 }) {
-    const [editing, setEditing] = useState(false);
-    const [draft, setDraft] = useState('');
-    const [editError, setEditError] = useState(null);
-    const [saving, setSaving] = useState(false);
     const [reporting, setReporting] = useState(false);
     const [viewingDetails, setViewingDetails] = useState(false);
     const [dragX, setDragX] = useState(0);
@@ -95,7 +109,7 @@ export default function MessageRow({
     // Tracked in refs, not state, so the move/up handlers always see the
     // latest value without waiting on a render.
     const dragState = useRef({ pointerId: null, startX: 0, startY: 0, active: false, dx: 0 });
-    const canReply = typeof onReply === 'function' && !message.deleted && !editing;
+    const canReply = typeof onReply === 'function' && !message.deleted;
 
     function onDragStart(e) {
         if (!canReply || e.pointerType === 'mouse' && e.button !== 0) return;
@@ -161,28 +175,7 @@ export default function MessageRow({
         files.length === 0;
 
     function startEdit() {
-        setDraft(message.body ?? '');
-        setEditError(null);
-        setEditing(true);
-    }
-
-    function saveEdit(e) {
-        e.preventDefault();
-
-        setSaving(true);
-        router.patch(
-            route('messages.update', message.id),
-            { body: draft },
-            {
-                preserveScroll: true,
-                onSuccess: (page) => {
-                    onMessagesChange(page.props.messages);
-                    setEditing(false);
-                },
-                onError: (errors) => setEditError(errors.body ?? 'The message could not be saved.'),
-                onFinish: () => setSaving(false),
-            },
-        );
+        onEdit?.(message);
     }
 
     const [unsending, setUnsending] = useState(false);
@@ -317,7 +310,7 @@ export default function MessageRow({
     // just the content block, so it centers on that regardless of whatever
     // meta labels (pinned, edited, automatic reply, reply preview, delivery
     // status) happen to be stacked above or below it.
-    const outerToolbar = message.deleted || editing;
+    const outerToolbar = message.deleted;
 
     return (
         <div id={`message-${message.id}`} className={`group relative flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}>
@@ -351,7 +344,7 @@ export default function MessageRow({
                 }}
                 className={`flex min-w-0 max-w-[75%] flex-col ${isMine ? 'items-end' : 'items-start'}`}
             >
-                {message.reply_to && !editing && (
+                {message.reply_to && (
                     <button
                         type="button"
                         onClick={() => jumpToMessage(message.reply_to.id)}
@@ -365,40 +358,13 @@ export default function MessageRow({
                         </span>
                     </button>
                 )}
-                {message.automated && !message.deleted && !editing && (
+                {message.automated && !message.deleted && (
                     <p className="mb-1 px-1 text-[11px] text-gray-500 dark:text-gray-400">Automatic reply</p>
                 )}
                 {message.deleted ? (
                     <div className="rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm italic text-gray-500 dark:border-gray-600 dark:text-gray-400">
                         {isMine ? 'You deleted this message' : 'This message was deleted'}
                     </div>
-                ) : editing ? (
-                    <form onSubmit={saveEdit} className="w-72 max-w-full space-y-1.5">
-                        <div className="rounded-lg bg-indigo-600 px-4 py-2">
-                            <textarea
-                                autoFocus
-                                rows={3}
-                                maxLength={5000}
-                                value={draft}
-                                onChange={(e) => setDraft(e.target.value)}
-                                aria-label="Edit message"
-                                className="block w-full resize-none border-0 bg-transparent p-0 text-sm text-white placeholder-indigo-200 focus:ring-0"
-                            />
-                        </div>
-                        {editError && <p className="text-xs text-red-600">{editError}</p>}
-                        <div className="flex justify-end gap-3 px-1">
-                            <button type="button" onClick={() => setEditing(false)} className={ACTION}>
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={saving}
-                                className="text-xs font-semibold text-indigo-600 hover:underline disabled:opacity-50 dark:text-indigo-400"
-                            >
-                                Save
-                            </button>
-                        </div>
-                    </form>
                 ) : (
                     <div className={`flex flex-col gap-2 ${isMine ? 'items-end' : 'items-start'}`}>
                         {/* Above the bubble, not inside it. */}
@@ -448,7 +414,11 @@ export default function MessageRow({
                                             isMine ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700'
                                         }`}
                                     >
-                                        {message.body && <p className="whitespace-pre-line text-sm">{message.body}</p>}
+                                        {message.body && (
+                                            <p className="whitespace-pre-line text-sm">
+                                                {highlight ? highlightText(message.body, highlight) : message.body}
+                                            </p>
+                                        )}
                                         {otherFiles.length > 0 && (
                                             <MessageAttachments attachments={otherFiles} onImageLoad={onImageLoad} />
                                         )}

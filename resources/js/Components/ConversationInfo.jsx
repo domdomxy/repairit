@@ -94,9 +94,17 @@ export default function ConversationInfo({ contact, open, onClose, reasons }) {
                 open
                     ? 'absolute inset-y-4 end-4 z-20 flex w-80 max-w-full rounded-xl shadow-xl xl:static xl:z-auto xl:w-auto xl:shadow-sm'
                     : 'hidden'
-            } min-h-0 flex-col overflow-y-auto rounded-xl bg-white dark:bg-gray-800`}
+            } min-h-0 flex-col overflow-hidden rounded-xl bg-white dark:bg-gray-800`}
             aria-label="Contact information"
         >
+            {/* The rounding + clipping live here, on the non-scrolling aside; the
+                child below does the actual scrolling. Native scrollbars are drawn
+                as a straight-edged rectangle regardless of the scrolling element's
+                own border-radius, so putting overflow-y-auto directly on a rounded
+                box lets the scrollbar poke past the curve at the top and bottom
+                corners. Scrolling one layer in, inside a clipped parent, keeps the
+                scrollbar's straight edge hidden behind the rounded corner. */}
+            <div className="min-h-0 flex-1 overflow-y-auto">
             {/* Not on the aside itself: it is already positioned (absolute/static) by breakpoint. */}
             <div className="relative">
                 <button
@@ -246,6 +254,7 @@ export default function ConversationInfo({ contact, open, onClose, reasons }) {
                         </Section>
                     </div>
                 )}
+            </div>
             </div>
         </aside>
     );
