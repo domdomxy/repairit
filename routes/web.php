@@ -19,7 +19,6 @@ use App\Http\Controllers\RepairController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\ServiceRequestController;
 use App\Http\Controllers\SupportController;
-use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ConversationController;
@@ -43,8 +42,7 @@ Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
         'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
+        'categories' => \App\Models\Category::orderBy('name')->get(['id', 'name']),
     ]);
 });
 

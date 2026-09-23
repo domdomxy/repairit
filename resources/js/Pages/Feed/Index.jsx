@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
 import CreatePanel from '@/Components/CreatePanel';
-import { TagIcon, WrenchIcon } from '@/Components/Icons';
+import Dropdown from '@/Components/Dropdown';
+import { PlusIcon } from '@/Components/Icons';
 import FeedFilterMenu from '@/Components/FeedFilterMenu';
 import OfferForm from '@/Components/OfferForm';
 import OfferListing from '@/Components/OfferListing';
@@ -43,10 +44,6 @@ function buildParams(form) {
         Object.entries(form).filter(([key, value]) => value !== '' && value !== null && !(key === 'filter' && value === 'newest')),
     );
 }
-
-// The two ways to start a post, side by side under the composer.
-const POST_ACTION =
-    'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700';
 
 // The feed: technicians' offers and customers' repair requests, posted
 // together. `requestForm` and `offerForm` carry what the two "new" panels (and
@@ -186,24 +183,43 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
                                     </button>
                                 </div>
 
-                                {/* Customers post requests; technicians choose between a request and an offer. */}
-                                <div className="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3 dark:border-gray-700">
-                                    {requestForm && (
-                                        <button type="button" onClick={() => setPanel('request')} className={POST_ACTION}>
-                                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300">
-                                                <WrenchIcon className="h-4 w-4" />
-                                            </span>
-                                            New request
-                                        </button>
-                                    )}
-                                    {offerForm && (
-                                        <button type="button" onClick={() => setPanel('offer')} className={POST_ACTION}>
-                                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-300">
-                                                <TagIcon className="h-4 w-4" />
-                                            </span>
-                                            New offer
-                                        </button>
-                                    )}
+                                {/* Customers post requests; technicians choose between a request and an
+                                    offer — the same "+" compose button as the nav bar, opening the
+                                    same panels right here instead of navigating. */}
+                                <div className="mt-3 flex items-center border-t border-gray-100 pt-3 dark:border-gray-700">
+                                    <Dropdown>
+                                        <Dropdown.Trigger>
+                                            <button
+                                                type="button"
+                                                title="Create new post"
+                                                aria-label="Create new post"
+                                                className="flex h-8 w-10 shrink-0 items-center justify-center rounded-md border border-gray-300 text-gray-500 transition hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 dark:focus:ring-offset-gray-800"
+                                            >
+                                                <PlusIcon className="h-5 w-5" />
+                                            </button>
+                                        </Dropdown.Trigger>
+
+                                        <Dropdown.Content align="left" width="48">
+                                            {requestForm && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPanel('request')}
+                                                    className="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 transition duration-150 ease-in-out hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-300 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
+                                                >
+                                                    New request
+                                                </button>
+                                            )}
+                                            {offerForm && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPanel('offer')}
+                                                    className="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 transition duration-150 ease-in-out hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-300 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
+                                                >
+                                                    New offer
+                                                </button>
+                                            )}
+                                        </Dropdown.Content>
+                                    </Dropdown>
                                 </div>
                             </div>
                         )}

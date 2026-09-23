@@ -90,7 +90,7 @@ export default function RequestMenu({ request, reasons, onEdit, onDelete }) {
                     </button>
                 </Dropdown.Trigger>
 
-                <Dropdown.Content>
+                <Dropdown.Content contentClasses="border border-gray-200 py-1 bg-white dark:border-gray-700 dark:bg-gray-800">
                     <button type="button" onClick={copyLink} className={ITEM}>
                         Copy link
                     </button>

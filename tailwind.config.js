@@ -18,6 +18,8 @@ export default {
         extend: {
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                // Headlines on the welcome, login and register pages.
+                display: ['"Space Grotesk"', ...defaultTheme.fontFamily.sans],
             },
         },
     },

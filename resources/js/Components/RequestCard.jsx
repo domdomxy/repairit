@@ -55,8 +55,10 @@ export default function RequestCard({
                     </div>
                 </div>
 
-                {/* Above the stretched link of the text, or the menu could not be clicked. */}
-                <div className="relative z-10 flex shrink-0 items-center gap-2">
+                {/* Above the stretched link of the text, or the menu could not be clicked.
+                    Also above the media block below (z-20 > its z-10), since both are
+                    positioned siblings and the menu's dropdown must not paint underneath it. */}
+                <div className="relative z-20 flex shrink-0 items-center gap-2">
                     {showKind && <FeedKindBadge kind="request" />}
                     {request.has_my_quote && (
                         <span className="rounded-full bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200">
