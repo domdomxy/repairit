@@ -35,6 +35,10 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
+                // Sites this person let open without the "Leaving Repairit" prompt.
+                // Shared by hand because the column is hidden on the model, so it
+                // can never leak inside a user that is shown to someone else.
+                'trusted_hosts' => $request->user()?->trusted_link_hosts ?? [],
             ],
             'notifications' => [
                 'unread' => fn () => $request->user()?->unreadNotifications()->count() ?? 0,

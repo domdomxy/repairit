@@ -30,6 +30,7 @@ use App\Http\Controllers\TechnicianController;
 use App\Http\Controllers\TechnicianOfferController;
 use App\Http\Controllers\TechnicianProfileController;
 use App\Http\Controllers\TechnicianRepairController;
+use App\Http\Controllers\TrustedHostController;
 use App\Http\Controllers\UserRelationController;
 use App\Models\UserRelation;
 use App\Http\Controllers\DashboardController;
@@ -91,6 +92,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/message-attachments/{attachment}', [MessageController::class, 'attachment'])->name('messages.attachment');
     // Blocking, muting, favoriting and restricting people (and undoing each): one route per action, the kind is the last segment.
     Route::get('/settings', [UserRelationController::class, 'index'])->name('relations.index');
+    // Sites whose links open without the "Leaving Repairit" prompt: trust one, revoke one, revoke all.
+    Route::put('/trusted-hosts/{host}', [TrustedHostController::class, 'store'])->middleware('throttle:60,1')->name('trusted-hosts.store');
+    Route::delete('/trusted-hosts/{host}', [TrustedHostController::class, 'destroy'])->name('trusted-hosts.destroy');
+    Route::delete('/trusted-hosts', [TrustedHostController::class, 'destroyAll'])->name('trusted-hosts.destroy-all');
     Route::post('/people/{user}/{relation}', [UserRelationController::class, 'store'])->whereIn('relation', UserRelation::TYPES)->name('relations.store');
     Route::delete('/people/{user}/{relation}', [UserRelationController::class, 'destroy'])->whereIn('relation', UserRelation::TYPES)->name('relations.destroy');
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');

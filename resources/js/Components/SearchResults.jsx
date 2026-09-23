@@ -5,6 +5,7 @@ import { OfferPrice } from '@/Components/OfferCard';
 import PlayIcon from '@/Components/PlayIcon';
 import { AVAILABILITY } from '@/lib/availability';
 import { formatDateTime, relativeTime } from '@/lib/dates';
+import { linkify, POST_CARD_LINK_CLASS } from '@/lib/linkify';
 
 // The three kinds of result on the search page, as compact cards for a grid.
 // A card is a single link to what it is about (a technician's profile, one
@@ -160,7 +161,7 @@ export function OfferResult({ offer }) {
 
                 {offer.description && (
                     <p className="line-clamp-3 whitespace-pre-line break-words text-sm text-gray-600 dark:text-gray-300">
-                        {offer.description}
+                        {linkify(offer.description, { linkClassName: POST_CARD_LINK_CLASS })}
                     </p>
                 )}
 
@@ -224,9 +225,14 @@ export function RequestResult({ request }) {
 
                 {/* A request has no title: what the customer wrote is the post. */}
                 <p className="line-clamp-4 whitespace-pre-line break-words text-gray-900 dark:text-gray-100">
-                    <Link href={route('requests.show', request.id)} className="after:absolute after:inset-0">
-                        {request.description}
-                    </Link>
+                    {linkify(request.description, {
+                        linkClassName: POST_CARD_LINK_CLASS,
+                        renderText: (value) => (
+                            <Link href={route('requests.show', request.id)} className="after:absolute after:inset-0">
+                                {value}
+                            </Link>
+                        ),
+                    })}
                 </p>
 
                 <Tags categories={request.categories} className="mt-auto" />

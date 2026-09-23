@@ -6,6 +6,7 @@ import { Banner } from '@/Components/ProfileParts';
 import QuoteForm from '@/Components/QuoteForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { formatDate, relativeTime } from '@/lib/dates';
+import { linkify, POST_LINK_CLASS } from '@/lib/linkify';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
@@ -220,7 +221,7 @@ export default function Show({ serviceRequest, isOwner, quotes, myQuote, canQuot
 
                             {/* A request has no title: what the customer wrote is the post. */}
                             <p className="whitespace-pre-line break-words text-base leading-relaxed text-gray-800 dark:text-gray-200">
-                                {serviceRequest.description}
+                                {linkify(serviceRequest.description, { linkClassName: POST_LINK_CLASS })}
                             </p>
 
                             {serviceRequest.categories.length > 0 && (

@@ -317,7 +317,7 @@ export default function Show({ report, messages, offer, serviceRequest, review, 
                             </div>
 
                             {offer.card ? (
-                                <OfferCard offer={offer.card} />
+                                <OfferCard offer={offer.card} links={false} />
                             ) : (
                                 <p className="text-sm text-gray-500">
                                     <span className="font-medium text-gray-900 dark:text-gray-100">{offer.title}</span> has

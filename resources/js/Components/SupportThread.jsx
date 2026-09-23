@@ -1,5 +1,6 @@
 import Avatar from '@/Components/Avatar';
 import { formatDateTime } from '@/lib/dates';
+import { linkify } from '@/lib/linkify';
 
 // The conversation on a ticket. Messages from the viewer's own side sit on the
 // right, like the chat page, so it is clear at a glance who said what.
@@ -31,7 +32,13 @@ export default function SupportThread({ thread, viewerIsStaff }) {
                                 </p>
                             )}
                             {/* whitespace-pre-line keeps the writer's line breaks; React escapes the text itself. */}
-                            <p className="whitespace-pre-line break-words text-sm">{message.body}</p>
+                            <p className="whitespace-pre-line break-words text-sm">
+                                {linkify(message.body, {
+                                    linkClassName: mine
+                                        ? 'break-all underline hover:text-indigo-100'
+                                        : 'break-all text-indigo-600 underline hover:text-indigo-800 dark:text-indigo-300 dark:hover:text-indigo-200',
+                                })}
+                            </p>
                         </div>
                         {mine && <Avatar src={message.avatar_url} name={message.author} size="sm" />}
                     </li>

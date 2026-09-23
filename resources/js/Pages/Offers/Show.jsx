@@ -8,6 +8,7 @@ import { Banner } from '@/Components/ProfileParts';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { AVAILABILITY } from '@/lib/availability';
 import { formatDate, relativeTime } from '@/lib/dates';
+import { linkify, POST_LINK_CLASS } from '@/lib/linkify';
 import { Head, Link } from '@inertiajs/react';
 
 const CARD = 'rounded-xl bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10';
@@ -78,7 +79,7 @@ export default function Show({ offer, reportReasons }) {
                                     About this offer
                                 </h2>
                                 <p className="mt-2 whitespace-pre-line break-words leading-relaxed text-gray-700 dark:text-gray-300">
-                                    {offer.description}
+                                    {linkify(offer.description, { linkClassName: POST_LINK_CLASS })}
                                 </p>
                             </div>
                         )}

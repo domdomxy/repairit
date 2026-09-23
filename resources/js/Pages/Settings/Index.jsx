@@ -1,7 +1,9 @@
 import Avatar from '@/Components/Avatar';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { PlatformIcon, platformOf } from '@/lib/platforms';
+import { getTrustedHosts, revokeAllTrustedHosts, revokeTrustedHost, subscribeTrustedHosts } from '@/lib/trustedHosts';
 import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // A single-path outline icon, so each tab and empty state stays lightweight.
 function Icon({ path, className = 'h-5 w-5' }) {
@@ -57,6 +59,15 @@ const TABS = [
         empty: 'Nobody blocked.',
         tone: 'rose',
     },
+    // Not people: the sites whose links open without the "Leaving Repairit" prompt.
+    {
+        key: 'trusted',
+        label: 'Trusted sites',
+        icon: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
+        undo: 'Remove',
+        empty: 'No trusted sites yet. Tick “Trust this site” in the prompt that appears before a link takes you off Repairit.',
+        tone: 'indigo',
+    },
 ];
 
 // Every Tailwind class each tone needs, spelled out so the build keeps them.
@@ -85,6 +96,14 @@ const TONES = {
         badge: 'bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
         action: 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700',
     },
+    indigo: {
+        activeTab: 'border-indigo-500 text-indigo-700 dark:text-indigo-300',
+        iconOn: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-300',
+        iconOff: 'bg-gray-100 text-gray-400 dark:bg-gray-900 dark:text-gray-500',
+        count: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
+        badge: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+        action: 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700',
+    },
     rose: {
         activeTab: 'border-rose-500 text-rose-700 dark:text-rose-300',
         iconOn: 'bg-rose-100 text-rose-600 dark:bg-rose-900/40 dark:text-rose-300',
@@ -95,6 +114,35 @@ const TONES = {
     },
 };
 
+// One trusted site: its logo (a globe for a site that is not a well-known
+// network), its name and address, and the button that takes it off the list.
+function TrustedSiteRow({ host, tone, undo, disabled, onRevoke }) {
+    const url = `https://${host}`;
+    const name = platformOf(url)?.name;
+
+    return (
+        <li className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-gray-50 dark:hover:bg-gray-700/40">
+            <div className="flex min-w-0 items-center gap-3">
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tone.iconOn}`}>
+                    <PlatformIcon url={url} className="h-5 w-5" />
+                </span>
+                <span className="min-w-0">
+                    {name && <span className="block text-xs text-gray-500 dark:text-gray-400">{name}</span>}
+                    <span className="block break-all text-sm font-medium text-gray-900 dark:text-gray-100">{host}</span>
+                </span>
+            </div>
+            <button
+                type="button"
+                onClick={onRevoke}
+                disabled={disabled}
+                className={`shrink-0 rounded-md border px-3 py-1.5 text-sm font-medium transition disabled:opacity-60 ${tone.action}`}
+            >
+                {undo}
+            </button>
+        </li>
+    );
+}
+
 // Everyone the signed-in person favorited, muted, restricted or blocked, so they
 // can be undone even when there is no conversation or profile to do it from
 // (a blocked person can't be found in the search).
@@ -103,7 +151,40 @@ export default function Index({ lists }) {
     const [processing, setProcessing] = useState(false);
     const current = TABS.find(({ key }) => key === tab);
     const tone = TONES[current.tone];
-    const people = lists[tab] ?? [];
+
+    // The trusted sites are not part of `lists`: they come from the same shared
+    // copy the "Leaving Repairit" prompt uses, so ticking "Trust" in the prompt
+    // shows up here at once, and revoking here takes effect there.
+    const [hosts, setHosts] = useState(getTrustedHosts);
+    useEffect(() => subscribeTrustedHosts(setHosts), []);
+    const trusted = tab === 'trusted';
+    const people = trusted ? [] : (lists[tab] ?? []);
+
+    async function revokeHost(host) {
+        setProcessing(true);
+
+        try {
+            await revokeTrustedHost(host);
+        } catch {
+            // Nothing changed: the site stays on the list.
+        } finally {
+            setProcessing(false);
+        }
+    }
+
+    async function revokeAll() {
+        if (!window.confirm('Remove every trusted site? Links to them will ask before opening again.')) return;
+
+        setProcessing(true);
+
+        try {
+            await revokeAllTrustedHosts();
+        } catch {
+            // Nothing changed: the sites stay on the list.
+        } finally {
+            setProcessing(false);
+        }
+    }
 
     function undo(person) {
         router.delete(route('relations.destroy', { user: person.id, relation: tab }), {
@@ -133,10 +214,10 @@ export default function Index({ lists }) {
                     Only you can see these lists. Nobody is told when you add or remove them.
                 </p>
 
-                <div role="tablist" className="mt-6 grid grid-cols-4 border-b border-gray-200 dark:border-gray-700">
+                <div role="tablist" className="mt-6 grid grid-cols-5 border-b border-gray-200 dark:border-gray-700">
                     {TABS.map(({ key, label, icon, tone: t }) => {
                         const selected = tab === key;
-                        const count = lists[key]?.length ?? 0;
+                        const count = key === 'trusted' ? hosts.length : (lists[key]?.length ?? 0);
                         const tt = TONES[t];
 
                         return (
@@ -159,7 +240,7 @@ export default function Index({ lists }) {
                                 >
                                     <Icon path={icon} />
                                 </span>
-                                <span className="flex items-center gap-1 text-xs font-medium">
+                                <span className="flex flex-wrap items-center justify-center gap-x-1 text-center text-xs font-medium leading-tight">
                                     {label}
                                     {count > 0 && (
                                         <span
@@ -177,7 +258,7 @@ export default function Index({ lists }) {
                 </div>
 
                 <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800">
-                    {people.length === 0 && (
+                    {(trusted ? hosts.length === 0 : people.length === 0) && (
                         <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
                             <span className={`flex h-12 w-12 items-center justify-center rounded-full ${tone.iconOn}`}>
                                 <Icon path={current.icon} className="h-6 w-6" />
@@ -229,6 +310,37 @@ export default function Index({ lists }) {
                             );
                         })}
                     </ul>
+
+                    {trusted && hosts.length > 0 && (
+                        <>
+                            <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-700">
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    {hosts.length} {hosts.length === 1 ? 'site opens' : 'sites open'} without asking first.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={revokeAll}
+                                    disabled={processing}
+                                    className="shrink-0 rounded-md border border-rose-300 px-3 py-1.5 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:opacity-60 dark:border-rose-800 dark:text-rose-300 dark:hover:bg-rose-900/20"
+                                >
+                                    Remove all
+                                </button>
+                            </div>
+
+                            <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+                                {hosts.map((host) => (
+                                    <TrustedSiteRow
+                                        key={host}
+                                        host={host}
+                                        tone={tone}
+                                        undo={current.undo}
+                                        disabled={processing}
+                                        onRevoke={() => revokeHost(host)}
+                                    />
+                                ))}
+                            </ul>
+                        </>
+                    )}
                 </div>
             </div>
         </AuthenticatedLayout>

@@ -2,44 +2,15 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import { Section } from '@/Components/ProfileParts';
+import { PlatformIcon, platformOf } from '@/lib/platforms';
 
 // Links on a public profile: a website, social networks... Shown on the profile
 // pages and in the messages panel, and edited on both profile edit pages.
 
-// Names for the networks people usually link to, from the site's address. Any
+// The name and logo of a link come from its address (see lib/platforms.jsx); any
 // other address is a "Website" unless the person gave the link a label.
-const PLATFORMS = [
-    ['instagram.com', 'Instagram'],
-    ['facebook.com', 'Facebook'],
-    ['fb.com', 'Facebook'],
-    ['twitter.com', 'X'],
-    ['x.com', 'X'],
-    ['linkedin.com', 'LinkedIn'],
-    ['youtube.com', 'YouTube'],
-    ['youtu.be', 'YouTube'],
-    ['tiktok.com', 'TikTok'],
-    ['github.com', 'GitHub'],
-    ['wa.me', 'WhatsApp'],
-    ['whatsapp.com', 'WhatsApp'],
-    ['t.me', 'Telegram'],
-    ['telegram.me', 'Telegram'],
-    ['pinterest.com', 'Pinterest'],
-    ['behance.net', 'Behance'],
-];
-
-function hostOf(url) {
-    try {
-        return new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
-    } catch {
-        return '';
-    }
-}
-
-function platformOf(url) {
-    const host = hostOf(url);
-    const match = PLATFORMS.find(([domain]) => host === domain || host.endsWith(`.${domain}`));
-
-    return match ? match[1] : 'Website';
+function nameOf(url) {
+    return platformOf(url)?.name ?? 'Website';
 }
 
 // The address as people read it: no "https://", no "www." and no trailing slash.
@@ -52,25 +23,6 @@ function displayUrl(url) {
 // Only web addresses become clickable links, whatever the server sent.
 function isWebUrl(url) {
     return typeof url === 'string' && /^https?:\/\//i.test(url);
-}
-
-function GlobeIcon({ className = 'h-4 w-4' }) {
-    return (
-        <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={className}
-            aria-hidden="true"
-        >
-            <circle cx="12" cy="12" r="9" />
-            <path d="M3 12h18" />
-            <path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z" />
-        </svg>
-    );
 }
 
 // The rows of links, styled like the contact rows. They open in a new tab.
@@ -88,11 +40,11 @@ export function LinkRows({ links }) {
                     className="-mx-2 flex items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 >
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300">
-                        <GlobeIcon />
+                        <PlatformIcon url={link.url} className="h-5 w-5" />
                     </span>
                     <span className="min-w-0">
                         <span className="block text-xs text-gray-500 dark:text-gray-400">
-                            {link.label || platformOf(link.url)}
+                            {link.label || nameOf(link.url)}
                         </span>
                         <span className="block break-all text-sm font-medium text-gray-800 dark:text-gray-100">
                             {displayUrl(link.url)}
@@ -152,7 +104,7 @@ export function LinksEditor({ links, onChange, errors, max, labelMax, urlMax }) 
                                 value={link.label ?? ''}
                                 onChange={(e) => update(index, 'label', e.target.value)}
                                 maxLength={labelMax}
-                                placeholder="Instagram, My shop…"
+                                placeholder={platformOf(link.url)?.name ?? 'Instagram, My shop…'}
                             />
                             <InputError message={errors?.[`links.${index}.label`]} className="mt-1" />
                         </div>

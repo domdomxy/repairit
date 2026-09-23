@@ -14,8 +14,10 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['name', 'email', 'password', 'role', 'email_notifications', 'bio', 'city', 'phone', 'show_phone_publicly', 'show_email_publicly', 'links'])]
-#[Hidden(['password', 'remember_token', 'avatar_path', 'phone'])]
+#[Fillable(['name', 'email', 'password', 'role', 'email_notifications', 'bio', 'city', 'phone', 'show_phone_publicly', 'show_email_publicly', 'links', 'trusted_link_hosts'])]
+// trusted_link_hosts is private to its owner: it reaches the browser only through
+// the shared `auth.trusted_hosts` prop, never inside a user shown to someone else.
+#[Hidden(['password', 'remember_token', 'avatar_path', 'phone', 'trusted_link_hosts'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -74,6 +76,7 @@ class User extends Authenticatable
             'show_phone_publicly' => 'boolean',
             'show_email_publicly' => 'boolean',
             'links' => 'array',
+            'trusted_link_hosts' => 'array',
             'password' => 'hashed',
         ];
     }

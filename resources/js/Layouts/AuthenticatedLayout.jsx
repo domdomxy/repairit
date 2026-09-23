@@ -8,6 +8,7 @@ import NotificationBell from '@/Components/NotificationBell';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import SearchBar from '@/Components/SearchBar';
 import ThemeToggle from '@/Components/ThemeToggle';
+import TrustedHostsSyncListener from '@/Components/TrustedHostsSyncListener';
 import { useInbox } from '@/lib/inbox';
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
@@ -285,6 +286,8 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                     </div>
                 </div>
             )}
+
+            <TrustedHostsSyncListener userId={user.id} />
 
             <main className="flex flex-1 flex-col">{children}</main>
         </div>

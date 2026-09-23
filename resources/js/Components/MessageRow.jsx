@@ -10,6 +10,7 @@ import SharedOfferCard from '@/Components/SharedOfferCard';
 import SharedQuoteCard from '@/Components/SharedQuoteCard';
 import SharedRequestCard from '@/Components/SharedRequestCard';
 import { formatDateTime, formatMessageTime } from '@/lib/dates';
+import { linkify } from '@/lib/linkify';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { router } from '@inertiajs/react';
 import { useRef, useState } from 'react';
@@ -416,7 +417,12 @@ export default function MessageRow({
                                     >
                                         {message.body && (
                                             <p className="whitespace-pre-line text-sm">
-                                                {highlight ? highlightText(message.body, highlight) : message.body}
+                                                {linkify(message.body, {
+                                                    renderText: (value) => (highlight ? highlightText(value, highlight) : value),
+                                                    linkClassName: isMine
+                                                        ? 'break-all underline hover:text-indigo-100'
+                                                        : 'break-all text-indigo-600 underline hover:text-indigo-800 dark:text-indigo-300 dark:hover:text-indigo-200',
+                                                })}
                                             </p>
                                         )}
                                         {otherFiles.length > 0 && (

@@ -2,6 +2,7 @@ import Avatar from '@/Components/Avatar';
 import FeedKindBadge from '@/Components/FeedKindBadge';
 import PostMedia from '@/Components/PostMedia';
 import { formatDateTime, formatMessageTime, relativeTime } from '@/lib/dates';
+import { linkify, POST_CARD_LINK_CLASS } from '@/lib/linkify';
 import { Link } from '@inertiajs/react';
 
 // A repair request as a card in a list: who is asking, what for, roughly how
@@ -76,9 +77,16 @@ export default function RequestCard({
 
             {/* A request has no title: what the customer wrote is the post. */}
             <p className="line-clamp-4 whitespace-pre-line break-words text-gray-900 dark:text-gray-100">
-                <Link href={route('requests.show', request.id)} className="after:absolute after:inset-0">
-                    {request.description}
-                </Link>
+                {/* The text around a link opens the request; the link itself opens the URL.
+                    They are siblings, never nested, since a link cannot sit inside a link. */}
+                {linkify(request.description, {
+                    linkClassName: POST_CARD_LINK_CLASS,
+                    renderText: (value) => (
+                        <Link href={route('requests.show', request.id)} className="after:absolute after:inset-0">
+                            {value}
+                        </Link>
+                    ),
+                })}
             </p>
 
             {/* Above the stretched link: a click on a picture opens the viewer, not the request. */}

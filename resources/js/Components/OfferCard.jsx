@@ -1,4 +1,5 @@
 import PostMedia from '@/Components/PostMedia';
+import { linkify, POST_LINK_CLASS } from '@/lib/linkify';
 
 // The price of an offer as a small pill. Nothing when the offer has no price.
 export function OfferPrice({ price }) {
@@ -40,6 +41,7 @@ export default function OfferCard({
     header,
     menu,
     listing = false,
+    links = true,
     className = 'rounded-md border p-4 dark:border-gray-700',
     children,
 }) {
@@ -61,7 +63,7 @@ export default function OfferCard({
 
             {offer.description && (
                 <p className="whitespace-pre-line break-words text-sm text-gray-600 dark:text-gray-300">
-                    {offer.description}
+                    {links ? linkify(offer.description, { linkClassName: POST_LINK_CLASS }) : offer.description}
                 </p>
             )}
 
