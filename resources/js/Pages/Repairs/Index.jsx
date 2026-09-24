@@ -1,9 +1,10 @@
 import Avatar from '@/Components/Avatar';
 import { WrenchIcon } from '@/Components/Icons';
 import Pagination from '@/Components/Pagination';
+import RepairSearch from '@/Components/RepairSearch';
 import RepairStatusBadge from '@/Components/RepairStatusBadge';
 import SegmentedTabs from '@/Components/SegmentedTabs';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import SidebarLayout from '@/Layouts/SidebarLayout';
 import { relativeTime } from '@/lib/dates';
 import { REPAIR_FLOW } from '@/lib/repairs';
 import { Head, Link } from '@inertiajs/react';
@@ -58,18 +59,22 @@ function RepairTrack({ status }) {
 }
 
 // The repairs a technician linked to your account: open one to see where it is.
-export default function Index({ repairs, filter, counts }) {
+export default function Index({ repairs, filter, filters, counts }) {
+    const term = filters.q ?? '';
+    // Nothing to search until something is tracked (or a search is under way).
+    const hasRepairs = counts.all > 0 || term !== '';
     const tabs = TABS.map((tab) => ({
         ...tab,
-        href: route('repairs.index', tab.value === 'all' ? {} : { filter: tab.value }),
+        // The search stays when the tab changes.
+        href: route('repairs.index', { ...(tab.value === 'all' ? {} : { filter: tab.value }), ...(term ? { q: term } : {}) }),
         count: counts[tab.value],
     }));
 
     return (
-        <AuthenticatedLayout>
+        <SidebarLayout>
             <Head title="My repairs" />
 
-            <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+            <div className="mx-auto w-full max-w-3xl space-y-6">
                 <header className="space-y-4">
                     <div>
                         <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">My repairs</h1>
@@ -79,7 +84,19 @@ export default function Index({ repairs, filter, counts }) {
                         </p>
                     </div>
 
-                    <SegmentedTabs label="Filter repairs" tabs={tabs} value={filter} />
+                    <div className="flex flex-wrap items-center gap-3">
+                        {hasRepairs && (
+                            <RepairSearch
+                                routeName="repairs.index"
+                                params={filter === 'all' ? {} : { filter }}
+                                value={term}
+                                placeholder="Search by title, code or technician"
+                                label="Search repairs"
+                                className="min-w-[14rem] flex-1"
+                            />
+                        )}
+                        <SegmentedTabs label="Filter repairs" tabs={tabs} value={filter} />
+                    </div>
                 </header>
 
                 {repairs.data.length === 0 && (
@@ -88,7 +105,7 @@ export default function Index({ repairs, filter, counts }) {
                             <WrenchIcon className="h-6 w-6" />
                         </span>
                         <p className="mx-auto mt-4 max-w-sm text-sm text-gray-500 dark:text-gray-400">
-                            {EMPTY_TEXT[filter] ?? EMPTY_TEXT.all}
+                            {term !== '' ? 'No repairs match your search.' : (EMPTY_TEXT[filter] ?? EMPTY_TEXT.all)}
                         </p>
                     </div>
                 )}
@@ -123,6 +140,6 @@ export default function Index({ repairs, filter, counts }) {
 
                 <Pagination links={repairs.links} />
             </div>
-        </AuthenticatedLayout>
+        </SidebarLayout>
     );
 }

@@ -1,13 +1,14 @@
+import { CheckIcon } from '@/Components/Icons';
 import { REPAIR_FLOW } from '@/lib/repairs';
 
-// Where a repair is on its usual road, as numbered steps: done ones filled,
-// the current one outlined. "On hold" keeps the last step reached and says so;
-// a cancelled repair has no road left, so it says that instead.
+// Where a repair is on its usual road: done steps filled, the current one
+// ringed, a bar running through them. "On hold" keeps the last step reached and
+// says so; a cancelled repair has no road left, so it says that instead.
 // `updates` is the timeline, newest first.
 export default function RepairProgress({ status, statuses, updates }) {
     if (status === 'cancelled') {
         return (
-            <p className="mt-6 rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:bg-rose-900/30 dark:text-rose-300">
+            <p className="mt-6 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800 dark:bg-rose-900/30 dark:text-rose-300">
                 This repair was cancelled.
             </p>
         );
@@ -20,62 +21,65 @@ export default function RepairProgress({ status, statuses, updates }) {
     const active = REPAIR_FLOW.indexOf(step);
     const paused = status === 'waiting';
     const finished = status === 'completed';
+    const fill = active < 0 ? 0 : (active / (REPAIR_FLOW.length - 1)) * 100;
 
     return (
-        <div className="mt-6 rounded-xl bg-gray-50 px-4 py-5 dark:bg-gray-900/40">
-            <ol className="flex items-start">
-                {REPAIR_FLOW.map((name, index) => {
-                    const done = index < active || (index === active && status === 'completed');
-                    const current = index === active && !done;
+        <div className="mt-8 border-t border-gray-100 pt-8 dark:border-gray-700">
+            <div className="relative">
+                {/* The bar runs from the first circle's centre to the last one's (five equal columns: 10% to 90%). */}
+                <div aria-hidden="true" className="absolute inset-x-[10%] top-[18px] h-1 -translate-y-1/2 rounded-full bg-gray-200 dark:bg-gray-700">
+                    <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                            finished ? 'bg-green-500' : paused ? 'bg-amber-500' : 'bg-indigo-600'
+                        }`}
+                        style={{ width: `${fill}%` }}
+                    />
+                </div>
 
-                    let circle = 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400';
-                    if (done) {
-                        circle = finished ? 'bg-green-500 text-white' : 'bg-indigo-600 text-white';
-                    } else if (current) {
-                        circle = paused
-                            ? 'border-2 border-amber-500 bg-white text-amber-600 dark:bg-gray-900'
-                            : 'border-2 border-indigo-600 bg-white text-indigo-600 dark:bg-gray-900';
-                    }
+                <ol className="relative flex">
+                    {REPAIR_FLOW.map((name, index) => {
+                        const done = index < active || (index === active && finished);
+                        const current = index === active && !done;
 
-                    return (
-                        <li
-                            key={name}
-                            className="relative flex-1 text-center"
-                            aria-current={current ? 'step' : undefined}
-                        >
-                            {index > 0 && (
+                        let circle = 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500';
+                        if (done) {
+                            circle = finished ? 'bg-green-500 text-white' : 'bg-indigo-600 text-white';
+                        } else if (current) {
+                            circle = paused
+                                ? 'border-2 border-amber-500 bg-white text-amber-600 dark:bg-gray-800'
+                                : 'border-2 border-indigo-600 bg-white text-indigo-600 dark:bg-gray-800';
+                        }
+
+                        return (
+                            <li key={name} className="flex-1 text-center" aria-current={current ? 'step' : undefined}>
                                 <span
-                                    aria-hidden="true"
-                                    className={`absolute left-[-50%] top-[15px] h-0.5 w-full ${
-                                        index <= active
-                                            ? finished
-                                                ? 'bg-green-500'
-                                                : 'bg-indigo-600'
-                                            : 'bg-gray-200 dark:bg-gray-700'
+                                    className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold ring-4 ${
+                                        current
+                                            ? paused
+                                                ? 'ring-amber-100 dark:ring-amber-500/20'
+                                                : 'ring-indigo-100 dark:ring-indigo-500/20'
+                                            : 'ring-white dark:ring-gray-800'
+                                    } ${circle}`}
+                                >
+                                    {done ? <CheckIcon className="h-4 w-4" /> : index + 1}
+                                </span>
+                                <span
+                                    className={`mt-3 block px-1 text-xs sm:text-sm ${
+                                        done || current
+                                            ? 'font-semibold text-gray-900 dark:text-gray-100'
+                                            : 'text-gray-500 dark:text-gray-400'
                                     }`}
-                                />
-                            )}
-                            <span
-                                className={`relative z-10 mx-auto flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${circle}`}
-                            >
-                                {done ? '✓' : index + 1}
-                            </span>
-                            <span
-                                className={`mt-2 block px-1 text-xs ${
-                                    done || current
-                                        ? 'font-medium text-gray-900 dark:text-gray-100'
-                                        : 'text-gray-500 dark:text-gray-400'
-                                }`}
-                            >
-                                {statuses[name]}
-                            </span>
-                        </li>
-                    );
-                })}
-            </ol>
+                                >
+                                    {statuses[name]}
+                                </span>
+                            </li>
+                        );
+                    })}
+                </ol>
+            </div>
 
             {paused && (
-                <p className="mt-4 text-sm text-amber-700 dark:text-amber-300">
+                <p className="mt-5 rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
                     Currently {statuses.waiting.toLowerCase()}.
                 </p>
             )}

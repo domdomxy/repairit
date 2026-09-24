@@ -3,6 +3,7 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import Pagination from '@/Components/Pagination';
 import ProfileSidebar from '@/Components/ProfileSidebar';
+import RepairSearch from '@/Components/RepairSearch';
 import RepairStatusBadge from '@/Components/RepairStatusBadge';
 import SegmentedTabs from '@/Components/SegmentedTabs';
 import SubmitButton from '@/Components/SubmitButton';
@@ -148,14 +149,21 @@ function RepairRow({ repair }) {
 
 // The technician's repairs: start tracking a new one, and follow the ones already
 // tracked. On a wide screen the form sits beside the list.
-export default function Repairs({ repairs, filter, counts, customers }) {
+export default function Repairs({ repairs, filter, filters, counts, customers }) {
     const { auth } = usePage().props;
+    const term = filters.q ?? '';
+    // Nothing to search until something is tracked (or a search is under way).
+    const hasRepairs = counts.active + counts.closed > 0 || term !== '';
 
     const tabs = [
         { value: 'active', label: 'Active', count: counts.active },
         { value: 'closed', label: 'Closed', count: counts.closed },
         { value: 'all', label: 'All' },
-    ].map((tab) => ({ ...tab, href: route('technician.repairs.index', { filter: tab.value }) }));
+    ].map((tab) => ({
+        ...tab,
+        // The search stays when the tab changes.
+        href: route('technician.repairs.index', { filter: tab.value, ...(term ? { q: term } : {}) }),
+    }));
 
     return (
         <AuthenticatedLayout>
@@ -180,13 +188,29 @@ export default function Repairs({ repairs, filter, counts, customers }) {
                                 <SegmentedTabs label="Filter repairs" tabs={tabs} value={filter} preserveScroll />
                             </header>
 
+                            {hasRepairs && (
+                                <div className="border-b border-gray-100 px-6 py-3 dark:border-gray-700">
+                                    <RepairSearch
+                                        routeName="technician.repairs.index"
+                                        params={{ filter }}
+                                        value={term}
+                                        placeholder="Search by title, code or customer"
+                                        label="Search repairs"
+                                    />
+                                </div>
+                            )}
+
                             {repairs.data.length === 0 ? (
                                 <div className="px-6 py-14 text-center">
                                     <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500">
                                         <WrenchIcon className="h-6 w-6" />
                                     </span>
                                     <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-                                        {filter === 'active' ? 'Nothing is being tracked right now.' : 'No repairs here.'}
+                                        {term !== ''
+                                            ? 'No repairs match your search.'
+                                            : filter === 'active'
+                                              ? 'Nothing is being tracked right now.'
+                                              : 'No repairs here.'}
                                     </p>
                                 </div>
                             ) : (

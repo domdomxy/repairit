@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -61,6 +62,21 @@ class Repair extends Model
     }
 
     /** The timeline, newest first. */
+    /**
+     * The repairs whose title or code contain the words typed in a search box, or
+     * whose other person (`customer` for a technician's list, `technician` for a
+     * customer's) has that in their name.
+     *
+     * @param  Builder<Repair>  $query
+     */
+    public function scopeSearch(Builder $query, string $term, string $person): void
+    {
+        $query->where(fn (Builder $query) => $query
+            ->where('title', 'like', "%{$term}%")
+            ->orWhere('code', 'like', "%{$term}%")
+            ->orWhereHas($person, fn (Builder $query) => $query->where('name', 'like', "%{$term}%")));
+    }
+
     public function updates(): HasMany
     {
         return $this->hasMany(RepairUpdate::class)->orderByDesc('created_at')->orderByDesc('id');
@@ -78,7 +94,7 @@ class Repair extends Model
 
     /**
      * A reference people can read out or type: ambiguous characters (0/O, 1/I)
-     * are left out of the alphabet. Anyone signed in who has the code can open
+     * are left out of the alphabet. Anyone who has the code can open
      * the page, so it is long enough not to be guessed.
      */
     public static function generateCode(): string

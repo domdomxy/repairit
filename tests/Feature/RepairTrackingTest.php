@@ -2,11 +2,15 @@
 
 use App\Models\Conversation;
 use App\Models\Repair;
+use App\Models\RepairUpdate;
+use App\Models\RepairUpdateAttachment;
 use App\Models\TechnicianProfile;
 use App\Models\User;
 use App\Notifications\RepairUpdated;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 function repairTechnician(): User
@@ -246,12 +250,42 @@ test('anyone signed in with the link can follow a repair, but only the technicia
     $this->actingAs(repairCustomer())->get(route('repairs.show', $repair))->assertOk();
 });
 
-test('the tracking page needs an account and a real code', function () {
+test('anybody with the link can follow a repair, with or without an account, but the code must be real', function () {
+    $technician = repairTechnician();
+    $customer = repairCustomer();
+    $repair = repairFor($technician, ['customer_id' => $customer->id, 'description' => 'Screen only']);
+
+    // Somebody with no account: a technician tracked a repair for them and gave them the link.
+    $this->get(route('repairs.show', $repair))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Repairs/Show')
+            ->where('repair.code', $repair->code)
+            ->where('repair.description', 'Screen only')
+            ->where('repair.technician.name', $technician->name)
+            ->missing('repair.technician.id')
+            ->where('repair.customer', null)
+            ->where('isOwner', false)
+            ->where('customers', [])
+            ->where('attachmentLimits', null));
+
+    $this->get('/repairs/REP-NOSUCHCODE')->assertNotFound();
+
+    // Signed in, it is the same page.
+    $this->actingAs(repairCustomer())->get(route('repairs.show', $repair))->assertOk();
+});
+
+test('following a repair with only the link gives no way to manage it, or to see anybody\'s list', function () {
     $repair = repairFor(repairTechnician());
 
-    $this->get(route('repairs.show', $repair))->assertRedirect(route('login'));
+    $this->post(route('technician.repairs.updates.store', $repair), ['status' => 'ready', 'note' => 'Hacked'])
+        ->assertRedirect(route('login'));
+    $this->put(route('technician.repairs.update', $repair), ['title' => 'Hacked'])->assertRedirect(route('login'));
+    $this->delete(route('technician.repairs.destroy', $repair))->assertRedirect(route('login'));
+    $this->get(route('repairs.index'))->assertRedirect(route('login'));
 
-    $this->actingAs(repairCustomer())->get('/repairs/REP-NOSUCHCODE')->assertNotFound();
+    expect($repair->fresh()->title)->not->toBe('Hacked')
+        ->and($repair->updates()->count())->toBe(1);
 });
 
 test('a customer sees only the repairs linked to their account', function () {
@@ -356,4 +390,270 @@ test('the email says what happened without repeating what the technician wrote',
     expect($mail->subject)->toBe("Repair {$repair->code}: ready for pickup")
         ->and(implode(' ', $mail->introLines))->not->toContain('A secret note')
         ->and($mail->actionUrl)->toBe(route('repairs.show', $repair));
+});
+
+// ------------------------------------------------------------------- files on an update
+
+test('a technician can attach files to an update, and they show on the timeline', function () {
+    Storage::fake(RepairUpdate::ATTACHMENT_DISK);
+
+    $technician = repairTechnician();
+    $repair = repairFor($technician);
+
+    $this->actingAs($technician)
+        ->post(route('technician.repairs.updates.store', $repair), [
+            'status' => 'ready',
+            'note' => 'Photos and the invoice',
+            'attachments' => [
+                UploadedFile::fake()->create('screen.jpg', 50, 'image/jpeg'),
+                UploadedFile::fake()->create('invoice.pdf', 80, 'application/pdf'),
+            ],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $update = $repair->updates()->first();
+
+    expect($update->attachments)->toHaveCount(2)
+        ->and($update->attachments->pluck('name')->all())->toBe(['screen.jpg', 'invoice.pdf']);
+
+    foreach ($update->attachments as $attachment) {
+        Storage::disk(RepairUpdate::ATTACHMENT_DISK)->assertExists($attachment->path);
+    }
+
+    $this->actingAs($technician)
+        ->get(route('repairs.show', $repair))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('updates.0.attachments', 2)
+            ->where('updates.0.attachments.0.name', 'screen.jpg')
+            ->where('updates.0.attachments.0.is_image', true)
+            ->where('updates.0.attachments.1.is_pdf', true)
+            ->missing('updates.0.attachments.0.path')
+            ->where('attachmentLimits.max_files', RepairUpdate::ATTACHMENT_MAX_FILES));
+});
+
+test('an update may be only files, and the customer is told', function () {
+    Storage::fake(RepairUpdate::ATTACHMENT_DISK);
+
+    $technician = repairTechnician();
+    $customer = repairCustomer();
+    $repair = repairFor($technician, ['customer_id' => $customer->id]);
+
+    $this->actingAs($technician)
+        ->post(route('technician.repairs.updates.store', $repair), [
+            'status' => 'received',
+            'attachments' => [UploadedFile::fake()->create('before.png', 20, 'image/png')],
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($repair->updates()->count())->toBe(2)
+        ->and($repair->updates()->first()->attachments)->toHaveCount(1)
+        ->and($customer->unreadNotifications()->count())->toBe(1);
+});
+
+test('files the server does not allow, or too many of them, are refused and nothing is saved', function () {
+    Storage::fake(RepairUpdate::ATTACHMENT_DISK);
+
+    $technician = repairTechnician();
+    $repair = repairFor($technician);
+
+    $this->actingAs($technician)
+        ->post(route('technician.repairs.updates.store', $repair), [
+            'status' => 'ready',
+            'attachments' => [UploadedFile::fake()->create('run.exe', 10, 'application/x-msdownload')],
+        ])
+        ->assertSessionHasErrors('attachments.0');
+
+    $this->actingAs($technician)
+        ->post(route('technician.repairs.updates.store', $repair), [
+            'status' => 'ready',
+            'attachments' => array_map(
+                fn ($i) => UploadedFile::fake()->create("photo-{$i}.jpg", 10, 'image/jpeg'),
+                range(1, RepairUpdate::ATTACHMENT_MAX_FILES + 1),
+            ),
+        ])
+        ->assertSessionHasErrors('attachments');
+
+    $this->actingAs($technician)
+        ->post(route('technician.repairs.updates.store', $repair), [
+            'status' => 'ready',
+            'attachments' => [UploadedFile::fake()->create('huge.pdf', RepairUpdate::ATTACHMENT_MAX_KB + 1, 'application/pdf')],
+        ])
+        ->assertSessionHasErrors('attachments.0');
+
+    expect($repair->updates()->count())->toBe(1)
+        ->and(RepairUpdateAttachment::count())->toBe(0)
+        ->and(Storage::disk(RepairUpdate::ATTACHMENT_DISK)->allFiles())->toBe([]);
+});
+
+test('only the repair\'s technician can attach files', function () {
+    Storage::fake(RepairUpdate::ATTACHMENT_DISK);
+
+    $repair = repairFor(repairTechnician());
+
+    $this->actingAs(repairTechnician())
+        ->post(route('technician.repairs.updates.store', $repair), [
+            'status' => 'ready',
+            'attachments' => [UploadedFile::fake()->create('a.jpg', 10, 'image/jpeg')],
+        ])
+        ->assertNotFound();
+
+    $this->actingAs(repairCustomer())
+        ->post(route('technician.repairs.updates.store', $repair), [
+            'status' => 'ready',
+            'attachments' => [UploadedFile::fake()->create('a.jpg', 10, 'image/jpeg')],
+        ])
+        ->assertForbidden();
+
+    expect(RepairUpdateAttachment::count())->toBe(0);
+});
+
+test('whoever has the repair link can open its files, and only through that repair', function () {
+    Storage::fake(RepairUpdate::ATTACHMENT_DISK);
+
+    $technician = repairTechnician();
+    $customer = repairCustomer();
+    $repair = repairFor($technician, ['customer_id' => $customer->id]);
+    $other = repairFor($technician);
+
+    $this->actingAs($technician)->post(route('technician.repairs.updates.store', $repair), [
+        'status' => 'ready',
+        'attachments' => [
+            UploadedFile::fake()->create('invoice.pdf', 10, 'application/pdf'),
+            UploadedFile::fake()->create('notes.docx', 10, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+        ],
+    ]);
+
+    [$pdf, $doc] = $repair->updates()->first()->attachments->all();
+
+    // A PDF opens in the page; anything else is forced to download.
+    $this->actingAs($customer)
+        ->get(route('repairs.attachment', [$repair, $pdf->id]))
+        ->assertOk()
+        ->assertHeader('X-Content-Type-Options', 'nosniff')
+        ->assertHeader('Content-Type', 'application/pdf');
+
+    expect($this->actingAs($customer)->get(route('repairs.attachment', [$repair, $pdf->id]))->headers->get('Content-Disposition'))
+        ->toStartWith('inline');
+
+    expect($this->actingAs($customer)->get(route('repairs.attachment', [$repair, $doc->id]))->headers->get('Content-Disposition'))
+        ->toStartWith('attachment');
+
+    // Another repair's code does not open this repair's file.
+    $this->actingAs($customer)
+        ->get(route('repairs.attachment', [$other, $pdf->id]))
+        ->assertNotFound();
+
+    // Somebody with only the link opens it too, but still only through this repair.
+    $this->app['auth']->forgetGuards();
+
+    $this->get(route('repairs.attachment', [$repair, $pdf->id]))->assertOk();
+    $this->get(route('repairs.attachment', [$other, $pdf->id]))->assertNotFound();
+});
+
+test('deleting a repair removes its files from the disk', function () {
+    Storage::fake(RepairUpdate::ATTACHMENT_DISK);
+
+    $technician = repairTechnician();
+    $repair = repairFor($technician);
+
+    $this->actingAs($technician)->post(route('technician.repairs.updates.store', $repair), [
+        'status' => 'ready',
+        'attachments' => [UploadedFile::fake()->create('a.jpg', 10, 'image/jpeg')],
+    ]);
+
+    expect(Storage::disk(RepairUpdate::ATTACHMENT_DISK)->allFiles())->toHaveCount(1);
+
+    $this->actingAs($technician)->delete(route('technician.repairs.destroy', $repair))->assertRedirect();
+
+    expect(Storage::disk(RepairUpdate::ATTACHMENT_DISK)->allFiles())->toBe([])
+        ->and(RepairUpdateAttachment::count())->toBe(0);
+});
+
+// ------------------------------------------------------------------------- searching
+
+test('a technician can search their repairs by title, code or customer name', function () {
+    $technician = repairTechnician();
+    $sara = User::factory()->create(['role' => 'customer', 'name' => 'Sara Trabelsi']);
+
+    $phone = repairFor($technician, ['title' => 'iPhone 12, cracked screen']);
+    $laptop = repairFor($technician, ['title' => 'Laptop keyboard', 'customer_id' => $sara->id]);
+    repairFor(repairTechnician(), ['title' => 'iPhone of somebody else']);
+
+    $search = fn (string $q) => $this->actingAs($technician)->get(route('technician.repairs.index', ['filter' => 'all', 'q' => $q]));
+
+    $search('iphone')->assertInertia(fn (Assert $page) => $page
+        ->has('repairs.data', 1)
+        ->where('repairs.data.0.code', $phone->code)
+        ->where('filters.q', 'iphone'));
+
+    $search('Trabelsi')->assertInertia(fn (Assert $page) => $page
+        ->has('repairs.data', 1)
+        ->where('repairs.data.0.code', $laptop->code));
+
+    $search(substr($phone->code, 0, 8))->assertInertia(fn (Assert $page) => $page
+        ->where('repairs.data.0.code', $phone->code));
+
+    $search('nothing like this')->assertInertia(fn (Assert $page) => $page->has('repairs.data', 0));
+
+    // No search: everything of theirs, and none of anybody else's.
+    $this->actingAs($technician)
+        ->get(route('technician.repairs.index', ['filter' => 'all']))
+        ->assertInertia(fn (Assert $page) => $page->has('repairs.data', 2)->where('filters.q', ''));
+});
+
+test('a customer can search their repairs by title, code or technician name', function () {
+    $customer = repairCustomer();
+    $amine = repairTechnician();
+    $amine->update(['name' => 'Amine Ben Salah']);
+    $other = repairTechnician();
+
+    $screen = repairFor($amine, ['title' => 'Cracked screen', 'customer_id' => $customer->id]);
+    $battery = repairFor($other, ['title' => 'Battery swap', 'customer_id' => $customer->id]);
+    repairFor($amine, ['title' => 'Cracked screen of another customer']);
+
+    $search = fn (string $q) => $this->actingAs($customer)->get(route('repairs.index', ['q' => $q]));
+
+    $search('cracked')->assertInertia(fn (Assert $page) => $page
+        ->has('repairs.data', 1)
+        ->where('repairs.data.0.code', $screen->code));
+
+    $search('Ben Salah')->assertInertia(fn (Assert $page) => $page
+        ->has('repairs.data', 1)
+        ->where('repairs.data.0.code', $screen->code));
+
+    $search($battery->code)->assertInertia(fn (Assert $page) => $page
+        ->has('repairs.data', 1)
+        ->where('repairs.data.0.code', $battery->code));
+
+    $search('zzz')->assertInertia(fn (Assert $page) => $page->has('repairs.data', 0));
+});
+
+// ------------------------------------------------------- the welcome page's tracking box
+
+test('the welcome page takes a code, or a whole link, to the tracking page without an account', function () {
+    $repair = repairFor(repairTechnician());
+    $letters = substr($repair->code, 4);
+
+    $this->get('/')->assertOk()->assertInertia(fn (Assert $page) => $page->component('Welcome'));
+
+    foreach ([
+        $repair->code,
+        strtolower($repair->code),
+        "  {$repair->code}  ",
+        $letters,
+        route('repairs.show', $repair),
+        route('repairs.show', $repair).'/?utm=x',
+    ] as $typed) {
+        $this->post(route('repairs.lookup'), ['code' => $typed])->assertRedirect(route('repairs.show', $repair));
+    }
+});
+
+test('a code that does not exist is said so on the box', function () {
+    repairFor(repairTechnician());
+
+    foreach (['REP-AAAAAAAA', 'nonsense', 'REP-123', 'https://example.com/repairs/REP-AAAAAAAA'] as $typed) {
+        $this->post(route('repairs.lookup'), ['code' => $typed])->assertSessionHasErrors('code');
+    }
+
+    $this->post(route('repairs.lookup'), ['code' => ''])->assertSessionHasErrors('code');
 });

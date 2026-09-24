@@ -2,17 +2,17 @@ import { Head } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
 import { CHART_COLORS, ChartCard, LineChart } from '@/Components/Charts';
 import { ActionLink, DashboardHeader, Figures, Headline, RatingSummary, Stars } from '@/Components/Dashboard';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import SidebarLayout from '@/Layouts/SidebarLayout';
 import { formatDate, formatShortDate } from '@/lib/dates';
 
 export default function Technician({ stats, trends, charts, recentReviews }) {
     const dayLabels = charts.received.map((day) => formatShortDate(day.date));
 
     return (
-        <AuthenticatedLayout>
+        <SidebarLayout>
             <Head title="Technician Dashboard" />
 
-            <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">
+            <div className="mx-auto max-w-6xl space-y-6">
                 <DashboardHeader title="Dashboard" subtitle="Your inbox, your reputation and the last 30 days of activity.">
                     <ActionLink href={route('conversations.index')} primary badge={stats.unread} badgeLabel="unread">
                         Messages
@@ -94,6 +94,6 @@ export default function Technician({ stats, trends, charts, recentReviews }) {
                     )}
                 </ChartCard>
             </div>
-        </AuthenticatedLayout>
+        </SidebarLayout>
     );
 }

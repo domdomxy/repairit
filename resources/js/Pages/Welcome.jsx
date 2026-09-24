@@ -1,8 +1,9 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import logoLight from '@/assets/logos/repairit-icon-only-light.png';
 import logoDark from '@/assets/logos/repairit-icon-only-dark.png';
+import InputError from '@/Components/InputError';
 import ThemeToggle from '@/Components/ThemeToggle';
-import { ChatIcon, DocumentIcon, TagIcon } from '@/Components/Icons';
+import { ChatIcon, DocumentIcon, TagIcon, WrenchIcon } from '@/Components/Icons';
 
 const STEPS = [
     {
@@ -25,6 +26,65 @@ const STEPS = [
     },
 ];
 
+// For somebody a technician is repairing something for, who may have no account:
+// the code (or the whole link) the technician gave them opens the tracking page.
+function TrackRepair() {
+    const { data, setData, post, processing, errors } = useForm({ code: '' });
+
+    function submit(e) {
+        e.preventDefault();
+        post(route('repairs.lookup'));
+    }
+
+    return (
+        <section id="track-repair" className="scroll-mt-4 border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/40">
+            <div className="mx-auto grid max-w-6xl gap-6 px-6 py-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] lg:items-center lg:gap-12 lg:px-8">
+                <div className="flex items-start gap-4">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-300">
+                        <WrenchIcon className="h-5 w-5" />
+                    </span>
+                    <div>
+                        <h2 className="font-display text-xl font-semibold text-gray-900 dark:text-gray-100">
+                            Left something with a technician?
+                        </h2>
+                        <p className="mt-1 text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+                            Enter the tracking code they gave you, or paste the link, to see how your repair is going.
+                            No account needed.
+                        </p>
+                    </div>
+                </div>
+
+                <form onSubmit={submit} noValidate>
+                    <label htmlFor="repair-code" className="sr-only">
+                        Tracking code or link
+                    </label>
+                    <div className="flex gap-2">
+                        <input
+                            id="repair-code"
+                            type="text"
+                            value={data.code}
+                            onChange={(e) => setData('code', e.target.value)}
+                            placeholder="REP-XXXXXXXX"
+                            autoComplete="off"
+                            spellCheck={false}
+                            dir="ltr"
+                            className="min-w-0 flex-1 rounded-md border-gray-300 font-mono text-sm shadow-sm placeholder:text-gray-400 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
+                        />
+                        <button
+                            type="submit"
+                            disabled={processing}
+                            className="shrink-0 rounded-md bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
+                        >
+                            Track repair
+                        </button>
+                    </div>
+                    <InputError message={errors.code} className="mt-2" />
+                </form>
+            </div>
+        </section>
+    );
+}
+
 export default function Welcome({ auth, canLogin, canRegister, categories = [] }) {
     return (
         <>
@@ -43,6 +103,12 @@ export default function Welcome({ auth, canLogin, canRegister, categories = [] }
 
                     <nav className="flex items-center gap-1">
                         <ThemeToggle className="me-1" />
+                        <a
+                            href="#track-repair"
+                            className="hidden rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 sm:block dark:text-gray-300 dark:hover:text-white"
+                        >
+                            Track a repair
+                        </a>
                         {auth?.user ? (
                             <Link
                                 href={route('feed.index')}
@@ -128,6 +194,8 @@ export default function Welcome({ auth, canLogin, canRegister, categories = [] }
                         )}
                     </div>
                 </section>
+
+                <TrackRepair />
 
                 {/* How it works: a genuine sequence, so numbering earns its place. */}
                 <section className="mx-auto max-w-6xl px-6 py-20 lg:px-8">

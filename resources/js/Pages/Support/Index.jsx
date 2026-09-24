@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import Pagination from '@/Components/Pagination';
 import SupportStatusBadge from '@/Components/SupportStatusBadge';
 import { BUTTON, CARD, SupportHeader } from '@/Components/SupportUI';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import SidebarLayout from '@/Layouts/SidebarLayout';
 import { formatDateTime } from '@/lib/dates';
 
 // Subject and ID | topic | last activity | status. On a phone the columns stack.
@@ -44,10 +44,10 @@ export default function Index({ tickets, filters }) {
     }, [q]);
 
     return (
-        <AuthenticatedLayout>
+        <SidebarLayout>
             <Head title="Support" />
 
-            <div className="mx-auto max-w-[96rem] px-4 py-8 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-[96rem]">
                 <SupportHeader
                     title="Support"
                     action={
@@ -139,6 +139,6 @@ export default function Index({ tickets, filters }) {
                     <Pagination links={tickets.links} />
                 </div>
             </div>
-        </AuthenticatedLayout>
+        </SidebarLayout>
     );
 }

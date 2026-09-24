@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import { CHART_COLORS, ChartCard, HBarChart, LineChart } from '@/Components/Charts';
 import { ActionLink, DashboardHeader, Figures, RatingSummary, firstName } from '@/Components/Dashboard';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import SidebarLayout from '@/Layouts/SidebarLayout';
 import { formatShortDate } from '@/lib/dates';
 
 export default function Customer({ stats, charts }) {
@@ -9,10 +9,10 @@ export default function Customer({ stats, charts }) {
     const dayLabels = charts.sent.map((day) => formatShortDate(day.date));
 
     return (
-        <AuthenticatedLayout>
+        <SidebarLayout>
             <Head title="Dashboard" />
 
-            <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">
+            <div className="mx-auto max-w-6xl space-y-6">
                 <DashboardHeader
                     title={`Welcome back, ${firstName(auth.user)}`}
                     subtitle="Post what needs fixing, or find a technician who can help."
@@ -64,6 +64,6 @@ export default function Customer({ stats, charts }) {
                     </ChartCard>
                 </div>
             </div>
-        </AuthenticatedLayout>
+        </SidebarLayout>
     );
 }

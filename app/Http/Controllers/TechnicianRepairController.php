@@ -3,15 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\Repair;
+use App\Models\RepairUpdate;
+use App\Models\RepairUpdateAttachment;
 use App\Models\User;
 use App\Notifications\RepairUpdated;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 /**
  * The technician's side of repair tracking: start tracking something a
@@ -31,8 +36,12 @@ class TechnicianRepairController extends Controller
 
         $filter = in_array($request->input('filter'), self::FILTERS, true) ? $request->input('filter') : 'active';
 
+        // The search box: the title, the code and the customer's name.
+        $term = $request->string('q')->trim()->toString();
+
         $repairs = $user->technicianRepairs()
             ->with('customer:id,name,avatar_path')
+            ->when($term !== '', fn ($query) => $query->search($term, 'customer'))
             ->when($filter === 'active', fn ($query) => $query->whereNotIn('status', Repair::CLOSED_STATUSES))
             ->when($filter === 'closed', fn ($query) => $query->whereIn('status', Repair::CLOSED_STATUSES))
             // The ones that moved last first.
@@ -47,6 +56,7 @@ class TechnicianRepairController extends Controller
         return Inertia::render('Technicians/Repairs', [
             'repairs' => $repairs,
             'filter' => $filter,
+            'filters' => ['q' => $term],
             'counts' => [
                 'active' => $user->technicianRepairs()->whereNotIn('status', Repair::CLOSED_STATUSES)->count(),
                 'closed' => $user->technicianRepairs()->whereIn('status', Repair::CLOSED_STATUSES)->count(),
@@ -97,8 +107,9 @@ class TechnicianRepairController extends Controller
     }
 
     /**
-     * Post an update: a new status, a note, or both. It goes on the timeline,
-     * and the customer (if the repair is linked to their account) is told.
+     * Post an update: a new status, a note, files, or any of them. It goes on
+     * the timeline, and the customer (if the repair is linked to their account)
+     * is told.
      */
     public function storeUpdate(Request $request, Repair $repair): RedirectResponse
     {
@@ -107,24 +118,77 @@ class TechnicianRepairController extends Controller
         $data = $request->validate([
             'status' => ['required', Rule::in(array_keys(Repair::STATUSES))],
             'note' => ['nullable', 'string', 'max:500'],
+            'attachments' => [
+                'nullable',
+                'array',
+                'max:'.RepairUpdate::ATTACHMENT_MAX_FILES,
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    $bytes = collect($value)
+                        ->filter(fn ($file) => $file instanceof UploadedFile)
+                        ->sum(fn (UploadedFile $file) => $file->getSize());
+
+                    if ($bytes > RepairUpdate::ATTACHMENT_MAX_TOTAL_KB * 1024) {
+                        $fail('The files together may not be larger than '.(RepairUpdate::ATTACHMENT_MAX_TOTAL_KB / 1024).' MB.');
+                    }
+                },
+            ],
+            'attachments.*' => [
+                'file',
+                'max:'.RepairUpdate::ATTACHMENT_MAX_KB,
+                'mimes:'.implode(',', RepairUpdate::ATTACHMENT_EXTENSIONS),
+            ],
+        ], [
+            'attachments.max' => 'You can attach up to '.RepairUpdate::ATTACHMENT_MAX_FILES.' files to one update.',
+            'attachments.*.uploaded' => 'A file could not be uploaded. It may be too large.',
+            'attachments.*.max' => 'Each file may not be larger than '.(RepairUpdate::ATTACHMENT_MAX_KB / 1024).' MB.',
+            'attachments.*.mimes' => 'That file type is not allowed.',
+            'attachments.*.file' => 'That is not a valid file.',
         ]);
 
         $note = $data['note'] ?? null;
+        $files = $request->file('attachments', []);
         $statusChanged = $data['status'] !== $repair->status;
 
-        if (! $statusChanged && $note === null) {
+        if (! $statusChanged && $note === null && $files === []) {
             throw ValidationException::withMessages([
-                'note' => 'Change the status or write a note for your customer.',
+                'note' => 'Change the status, write a note or attach a file for your customer.',
             ]);
         }
 
-        DB::transaction(function () use ($repair, $data, $note) {
-            $repair->updates()->create(['status' => $data['status'], 'note' => $note]);
+        // Every stored path is remembered, so a failure after a file was saved never leaves it behind.
+        $stored = [];
 
-            // touch() also saves the new status, and moves the repair up the list even when only a note was added.
-            $repair->status = $data['status'];
-            $repair->touch();
-        });
+        try {
+            DB::transaction(function () use ($repair, $data, $note, $files, &$stored) {
+                $update = $repair->updates()->create(['status' => $data['status'], 'note' => $note]);
+
+                foreach ($files as $file) {
+                    $path = $file->store("repair-attachments/{$repair->id}", RepairUpdate::ATTACHMENT_DISK);
+
+                    abort_if($path === false, 500, 'A file could not be saved.');
+
+                    $stored[] = $path;
+
+                    $name = $file->getClientOriginalName();
+
+                    $update->attachments()->create([
+                        'path' => $path,
+                        // Keep the end of an over-long name so the extension survives.
+                        'name' => mb_strlen($name) > 200 ? mb_substr($name, -200) : $name,
+                        'mime' => $file->getMimeType() ?: 'application/octet-stream',
+                        'size' => $file->getSize(),
+                    ]);
+                }
+
+                // touch() also saves the new status, and moves the repair up the list even when only a note was added.
+                $repair->status = $data['status'];
+                $repair->touch();
+            });
+        } catch (Throwable $e) {
+            Storage::disk(RepairUpdate::ATTACHMENT_DISK)->delete($stored);
+
+            throw $e;
+        }
 
         $this->tell($repair, $statusChanged ? 'status' : 'note', $note);
 
@@ -135,7 +199,14 @@ class TechnicianRepairController extends Controller
     {
         $this->authorizeOwner($request, $repair);
 
+        // The rows go with the repair; the files on disk do not, so remove them too.
+        $paths = RepairUpdateAttachment::whereHas('repairUpdate', fn ($query) => $query->where('repair_id', $repair->id))
+            ->pluck('path')
+            ->all();
+
         $repair->delete();
+
+        Storage::disk(RepairUpdate::ATTACHMENT_DISK)->delete($paths);
 
         return redirect()->route('technician.repairs.index')->with('success', 'Tracking deleted.');
     }

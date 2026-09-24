@@ -226,7 +226,7 @@ export default function Index({ feed, categories, topRated, filters, reportReaso
                         )}
 
                         {/* The filter menu, and the category for the two choices that have one. */}
-                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10">
+                        <div className="-mb-4 flex flex-wrap items-center justify-between gap-3 px-1">
                             <div className="flex flex-wrap items-center gap-2">
                                 <FeedFilterMenu options={filterOptions} value={form.filter} onChange={chooseFilter} />
 

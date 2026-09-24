@@ -64,6 +64,15 @@ Route::get('/support/guest/{ticket}/{token}', [GuestSupportController::class, 's
 Route::post('/support/guest/{ticket}/{token}/reply', [GuestSupportController::class, 'reply'])->middleware('throttle:20,1')->name('support.guest.reply');
 Route::get('/support/guest/{ticket}/{token}/attachments/{attachment}', [GuestSupportController::class, 'attachment'])->name('support.guest.attachment');
 
+// Following a repair by its code (the link a technician gives out), with or
+// without an account: a technician can track a repair for somebody who is not
+// registered. Throttled, so the codes cannot be tried one after the other.
+Route::post('/repairs/track', [RepairController::class, 'lookup'])->middleware('throttle:10,1')->name('repairs.lookup');
+Route::middleware('throttle:120,1')->group(function () {
+    Route::get('/repairs/{repair}', [RepairController::class, 'show'])->name('repairs.show');
+    Route::get('/repairs/{repair}/attachments/{attachment}', [RepairController::class, 'attachment'])->name('repairs.attachment');
+});
+
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -174,9 +183,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/requests/{serviceRequest}/reopen', [ServiceRequestController::class, 'reopen'])->name('requests.reopen');
     // The customer choosing one of the quotes they received.
     Route::post('/quotes/{quote}/accept', [QuoteController::class, 'accept'])->name('quotes.accept');
-    // Following a repair: the ones linked to my account, and one by its code (the link the technician gives out).
+    // Following a repair: the ones linked to my account. One by its code is open to everybody (see above).
     Route::get('/repairs', [RepairController::class, 'index'])->name('repairs.index');
-    Route::get('/repairs/{repair}', [RepairController::class, 'show'])->name('repairs.show');
     Route::post('/technicians/{technician}/review', [ReviewController::class, 'store'])->name('reviews.store');
     Route::delete('/technicians/{technician}/review', [ReviewController::class, 'destroy'])->name('reviews.destroy');
     });
