@@ -171,3 +171,40 @@ export function ImageIcon({ className = 'h-5 w-5' }) {
         </svg>
     );
 }
+
+// The three that go with CheckIcon on a toast: warning, information, error.
+export function WarningIcon({ className = 'h-6 w-6' }) {
+    return (
+        <svg {...outline} className={className}>
+            <path d="M10.3 3.9 1.8 18.1A2 2 0 0 0 3.5 21h17a2 2 0 0 0 1.7-2.9L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+            <path d="M12 9.5v4.2M12 17.2h.01" />
+        </svg>
+    );
+}
+
+export function InfoIcon({ className = 'h-6 w-6' }) {
+    return (
+        <svg {...outline} className={className}>
+            <circle cx="12" cy="12" r="9.5" />
+            <path d="M12 11v5.5M12 7.6h.01" />
+        </svg>
+    );
+}
+
+export function ErrorCircleIcon({ className = 'h-6 w-6' }) {
+    return (
+        <svg {...outline} className={className}>
+            <circle cx="12" cy="12" r="9.5" />
+            <path d="m9 9 6 6M15 9l-6 6" />
+        </svg>
+    );
+}
+
+export function FlagIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg {...outline} className={className}>
+            <path d="M4 21V4" />
+            <path d="M4 4h13l-2.5 4L17 12H4" />
+        </svg>
+    );
+}

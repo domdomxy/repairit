@@ -274,6 +274,9 @@ class ReportController extends Controller
             return;
         }
 
+        // Kept on the report too, for the page the reporter follows it on.
+        $report->forceFill(['reporter_closure_text' => $text])->save();
+
         $reporter->notify(new ReportClosed($report, $status, $text));
     }
 

@@ -1,11 +1,10 @@
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import TicketAttachments from '@/Components/TicketAttachments';
 import TicketConversation from '@/Components/TicketConversation';
 import { SideCard, TicketDetails, WITH_SIDE } from '@/Components/SupportUI';
 import GuestLayout from '@/Layouts/GuestLayout';
 
 export default function GuestShow({ ticket, thread, first_unread_id, token, attachmentLimits }) {
-    const { flash } = usePage().props;
     const form = useForm({ body: '', attachments: [] });
     const closed = ticket.status === 'closed';
 
@@ -22,15 +21,6 @@ export default function GuestShow({ ticket, thread, first_unread_id, token, atta
             <Head title={`Ticket ${ticket.tracking_id}`} />
 
             <div className="mb-8 space-y-4">
-                {flash?.success && (
-                    <div
-                        role="status"
-                        className="rounded-2xl bg-green-50 px-5 py-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                    >
-                        {flash.success}
-                    </div>
-                )}
-
                 {/* This page's link is the guest's only way back in, so it stays
                     front and center rather than a one-time message that scrolls away. */}
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200">

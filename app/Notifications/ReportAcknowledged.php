@@ -13,8 +13,8 @@ use Illuminate\Support\Str;
 /**
  * Sent to the person who filed a report, right when they file it — the reason
  * category's canned acknowledgement, not a real answer. Admins get NewReport
- * separately; this one only ever reaches the reporter, who has no report page
- * of their own to check back on, so it carries the text itself rather than a link.
+ * separately; this one only ever reaches the reporter. It carries the text itself
+ * and links to the report's page, where they can follow it until it is closed.
  */
 class ReportAcknowledged extends Notification implements ShouldQueue
 {
@@ -42,6 +42,7 @@ class ReportAcknowledged extends Notification implements ShouldQueue
             'title' => 'We received your report',
             'body' => Str::limit(preg_replace('/\s+/u', ' ', trim($this->text)), 160),
             'report_id' => $this->report->id,
+            'url' => route('reports.mine.show', $this->report, absolute: false),
         ];
     }
 
@@ -51,6 +52,7 @@ class ReportAcknowledged extends Notification implements ShouldQueue
             ->subject('We received your report')
             ->greeting('Hi '.$this->escapeForMail($notifiable->name).',')
             ->line($this->text)
+            ->action('Follow your report', route('reports.mine.show', $this->report))
             ->line('You can turn these emails off in your profile settings.');
     }
 }

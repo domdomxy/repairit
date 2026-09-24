@@ -2,10 +2,18 @@ import ThemeToggle from '@/Components/ThemeToggle';
 import logoDark from '@/assets/logos/repairit-icon-only-dark.png';
 import logoLight from '@/assets/logos/repairit-icon-only-light.png';
 import { Link } from '@inertiajs/react';
+import { ChatIcon, MailIcon, TagIcon } from '@/Components/Icons';
 
 // What's on the job board, for the panel's punch list. Same six trades the
 // app seeds categories with (see CategorySeeder) — real content, not filler.
 const TRADES = ['Plumbing', 'Electrical', 'Appliance repair', 'HVAC', 'Carpentry', 'Painting'];
+
+// What an account gets you, in the plate's own words.
+const PERKS = [
+    { icon: TagIcon, text: 'Compare quotes from technicians near you' },
+    { icon: ChatIcon, text: 'One thread for photos, prices and timing' },
+    { icon: MailIcon, text: 'Follow every repair until it is done' },
+];
 
 // The shared shell for every guest page (login, register, password reset,
 // email verification): a fixed dark "equipment plate" on the left carrying
@@ -40,41 +48,52 @@ export default function GuestLayout({ children, wide = false }) {
 
     return (
         <div className="flex min-h-screen flex-col bg-white lg:flex-row dark:bg-gray-900">
-            <div className="relative flex shrink-0 flex-col justify-between overflow-hidden bg-gray-900 px-6 py-10 sm:px-10 lg:w-[26rem] lg:px-12 lg:py-14">
-                {/* A single diagonal stripe, the panel's one accent — a hazard-tape
-                    cue borrowed from the job site, not a decorative gradient. */}
+            {/* The plate: always dark, like the welcome page's hero. On a phone it shrinks to the mark alone. */}
+            <div className="relative flex shrink-0 flex-col justify-between overflow-hidden bg-black px-6 py-6 sm:px-10 lg:w-[30rem] lg:px-12 lg:py-12">
+                <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(to_right,#fff_1px,transparent_1px),linear-gradient(to_bottom,#fff_1px,transparent_1px)] [background-size:40px_40px] [mask-image:radial-gradient(ellipse_at_top_left,black,transparent_75%)]"
+                />
                 <div
                     aria-hidden="true"
                     className="pointer-events-none absolute inset-y-0 -right-16 w-40 rotate-12 bg-amber-500/10"
                 />
+                <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -bottom-24 -left-24 hidden h-72 w-72 rounded-full bg-indigo-600/25 blur-3xl lg:block"
+                />
 
                 <Link href="/" className="relative flex items-center gap-3">
                     <img src={logoDark} alt="" className="h-9 w-9" />
-                    <span className="font-display text-lg font-semibold tracking-tight text-white">
-                        Repairit
-                    </span>
+                    <span className="font-display text-lg font-semibold tracking-tight text-white">Repairit</span>
                 </Link>
 
-                <div className="relative mt-12 lg:mt-0">
-                    <p className="font-display text-3xl font-semibold leading-tight text-white lg:text-4xl">
+                <div className="relative hidden lg:block">
+                    <p className="font-display text-4xl font-semibold leading-[1.1] text-white">
                         Fix it once.
                         <br />
-                        Fix it right.
+                        <span className="text-indigo-400">Fix it right.</span>
                     </p>
-                    <p className="mt-3 max-w-xs text-sm leading-relaxed text-gray-400">
-                        Repairit puts local plumbers, electricians and technicians one
-                        message away from the job in front of you.
-                    </p>
+                    <ul className="mt-8 space-y-4">
+                        {PERKS.map(({ icon: Icon, text }) => (
+                            <li key={text} className="flex items-center gap-3 text-sm text-gray-300">
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-indigo-300">
+                                    <Icon className="h-4 w-4" />
+                                </span>
+                                {text}
+                            </li>
+                        ))}
+                    </ul>
                 </div>
 
-                <div className="relative mt-12 hidden lg:block">
-                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                        On the job board
-                    </p>
-                    <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-300">
+                <div className="relative hidden lg:block">
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">On the job board</p>
+                    <ul className="mt-3 flex flex-wrap gap-2">
                         {TRADES.map((trade) => (
-                            <li key={trade} className="flex items-center gap-2">
-                                <span className="h-1 w-1 shrink-0 rounded-full bg-amber-500" />
+                            <li
+                                key={trade}
+                                className="rounded-full bg-white/5 px-3 py-1 text-xs text-gray-300 ring-1 ring-white/10"
+                            >
                                 {trade}
                             </li>
                         ))}
@@ -83,14 +102,20 @@ export default function GuestLayout({ children, wide = false }) {
             </div>
 
             <div className="relative flex min-w-0 flex-1 flex-col">
-                {/* From lg up the toggle floats in the corner instead of taking a row of its own,
+                {/* From lg up the two corner controls float instead of taking a row of their own,
                     so a tall form (register) isn't pushed past the bottom of the window. */}
-                <div className="flex justify-end px-6 py-4 sm:px-10 lg:absolute lg:right-0 lg:top-0">
+                <div className="flex items-center justify-between px-6 py-4 sm:px-10 lg:absolute lg:inset-x-0 lg:top-0 lg:px-12">
+                    <Link
+                        href="/"
+                        className="text-sm text-gray-500 transition hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                        ← Back to home
+                    </Link>
                     <ThemeToggle />
                 </div>
 
-                <div className="flex flex-1 items-center justify-center px-6 pb-10 sm:px-10 lg:py-6">
-                    <div className="w-full max-w-sm">{children}</div>
+                <div className="flex flex-1 items-center justify-center px-6 pb-10 sm:px-10 lg:py-16">
+                    <div className="w-full max-w-md">{children}</div>
                 </div>
             </div>
         </div>

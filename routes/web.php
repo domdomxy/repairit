@@ -17,7 +17,9 @@ use App\Http\Controllers\OfferController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\QuoteController;
+use App\Http\Controllers\MyReportController;
 use App\Http\Controllers\RepairController;
+use App\Http\Controllers\RepairEmailController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\ServiceRequestController;
 use App\Http\Controllers\SupportController;
@@ -71,9 +73,18 @@ Route::post('/repairs/track', [RepairController::class, 'lookup'])->middleware('
 Route::middleware('throttle:120,1')->group(function () {
     Route::get('/repairs/{repair}', [RepairController::class, 'show'])->name('repairs.show');
     Route::get('/repairs/{repair}/attachments/{attachment}', [RepairController::class, 'attachment'])->name('repairs.attachment');
+
+    // The email to be told of the updates: add or change it, remove it, or remove it from the link in an email.
+    Route::put('/repairs/{repair}/email', [RepairEmailController::class, 'update'])->middleware('throttle:10,1')->name('repairs.email.update');
+    Route::delete('/repairs/{repair}/email', [RepairEmailController::class, 'destroy'])->name('repairs.email.destroy');
+    Route::get('/repairs/{repair}/email/unsubscribe', [RepairEmailController::class, 'unsubscribe'])->middleware('signed')->name('repairs.email.unsubscribe');
 });
 
 Route::middleware('auth')->group(function () {
+    // The reports I filed, and where each one stands.
+    Route::get('/my-reports', [MyReportController::class, 'index'])->name('reports.mine.index');
+    Route::get('/my-reports/{report}', [MyReportController::class, 'show'])->name('reports.mine.show');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

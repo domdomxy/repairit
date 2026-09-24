@@ -1,6 +1,6 @@
 import { Link } from '@inertiajs/react';
 import Avatar from '@/Components/Avatar';
-import { ChevronRightIcon, DashboardIcon, DocumentIcon, LifebuoyIcon, WrenchIcon } from '@/Components/Icons';
+import { ChevronRightIcon, DashboardIcon, DocumentIcon, FlagIcon, LifebuoyIcon, WrenchIcon } from '@/Components/Icons';
 import ThemeToggle from '@/Components/ThemeToggle';
 
 // One link of the rail: an icon, a label, and a tint when it is the page you are on.
@@ -101,6 +101,10 @@ export default function ProfileSidebar({ user, className = '', children }) {
 
             <div className="space-y-1 border-t border-gray-100 p-2 dark:border-gray-700">
                 <ThemeToggle variant="sidebar" />
+
+                <NavLink href={route('reports.mine.index')} active={route().current('reports.mine.*')} icon={<FlagIcon />}>
+                    My reports
+                </NavLink>
 
                 <NavLink href={route('support.index')} active={route().current('support.*')} icon={<LifebuoyIcon />}>
                     Support

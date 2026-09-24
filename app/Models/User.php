@@ -178,6 +178,12 @@ class User extends Authenticatable
         return $this->hasMany(SupportTicket::class);
     }
 
+    /** The reports this person filed against a message, a post, a review or a person. */
+    public function filedReports(): HasMany
+    {
+        return $this->hasMany(Report::class, 'reporter_id');
+    }
+
     public function customerConversations(): HasMany
     {
         return $this->hasMany(Conversation::class, 'customer_id');

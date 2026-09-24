@@ -24,6 +24,13 @@ class Report extends Model
 
     public const STATUSES = ['open', 'resolved', 'dismissed'];
 
+    /** What the person who filed a report sees for each status (the admins' words are Report::STATUSES). */
+    public const REPORTER_STATUS_LABELS = [
+        'open' => 'Under review',
+        'resolved' => 'Resolved',
+        'dismissed' => 'Closed',
+    ];
+
     protected $fillable = [
         'reporter_id',
         'reported_user_id',
@@ -42,6 +49,8 @@ class Report extends Model
         'user_report',
         'reason',
         'details',
+        'reporter_ack_text',
+        'reporter_closure_text',
         'status',
         'resolution_note',
         'reviewed_by_id',
@@ -172,5 +181,67 @@ class Report extends Model
     public function reasonLabel(): string
     {
         return self::REASONS[$this->reason] ?? 'Something else';
+    }
+
+    /**
+     * What the person who filed the report sees in their list and on the page of the
+     * report. The reported person is only named: nothing of what was decided about
+     * them, and none of the admin's notes, is here.
+     *
+     * @return array<string, mixed>
+     */
+    public function toReporterItem(): array
+    {
+        return [
+            'id' => $this->id,
+            'status' => $this->status,
+            'status_label' => self::REPORTER_STATUS_LABELS[$this->status] ?? $this->status,
+            'type' => $this->type(),
+            'target_label' => $this->targetLabel(),
+            'reason_label' => $this->reasonLabel(),
+            'about' => $this->reportedUser?->name,
+            'created_at' => $this->created_at->toIso8601String(),
+        ];
+    }
+
+    /**
+     * The steps of a report for its reporter, oldest first: it was sent (with the
+     * acknowledgement they were given), it is being looked at, and, once an admin
+     * has closed it, that it is over (with the closing message they were given).
+     * A report an admin reopened goes back to "being looked at".
+     *
+     * @return list<array{key: string, title: string, at: ?string, text: ?string, state: string}>
+     */
+    public function reporterTimeline(): array
+    {
+        $closed = $this->status !== 'open';
+
+        return [
+            [
+                'key' => 'sent',
+                'title' => 'Report sent to our team',
+                'at' => $this->created_at->toIso8601String(),
+                'text' => $this->reporter_ack_text,
+                'state' => 'done',
+            ],
+            [
+                'key' => 'review',
+                'title' => $closed ? 'Reviewed by our team' : 'Being reviewed by our team',
+                'at' => null,
+                'text' => null,
+                'state' => $closed ? 'done' : 'current',
+            ],
+            [
+                'key' => 'closed',
+                'title' => match ($this->status) {
+                    'resolved' => 'Resolved',
+                    'dismissed' => 'Closed without action',
+                    default => 'We will let you know when we are done',
+                },
+                'at' => $closed ? $this->reviewed_at?->toIso8601String() : null,
+                'text' => $closed ? $this->reporter_closure_text : null,
+                'state' => $closed ? 'done' : 'upcoming',
+            ],
+        ];
     }
 }

@@ -13,8 +13,8 @@ use Illuminate\Support\Str;
 /**
  * Sent to the person who filed a report once an admin has closed it (resolved
  * or dismissed) — the admin-managed closure text for that outcome, not a
- * personal answer. Like ReportAcknowledged it carries the text itself, since
- * the reporter has no report page to check back on. It never reveals the
+ * personal answer. Like ReportAcknowledged it carries the text itself and links
+ * to the report's page, where the same text is kept. It never reveals the
  * admin's internal resolution note or what was done to the reported person.
  */
 class ReportClosed extends Notification implements ShouldQueue
@@ -44,6 +44,7 @@ class ReportClosed extends Notification implements ShouldQueue
             'body' => Str::limit(preg_replace('/\s+/u', ' ', trim($this->text)), 160),
             'report_id' => $this->report->id,
             'status' => $this->status,
+            'url' => route('reports.mine.show', $this->report, absolute: false),
         ];
     }
 
@@ -53,6 +54,7 @@ class ReportClosed extends Notification implements ShouldQueue
             ->subject('We finished reviewing your report')
             ->greeting('Hi '.$this->escapeForMail($notifiable->name).',')
             ->line($this->text)
+            ->action('See your report', route('reports.mine.show', $this->report))
             ->line('You can turn these emails off in your profile settings.');
     }
 }

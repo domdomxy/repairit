@@ -149,6 +149,10 @@ class ReportController extends Controller
             return back()->with('success', 'You have already reported this. An admin will look at it.');
         }
 
+        // What the reporter is told (unless an admin turned it off for this reason): kept on the
+        // report, so the page they follow it on shows the same words as the notification.
+        $autoBody = AutoResponse::textFor(AutoResponse::TYPE_REPORT, $data['reason']);
+
         $report = Report::create([
             'reporter_id' => $user->id,
             'reported_user_id' => $reportedUserId,
@@ -161,6 +165,7 @@ class ReportController extends Controller
             'user_report' => $userReport,
             'reason' => $data['reason'],
             'details' => $data['details'] ?? null,
+            'reporter_ack_text' => $autoBody,
             ...$review,
         ]);
 
@@ -171,8 +176,6 @@ class ReportController extends Controller
             ->get();
 
         Notification::send($admins, new NewReport($report));
-
-        $autoBody = AutoResponse::textFor(AutoResponse::TYPE_REPORT, $data['reason']);
 
         if ($autoBody !== null) {
             $user->notify(new ReportAcknowledged($report, $autoBody));

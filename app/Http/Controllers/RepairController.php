@@ -135,6 +135,9 @@ class RepairController extends Controller
 
         $technician = $repair->technician;
 
+        // The technician runs the repair and a linked customer is told through their account: the rest can leave an email.
+        $canFollowByEmail = ! $isOwner && ! ($user !== null && $repair->customer_id === $user->id);
+
         return Inertia::render('Repairs/Show', [
             'repair' => $repair->toListItem() + [
                 'description' => $repair->description,
@@ -153,6 +156,7 @@ class RepairController extends Controller
             'updates' => $repair->updates->map(fn (RepairUpdate $update) => $update->toTimelineEntry($repair))->all(),
             'statuses' => Repair::STATUSES,
             'isOwner' => $isOwner,
+            'emailFollow' => $canFollowByEmail ? ['email' => $repair->maskedGuestEmail()] : null,
             'customers' => $isOwner ? Repair::customerChoices($user) : [],
             'attachmentLimits' => $isOwner ? RepairUpdate::attachmentLimits() : null,
         ]);

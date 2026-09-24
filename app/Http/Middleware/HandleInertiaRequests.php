@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Support\ConversationList;
 use App\Support\NotificationItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -54,9 +55,22 @@ class HandleInertiaRequests extends Middleware
             'inbox' => fn () => $request->user()
                 ? ConversationList::panel($request->user())
                 : ['unread' => 0, 'unread_requests' => 0, 'unread_hidden' => 0, 'recent' => [], 'requests' => [], 'hidden' => []],
-            'flash' => [
-                'success' => fn () => $request->session()->get('success'),
-            ],
+            // What the last action wants to tell the person, shown as a toast (see Toaster.jsx).
+            // The id is new on every response that has a message, so the page can tell a
+            // fresh message from one it already showed (a partial reload keeps the old flash).
+            'flash' => function () use ($request) {
+                $messages = array_filter(
+                    [
+                        'success' => $request->session()->get('success'),
+                        'error' => $request->session()->get('error'),
+                        'warning' => $request->session()->get('warning'),
+                        'info' => $request->session()->get('info'),
+                    ],
+                    fn ($message) => is_string($message) && $message !== '',
+                );
+
+                return $messages === [] ? null : $messages + ['id' => Str::random(8)];
+            },
         ];
     }
 }

@@ -24,20 +24,20 @@ export default function Login({ status, canResetPassword }) {
         <GuestLayout>
             <Head title="Log in" />
 
-            <h1 className="font-display text-2xl font-semibold text-gray-900 dark:text-gray-100">
+            <h1 className="font-display text-3xl font-semibold text-gray-900 dark:text-gray-100">
                 Welcome back
             </h1>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 Log in to reach your conversations and jobs.
             </p>
 
             {status && (
-                <div className="mt-6 rounded-md bg-green-50 px-3 py-2 text-sm font-medium text-green-700 dark:bg-green-500/10 dark:text-green-400">
+                <div className="mt-6 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-700 dark:bg-green-500/10 dark:text-green-400">
                     {status}
                 </div>
             )}
 
-            <form onSubmit={submit} className="mt-6 space-y-4">
+            <form onSubmit={submit} className="mt-8 space-y-5">
                 <div>
                     <InputLabel htmlFor="email" value="Email" />
 
@@ -46,7 +46,7 @@ export default function Login({ status, canResetPassword }) {
                         type="email"
                         name="email"
                         value={data.email}
-                        className="mt-1.5 block w-full"
+                        className="mt-1.5 block w-full rounded-xl py-2.5"
                         autoComplete="username"
                         isFocused={true}
                         onChange={(e) => setData('email', e.target.value)}
@@ -73,7 +73,7 @@ export default function Login({ status, canResetPassword }) {
                         type="password"
                         name="password"
                         value={data.password}
-                        className="mt-1.5 block w-full"
+                        className="mt-1.5 block w-full rounded-xl py-2.5"
                         autoComplete="current-password"
                         onChange={(e) => setData('password', e.target.value)}
                     />
@@ -93,12 +93,12 @@ export default function Login({ status, canResetPassword }) {
                 <button
                     type="submit"
                     disabled={processing}
-                    className="w-full rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 dark:focus:ring-offset-gray-900"
+                    className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 dark:focus:ring-offset-gray-900"
                 >
                     {processing ? 'Logging in…' : 'Log in'}
                 </button>
 
-                <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+                <p className="border-t border-gray-100 pt-5 text-center text-sm text-gray-500 dark:border-gray-800 dark:text-gray-400">
                     New to Repairit?{' '}
                     <Link
                         href={route('register')}

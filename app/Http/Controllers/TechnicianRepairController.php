@@ -6,11 +6,13 @@ use App\Models\Repair;
 use App\Models\RepairUpdate;
 use App\Models\RepairUpdateAttachment;
 use App\Models\User;
+use App\Notifications\RepairGuestUpdated;
 use App\Notifications\RepairUpdated;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -232,9 +234,18 @@ class TechnicianRepairController extends Controller
         abort_unless($repair->technician_id === $request->user()->id, 404);
     }
 
-    /** Tell the customer whose account the repair is linked to, if there is one. */
+    /**
+     * Tell the customer whose account the repair is linked to, if there is one,
+     * and whoever left an email on the tracking page. 'started' is only for the
+     * account: it says a technician began tracking something for you.
+     */
     private function tell(Repair $repair, string $event, ?string $note = null): void
     {
         $repair->customer?->notifyFrom($repair->technician, new RepairUpdated($repair, $event, $repair->status, $note));
+
+        if ($event !== 'started' && $repair->guest_email !== null) {
+            Notification::route('mail', $repair->guest_email)
+                ->notify(new RepairGuestUpdated($repair, $event, $repair->status, $repair->guest_email));
+        }
     }
 }

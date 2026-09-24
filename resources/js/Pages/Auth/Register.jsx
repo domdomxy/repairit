@@ -3,11 +3,12 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
+import { DocumentIcon, WrenchIcon } from '@/Components/Icons';
 import GuestLayout from '@/Layouts/GuestLayout';
 
 const ROLES = [
-    { value: 'customer', label: 'Customer', blurb: "I've got something that needs fixing" },
-    { value: 'technician', label: 'Technician', blurb: "I fix things for a living" },
+    { value: 'customer', label: 'Customer', blurb: "I've got something that needs fixing", icon: DocumentIcon },
+    { value: 'technician', label: 'Technician', blurb: "I fix things for a living", icon: WrenchIcon },
 ];
 
 export default function Register({ categories }) {
@@ -50,20 +51,21 @@ export default function Register({ categories }) {
         <GuestLayout>
             <Head title="Register" />
 
-            <h1 className="font-display text-2xl font-semibold text-gray-900 dark:text-gray-100">
+            <h1 className="font-display text-3xl font-semibold text-gray-900 dark:text-gray-100">
                 Create your account
             </h1>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 Takes a minute. You can fill in the rest of your profile after.
             </p>
 
-            <form onSubmit={submit} className="mt-6 space-y-5">
+            <form onSubmit={submit} className="mt-8 space-y-5">
                 {/* Role: who is this account for. Sets what the rest of the form asks. */}
                 <div>
                     <InputLabel value="I'm registering as a…" />
                     <div className="mt-1.5 grid grid-cols-2 gap-2">
                         {ROLES.map((option) => {
                             const selected = data.role === option.value;
+                            const Icon = option.icon;
 
                             return (
                                 <button
@@ -71,12 +73,17 @@ export default function Register({ categories }) {
                                     type="button"
                                     onClick={() => setData('role', option.value)}
                                     aria-pressed={selected}
-                                    className={`rounded-md border px-3 py-2.5 text-start transition ${
+                                    className={`rounded-xl border px-3.5 py-3 text-start transition ${
                                         selected
                                             ? 'border-indigo-600 bg-indigo-50 dark:border-indigo-500 dark:bg-indigo-500/10'
                                             : 'border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500'
                                     }`}
                                 >
+                                    <Icon
+                                        className={`mb-2 h-5 w-5 ${
+                                            selected ? 'text-indigo-600 dark:text-indigo-300' : 'text-gray-400 dark:text-gray-500'
+                                        }`}
+                                    />
                                     <span
                                         className={`block text-sm font-semibold ${
                                             selected
@@ -102,7 +109,7 @@ export default function Register({ categories }) {
                         id="name"
                         name="name"
                         value={data.name}
-                        className="mt-1.5 block w-full"
+                        className="mt-1.5 block w-full rounded-xl py-2.5"
                         autoComplete="name"
                         isFocused
                         onChange={(e) => setData('name', e.target.value)}
@@ -118,7 +125,7 @@ export default function Register({ categories }) {
                         type="email"
                         name="email"
                         value={data.email}
-                        className="mt-1.5 block w-full"
+                        className="mt-1.5 block w-full rounded-xl py-2.5"
                         autoComplete="username"
                         onChange={(e) => setData('email', e.target.value)}
                         required
@@ -134,7 +141,7 @@ export default function Register({ categories }) {
                             type="password"
                             name="password"
                             value={data.password}
-                            className="mt-1.5 block w-full"
+                            className="mt-1.5 block w-full rounded-xl py-2.5"
                             autoComplete="new-password"
                             onChange={(e) => setData('password', e.target.value)}
                             required
@@ -149,7 +156,7 @@ export default function Register({ categories }) {
                             type="password"
                             name="password_confirmation"
                             value={data.password_confirmation}
-                            className="mt-1.5 block w-full"
+                            className="mt-1.5 block w-full rounded-xl py-2.5"
                             autoComplete="new-password"
                             onChange={(e) => setData('password_confirmation', e.target.value)}
                             required
@@ -193,12 +200,12 @@ export default function Register({ categories }) {
                 <button
                     type="submit"
                     disabled={processing}
-                    className="w-full rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 dark:focus:ring-offset-gray-900"
+                    className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 dark:focus:ring-offset-gray-900"
                 >
                     {processing ? 'Creating your account…' : 'Create account'}
                 </button>
 
-                <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+                <p className="border-t border-gray-100 pt-5 text-center text-sm text-gray-500 dark:border-gray-800 dark:text-gray-400">
                     Already registered?{' '}
                     <Link
                         href={route('login')}

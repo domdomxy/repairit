@@ -6,7 +6,9 @@ use App\Models\RepairUpdate;
 use App\Models\RepairUpdateAttachment;
 use App\Models\TechnicianProfile;
 use App\Models\User;
+use App\Notifications\RepairGuestUpdated;
 use App\Notifications\RepairUpdated;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -656,4 +658,155 @@ test('a code that does not exist is said so on the box', function () {
     }
 
     $this->post(route('repairs.lookup'), ['code' => ''])->assertSessionHasErrors('code');
+});
+
+// ------------------------------------------------------------ email for updates (guests)
+
+test('somebody with just the link can leave an email, which is never shown in full', function () {
+    Notification::fake();
+    $repair = repairFor(repairTechnician());
+
+    $this->put(route('repairs.email.update', $repair), ['email' => ' Jane.Doe@Example.com '])
+        ->assertSessionHasNoErrors();
+
+    expect($repair->fresh()->guest_email)->toBe('jane.doe@example.com');
+
+    Notification::assertSentOnDemand(RepairGuestUpdated::class, fn ($n, $channels, $notifiable) => $notifiable->routes['mail'] === 'jane.doe@example.com' && $n->event === 'subscribed');
+
+    $this->get(route('repairs.show', $repair))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('emailFollow.email', 'j*******@example.com')
+            ->missing('repair.guest_email'));
+});
+
+test('the email can be changed, and only a new address gets the confirmation', function () {
+    Notification::fake();
+    $repair = repairFor(repairTechnician(), ['guest_email' => 'old@example.com']);
+
+    // The same address again is not a change.
+    $this->put(route('repairs.email.update', $repair), ['email' => 'old@example.com']);
+    Notification::assertNothingSent();
+
+    $this->put(route('repairs.email.update', $repair), ['email' => 'new@example.com']);
+
+    expect($repair->fresh()->guest_email)->toBe('new@example.com');
+    Notification::assertSentOnDemand(RepairGuestUpdated::class, fn ($n, $channels, $notifiable) => $notifiable->routes['mail'] === 'new@example.com');
+});
+
+test('an invalid email is refused', function () {
+    $repair = repairFor(repairTechnician());
+
+    $this->put(route('repairs.email.update', $repair), ['email' => 'not-an-email'])
+        ->assertSessionHasErrors('email');
+
+    expect($repair->fresh()->guest_email)->toBeNull();
+});
+
+test('the email can be removed at any time', function () {
+    $repair = repairFor(repairTechnician(), ['guest_email' => 'jane@example.com']);
+
+    $this->delete(route('repairs.email.destroy', $repair))->assertRedirect();
+
+    expect($repair->fresh()->guest_email)->toBeNull();
+});
+
+test('saving or removing the email does not move the repair up the technician\'s list', function () {
+    $repair = repairFor(repairTechnician());
+    $repair->forceFill(['updated_at' => now()->subDay()])->saveQuietly();
+    $before = $repair->fresh()->updated_at;
+
+    $this->put(route('repairs.email.update', $repair), ['email' => 'jane@example.com']);
+
+    expect($repair->fresh()->updated_at->equalTo($before))->toBeTrue();
+});
+
+test('the guest is emailed when the status changes or a note is added, without what was written', function () {
+    Notification::fake();
+    $technician = repairTechnician();
+    $repair = repairFor($technician, ['guest_email' => 'jane@example.com']);
+
+    $this->actingAs($technician)
+        ->post(route('technician.repairs.updates.store', $repair), ['status' => 'diagnosing', 'note' => 'Secret detail'])
+        ->assertSessionHasNoErrors();
+
+    Notification::assertSentOnDemand(RepairGuestUpdated::class, function ($n, $channels, $notifiable) {
+        $mail = $n->toMail($notifiable);
+
+        return $notifiable->routes['mail'] === 'jane@example.com'
+            && $n->event === 'status'
+            && ! str_contains(implode(' ', $mail->introLines).$mail->subject, 'Secret detail');
+    });
+
+    $this->post(route('technician.repairs.updates.store', $repair), ['status' => 'diagnosing', 'note' => 'One more thing']);
+
+    Notification::assertSentOnDemand(RepairGuestUpdated::class, fn ($n) => $n->event === 'note');
+});
+
+test('nobody is emailed when no address was left', function () {
+    Notification::fake();
+    $technician = repairTechnician();
+    $repair = repairFor($technician);
+
+    $this->actingAs($technician)
+        ->post(route('technician.repairs.updates.store', $repair), ['status' => 'diagnosing']);
+
+    Notification::assertNothingSent();
+});
+
+test('the link in an email removes the address it was sent to, and only that one', function () {
+    $repair = repairFor(repairTechnician(), ['guest_email' => 'jane@example.com']);
+
+    $stale = URL::signedRoute('repairs.email.unsubscribe', ['repair' => $repair, 'h' => hash('sha256', 'other@example.com')]);
+    $link = URL::signedRoute('repairs.email.unsubscribe', ['repair' => $repair, 'h' => hash('sha256', 'jane@example.com')]);
+
+    // An email sent to an earlier address cannot remove the current one.
+    $this->get($stale)->assertRedirect(route('repairs.show', $repair));
+    expect($repair->fresh()->guest_email)->toBe('jane@example.com');
+
+    $this->get($link)->assertRedirect(route('repairs.show', $repair));
+    expect($repair->fresh()->guest_email)->toBeNull();
+});
+
+test('the unsubscribe link must be signed', function () {
+    $repair = repairFor(repairTechnician(), ['guest_email' => 'jane@example.com']);
+
+    $this->get(route('repairs.email.unsubscribe', ['repair' => $repair, 'h' => hash('sha256', 'jane@example.com')]))
+        ->assertForbidden();
+
+    expect($repair->fresh()->guest_email)->toBe('jane@example.com');
+});
+
+test('the technician and the linked customer do not get the email option', function () {
+    $technician = repairTechnician();
+    $customer = repairCustomer();
+    $repair = repairFor($technician, ['customer_id' => $customer->id]);
+
+    $this->actingAs($technician)->get(route('repairs.show', $repair))
+        ->assertInertia(fn (Assert $page) => $page->where('emailFollow', null));
+    $this->actingAs($customer)->get(route('repairs.show', $repair))
+        ->assertInertia(fn (Assert $page) => $page->where('emailFollow', null));
+
+    $this->actingAs($technician)->put(route('repairs.email.update', $repair), ['email' => 'a@example.com'])->assertForbidden();
+    $this->actingAs($customer)->put(route('repairs.email.update', $repair), ['email' => 'a@example.com'])->assertForbidden();
+});
+
+// ------------------------------------------------------------ toasts (flash sharing)
+
+test('a message flashed after an action is shared with the page, with an id to show it only once', function () {
+    $technician = repairTechnician();
+    $repair = repairFor($technician);
+
+    $this->actingAs($technician)
+        ->withSession(['success' => 'Update posted.', 'error' => 'Something went wrong.'])
+        ->get(route('repairs.show', $repair))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('flash.success', 'Update posted.')
+            ->where('flash.error', 'Something went wrong.')
+            ->has('flash.id'));
+
+    // Nothing flashed: no flash at all, so no toast.
+    $this->actingAs($technician)
+        ->get(route('repairs.show', $repair))
+        ->assertInertia(fn (Assert $page) => $page->where('flash', null));
 });

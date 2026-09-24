@@ -6,6 +6,7 @@ import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import ExternalLinkGuard from './Components/ExternalLinkGuard';
+import Toaster from './Components/Toaster';
 import { setTrustedHosts } from './lib/trustedHosts';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
@@ -26,9 +27,12 @@ createInertiaApp({
         setTrustedHosts(auth?.trusted_hosts ?? []);
 
         root.render(
-            <ExternalLinkGuard signedIn={!!auth?.user}>
-                <App {...props} />
-            </ExternalLinkGuard>,
+            <>
+                <ExternalLinkGuard signedIn={!!auth?.user}>
+                    <App {...props} />
+                </ExternalLinkGuard>
+                <Toaster initialFlash={props.initialPage.props.flash} />
+            </>,
         );
     },
     progress: {

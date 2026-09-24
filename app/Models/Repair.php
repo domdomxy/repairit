@@ -35,6 +35,7 @@ class Repair extends Model
         'code',
         'technician_id',
         'customer_id',
+        'guest_email',
         'title',
         'description',
         'status',
@@ -61,7 +62,27 @@ class Repair extends Model
         return $this->belongsTo(User::class, 'customer_id');
     }
 
-    /** The timeline, newest first. */
+    /**
+     * The address, hidden but for its first letter, so a page anyone with the
+     * link can open never gives it away: "j****@gmail.com". Null when none is set.
+     */
+    public function maskedGuestEmail(): ?string
+    {
+        if ($this->guest_email === null) {
+            return null;
+        }
+
+        [$local, $domain] = explode('@', $this->guest_email, 2) + [1 => ''];
+
+        return mb_substr($local, 0, 1).str_repeat('*', max(mb_strlen($local) - 1, 3)).'@'.$domain;
+    }
+
+    /** What the unsubscribe link in an email carries, so it only removes the address it was sent to. */
+    public function guestEmailFingerprint(): ?string
+    {
+        return $this->guest_email === null ? null : hash('sha256', $this->guest_email);
+    }
+
     /**
      * The repairs whose title or code contain the words typed in a search box, or
      * whose other person (`customer` for a technician's list, `technician` for a
@@ -77,6 +98,7 @@ class Repair extends Model
             ->orWhereHas($person, fn (Builder $query) => $query->where('name', 'like', "%{$term}%")));
     }
 
+    /** The timeline, newest first. */
     public function updates(): HasMany
     {
         return $this->hasMany(RepairUpdate::class)->orderByDesc('created_at')->orderByDesc('id');

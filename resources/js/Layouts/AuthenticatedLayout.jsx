@@ -17,7 +17,7 @@ import { useState } from 'react';
 // 5.0625rem from the top for pages that pin side columns under it: bar + gap).
 // `stickyNav` is no longer needed for that, but pages still pass it harmlessly.
 export default function AuthenticatedLayout({ children, stickyNav = false }) {
-    const { auth, flash, notifications } = usePage().props;
+    const { auth, notifications } = usePage().props;
     const user = auth.user;
     const { unread: unreadMessages } = useInbox();
 
@@ -254,6 +254,9 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                                     My repairs
                                 </ResponsiveNavLink>
                             )}
+                            <ResponsiveNavLink href={route('reports.mine.index')} active={route().current('reports.mine.*')}>
+                                My reports
+                            </ResponsiveNavLink>
                             <ResponsiveNavLink href={route('support.index')}>
                                 Support
                             </ResponsiveNavLink>
@@ -275,17 +278,6 @@ export default function AuthenticatedLayout({ children, stickyNav = false }) {
                     </div>
                 </div>
             </nav>
-
-            {flash?.success && (
-                <div className="w-full px-4 pt-4 sm:px-6 lg:px-8">
-                    <div
-                        role="status"
-                        className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                    >
-                        {flash.success}
-                    </div>
-                </div>
-            )}
 
             <TrustedHostsSyncListener userId={user.id} />
 

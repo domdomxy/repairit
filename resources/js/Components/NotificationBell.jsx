@@ -43,6 +43,10 @@ const KINDS = {
     },
 };
 
+// A kind can be a more precise one than the list knows ('report_closed'): it looks
+// like, and is filtered as, the part before the underscore ('report').
+const groupOf = (kind) => (KINDS[kind] ? kind : (kind ?? '').split('_')[0]);
+
 const FALLBACK_KIND = {
     bg: 'bg-gray-100 dark:bg-gray-700',
     text: 'text-gray-600 dark:text-gray-300',
@@ -57,7 +61,7 @@ function NotificationPanel({ items, unread, onClose, onOpen, onMarkAllRead, onDe
 
     const visible = items
         .filter((note) => (filter === 'unread' ? !note.read_at : true))
-        .filter((note) => (category === 'all' ? true : note.kind === category));
+        .filter((note) => (category === 'all' ? true : groupOf(note.kind) === category));
 
     return (
         <div className="absolute end-0 z-50 mt-2 w-96 rounded-lg bg-white shadow-xl ring-1 ring-black ring-opacity-5 dark:bg-gray-800 dark:ring-gray-700">
@@ -134,7 +138,7 @@ function NotificationPanel({ items, unread, onClose, onOpen, onMarkAllRead, onDe
                 )}
 
                 {visible.map((note) => {
-                    const style = KINDS[note.kind] ?? FALLBACK_KIND;
+                    const style = KINDS[groupOf(note.kind)] ?? FALLBACK_KIND;
 
                     return (
                         <div
