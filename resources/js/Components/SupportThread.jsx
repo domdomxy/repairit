@@ -1,5 +1,6 @@
 import Avatar from '@/Components/Avatar';
 import MediaLightbox from '@/Components/MediaLightbox';
+import MediaStackThumb, { stackFan } from '@/Components/MediaStackThumb';
 import TypingIndicator from '@/Components/TypingIndicator';
 import { formatChatSeparator, formatDateTime, needsChatSeparator } from '@/lib/dates';
 import { linkify } from '@/lib/linkify';
@@ -85,6 +86,10 @@ export default function SupportThread({ thread, viewerIsStaff, firstUnreadId = n
                         // Only the first message of a stack carries the name and the avatar,
                         // and a label or the "New messages" line always starts a new one.
                         const stacked = !separator && !hasUnreadDivider && continuesStack(message, previous);
+                        // Several pictures on one message are shown as a stack, one is shown as itself.
+                        const attachments = message.attachments ?? [];
+                        const stackedFiles = attachments.length > 1;
+                        const fan = stackFan(attachments.length);
 
                         return (
                             <Fragment key={message.id}>
@@ -126,57 +131,64 @@ export default function SupportThread({ thread, viewerIsStaff, firstUnreadId = n
                                                 {message.automated && ' (Automatic reply)'}
                                             </p>
                                         )}
-                                        <div
-                                            className={`max-w-full rounded-2xl px-4 py-3 ${
-                                                mine
-                                                    ? 'bg-indigo-600 text-white'
-                                                    : 'bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10'
-                                            }`}
-                                        >
-                                            {/* whitespace-pre-line keeps the writer's line breaks; React escapes the text itself. */}
-                                            {message.body && (
-                                                <p className="whitespace-pre-line break-words text-sm">
-                                                    {linkify(message.body, {
-                                                        linkClassName: mine
-                                                            ? 'break-all underline hover:text-indigo-100'
-                                                            : 'break-all text-indigo-600 underline hover:text-indigo-800 dark:text-indigo-300 dark:hover:text-indigo-200',
-                                                    })}
-                                                </p>
-                                            )}
-                                            {message.attachments?.length > 0 && (
-                                                <div
-                                                    className={`grid gap-1.5 ${message.body ? 'mt-3' : ''} ${
-                                                        message.attachments.length > 1 ? 'grid-cols-2' : 'grid-cols-1'
-                                                    }`}
-                                                >
-                                                    {message.attachments.map((attachment, index) => (
-                                                        <button
-                                                            key={attachment.id}
-                                                            type="button"
-                                                            onClick={() => setViewing({ items: message.attachments, index })}
-                                                            aria-label={`View ${attachment.name}`}
-                                                            className="block overflow-hidden rounded-lg"
-                                                        >
-                                                            <img
-                                                                src={attachment.url}
-                                                                alt={attachment.name}
-                                                                loading="lazy"
-                                                                className={
-                                                                    message.attachments.length > 1
-                                                                        ? 'h-32 w-full object-cover'
-                                                                        : 'max-h-64 w-auto max-w-full rounded-lg object-contain'
-                                                                }
-                                                            />
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
-                                            <p
-                                                className={`mt-1.5 text-end text-[11px] ${mine ? 'text-indigo-200' : 'text-gray-500 dark:text-gray-400'}`}
+                                        {/* Written text (or a single picture) sits in a bubble; several pictures fan out as one stack below it. */}
+                                        {(message.body || !stackedFiles) && (
+                                            <div
+                                                className={`max-w-full rounded-2xl px-4 py-3 ${
+                                                    mine
+                                                        ? 'bg-indigo-600 text-white'
+                                                        : 'bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10'
+                                                }`}
                                             >
-                                                {formatDateTime(message.created_at)}
-                                            </p>
-                                        </div>
+                                                {/* whitespace-pre-line keeps the writer's line breaks; React escapes the text itself. */}
+                                                {message.body && (
+                                                    <p className="whitespace-pre-line break-words text-sm">
+                                                        {linkify(message.body, {
+                                                            linkClassName: mine
+                                                                ? 'break-all underline hover:text-indigo-100'
+                                                                : 'break-all text-indigo-600 underline hover:text-indigo-800 dark:text-indigo-300 dark:hover:text-indigo-200',
+                                                        })}
+                                                    </p>
+                                                )}
+                                                {attachments.length === 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setViewing({ items: attachments, index: 0 })}
+                                                        aria-label={`View ${attachments[0].name}`}
+                                                        className={`block overflow-hidden rounded-lg ${message.body ? 'mt-3' : ''}`}
+                                                    >
+                                                        <img
+                                                            src={attachments[0].url}
+                                                            alt={attachments[0].name}
+                                                            loading="lazy"
+                                                            className="max-h-64 w-auto max-w-full rounded-lg object-contain"
+                                                        />
+                                                    </button>
+                                                )}
+                                                <p
+                                                    className={`mt-1.5 text-end text-[11px] ${mine ? 'text-indigo-200' : 'text-gray-500 dark:text-gray-400'}`}
+                                                >
+                                                    {formatDateTime(message.created_at)}
+                                                </p>
+                                            </div>
+                                        )}
+                                        {stackedFiles && (
+                                            <div
+                                                className={`flex flex-col ${message.body ? 'mt-2' : ''} ${mine ? 'items-end' : 'items-start'}`}
+                                                // The fan reaches up and to the right: keep it inside the column when the stack sits on the right.
+                                                style={mine ? { marginRight: fan } : undefined}
+                                            >
+                                                {/* The thumbnails fan out upward, so leave them room above the caption. */}
+                                                <p className="relative z-20 text-xs text-gray-500 dark:text-gray-400" style={{ marginBottom: fan + 8 }}>
+                                                    {mine ? 'You' : message.author} sent {attachments.length} attachments
+                                                </p>
+                                                <MediaStackThumb attachments={attachments} onOpen={() => setViewing({ items: attachments, index: 0 })} />
+                                                {/* A stack with no text has no bubble to carry the time. */}
+                                                {!message.body && (
+                                                    <p className="mt-1.5 text-[11px] text-gray-500 dark:text-gray-400">{formatDateTime(message.created_at)}</p>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                     {mine &&
                                         (stacked ? (

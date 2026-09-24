@@ -1,9 +1,9 @@
 import Avatar from '@/Components/Avatar';
 import { PushpinIcon } from '@/Components/Icons';
 import MediaLightbox from '@/Components/MediaLightbox';
+import MediaStackThumb, { stackFan } from '@/Components/MediaStackThumb';
 import MessageDetailsModal from '@/Components/MessageDetailsModal';
 import MessageStatus from '@/Components/MessageStatus';
-import PlayIcon from '@/Components/PlayIcon';
 import ReportModal from '@/Components/ReportModal';
 import { formatMessageTime } from '@/lib/dates';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
@@ -35,53 +35,6 @@ function jumpToMessage(id) {
     window.setTimeout(() => el.classList.remove('ring-2', 'ring-indigo-400', 'rounded-lg'), 1200);
 }
 
-// Up to three thumbnails fanned out behind each other, front one on top, with
-// a count badge when there is more than one file.
-function StackThumb({ attachments, onOpen }) {
-    const shown = attachments.slice(0, 3);
-
-    return (
-        <button
-            type="button"
-            onClick={onOpen}
-            aria-label={`Open ${attachments.length} files`}
-            className="relative block h-32 w-32 sm:h-36 sm:w-36"
-        >
-            {shown
-                .map((attachment, i) => ({ attachment, i }))
-                .reverse()
-                .map(({ attachment, i }) => {
-                    const depth = shown.length - 1 - i; // 0 = front-most (on top)
-                    const offset = depth * 7;
-                    const rotate = depth === 0 ? 0 : (i % 2 === 0 ? -1 : 1) * (depth * 4);
-
-                    return (
-                        <span
-                            key={attachment.id}
-                            style={{
-                                transform: `translate(${offset}px, ${-offset}px) rotate(${rotate}deg)`,
-                                zIndex: 10 - depth,
-                            }}
-                            className="absolute inset-0 overflow-hidden rounded-lg border-2 border-white shadow-md dark:border-gray-900"
-                        >
-                            {attachment.is_video ? (
-                                <span className="relative block h-full w-full bg-gray-200 dark:bg-gray-800">
-                                    <video src={attachment.url} className="h-full w-full object-cover opacity-90" />
-                                    <span className="absolute inset-0 flex items-center justify-center">
-                                        <PlayIcon className="h-11 w-11" />
-                                    </span>
-                                </span>
-                            ) : (
-                                <img src={attachment.url} alt="" className="h-full w-full object-cover" />
-                            )}
-                        </span>
-                    );
-                })}
-
-        </button>
-    );
-}
-
 // Several pictures/clips chosen and sent together, shown as one stacked card
 // instead of separate bubbles. Each still has its own message row (so its own
 // `id`), which is what lets the viewer delete or report one item on its own;
@@ -96,9 +49,8 @@ export default function MediaStackRow({ messages, isMine, author, myId, otherNam
     const [isDragging, setIsDragging] = useState(false);
 
     const attachments = messages.flatMap((message) => message.attachments ?? []);
-    // How far the fanned-out thumbnails reach past the front one (upward and
-    // to the right) - 3 or more fan out further than 2.
-    const fan = attachments.length >= 3 ? 24 : attachments.length === 2 ? 12 : 0;
+    // How far the fanned-out thumbnails reach past the front one.
+    const fan = stackFan(attachments.length);
     const first = messages[0];
     const last = messages[messages.length - 1];
     // Which message each attachment belongs to, so a single item can be deleted on its own.
@@ -342,7 +294,7 @@ export default function MediaStackRow({ messages, isMine, author, myId, otherNam
                 <p className="relative z-20 text-xs text-gray-500 dark:text-gray-400" style={{ marginBottom: fan + 8 }}>
                     {isMine ? 'You' : otherName} sent {attachments.length} attachment{attachments.length === 1 ? '' : 's'}
                 </p>
-                <StackThumb attachments={attachments} onOpen={() => setViewingIndex(0)} />
+                <MediaStackThumb attachments={attachments} onOpen={() => setViewingIndex(0)} />
 
                 {/* Only the last message in the conversation shows this here; any
                     other one has the same info in "View details". */}

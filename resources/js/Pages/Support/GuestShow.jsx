@@ -1,5 +1,6 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import SupportThread from '@/Components/SupportThread';
+import TicketAttachments from '@/Components/TicketAttachments';
 import { ClosedNotice, ReplyBox, SideCard, TicketDetails, TicketHeader, WITH_SIDE } from '@/Components/SupportUI';
 import GuestLayout from '@/Layouts/GuestLayout';
 
@@ -59,6 +60,7 @@ export default function GuestShow({ ticket, thread, first_unread_id, token, atta
 
                 <aside className="space-y-6">
                     <TicketDetails ticket={ticket} />
+                    <TicketAttachments thread={thread} />
                     <SideCard title="Waiting for a reply?">
                         <p>Come back to this page any time. New replies appear in the conversation.</p>
                     </SideCard>

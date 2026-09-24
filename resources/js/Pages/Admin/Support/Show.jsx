@@ -3,6 +3,7 @@ import Avatar from '@/Components/Avatar';
 import InputError from '@/Components/InputError';
 import SupportStatusBadge from '@/Components/SupportStatusBadge';
 import SupportThread from '@/Components/SupportThread';
+import TicketAttachments from '@/Components/TicketAttachments';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { formatDateTime } from '@/lib/dates';
 import { statusLabels } from '@/lib/support';
@@ -144,6 +145,8 @@ export default function Show({ ticket, thread, first_unread_id }) {
                                 ))}
                         </div>
                     </section>
+
+                    <TicketAttachments thread={thread} admin />
                 </aside>
             </div>
         </AdminLayout>

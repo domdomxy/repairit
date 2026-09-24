@@ -14,3 +14,21 @@ export const statusStyles = {
 
 /** How the support team looks to the person who asked for help: a name, never an admin's. */
 export const SUPPORT_TEAM = { name: 'Support team', avatar_url: null };
+
+/**
+ * Every picture on a ticket, newest first, as one flat list for the
+ * "Attachments" card. Each keeps what it needs to be shown on its own
+ * (name and url) plus who sent it and when.
+ */
+export function ticketAttachments(thread) {
+    return thread
+        .flatMap((message) =>
+            (message.attachments ?? []).map((attachment) => ({
+                ...attachment,
+                message_id: message.id,
+                author: message.author,
+                created_at: message.created_at,
+            })),
+        )
+        .reverse();
+}

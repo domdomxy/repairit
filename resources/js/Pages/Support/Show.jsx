@@ -1,5 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import SupportThread from '@/Components/SupportThread';
+import TicketAttachments from '@/Components/TicketAttachments';
 import { ClosedNotice, ReplyBox, TicketDetails, TicketHeader, WITH_SIDE } from '@/Components/SupportUI';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { SUPPORT_TEAM } from '@/lib/support';
@@ -78,8 +79,9 @@ export default function Show({ ticket, thread, first_unread_id, attachmentLimits
                         )}
                     </div>
 
-                    <aside>
+                    <aside className="space-y-6">
                         <TicketDetails ticket={ticket} />
+                        <TicketAttachments thread={thread} />
                     </aside>
                 </div>
             </div>
