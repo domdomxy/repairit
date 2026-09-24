@@ -48,6 +48,11 @@ class User extends Authenticatable
                 ->orWhere('technician_id', $user->id)
                 ->pluck('id')
                 ->each(fn ($id) => Storage::disk(Message::ATTACHMENT_DISK)->deleteDirectory("message-attachments/{$id}"));
+
+            // Their support tickets and the pictures on them go with the cascade; the files don't.
+            SupportTicket::where('user_id', $user->id)
+                ->pluck('id')
+                ->each(fn ($id) => Storage::disk(SupportMessage::ATTACHMENT_DISK)->deleteDirectory("support-attachments/{$id}"));
         });
     }
 

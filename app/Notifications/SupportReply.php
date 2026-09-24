@@ -29,7 +29,10 @@ class SupportReply extends SupportNotification
             'title' => $this->message->from_staff
                 ? "Support replied to your ticket {$tracking}"
                 : "{$this->ticket->ownerName()} replied to ticket {$tracking}",
-            'body' => Str::limit(preg_replace('/\s+/u', ' ', trim($this->message->body)), 120),
+            // A reply that is only pictures has no text to show.
+            'body' => trim($this->message->body) === ''
+                ? 'Sent a picture'
+                : Str::limit(preg_replace('/\s+/u', ' ', trim($this->message->body)), 120),
             'ticket_id' => $this->ticket->id,
             'status' => $this->newStatus,
             'url' => $this->message->from_staff ? $this->ownerUrl(false) : $this->staffUrl(false),

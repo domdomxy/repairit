@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminLog;
+use App\Models\AutoResponse;
 use App\Models\Message;
 use App\Models\Report;
 use App\Notifications\NewReport;
+use App\Notifications\ReportClosed;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -251,7 +253,28 @@ class ReportController extends Controller
             );
         });
 
+        // Closing an open report tells the person who filed it, with the admin-managed
+        // wording for that outcome. Only the step out of "open" does: correcting a
+        // decision afterwards (resolved to dismissed) must not send a second, contradicting message.
+        if ($from === 'open' && array_key_exists($data['status'], AutoResponse::REPORT_CLOSURES)) {
+            $this->sendClosure($report, $data['status']);
+        }
+
         return back()->with('success', $changed ? 'Report updated.' : 'Note saved.');
+    }
+
+    /** The canned "we finished reviewing your report" note, unless an admin turned it off for this outcome. */
+    private function sendClosure(Report $report, string $status): void
+    {
+        $text = AutoResponse::textFor(AutoResponse::TYPE_REPORT_CLOSURE, $status);
+        $reporter = $report->reporter;
+
+        // A suspended reporter can't sign in to read it, and a deleted one is gone.
+        if ($text === null || $reporter === null || $reporter->isSuspended()) {
+            return;
+        }
+
+        $reporter->notify(new ReportClosed($report, $status, $text));
     }
 
     /**

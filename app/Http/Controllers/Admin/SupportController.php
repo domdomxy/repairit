@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\HandlesSupportAttachments;
 use App\Http\Controllers\Controller;
 use App\Models\AdminLog;
+use App\Models\SupportMessageAttachment;
 use App\Models\SupportTicket;
 use App\Notifications\SupportReply;
 use App\Notifications\SupportTicketStatusChanged;
@@ -15,10 +17,14 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /** The support queue as an admin works it. */
 class SupportController extends Controller
 {
+    // Staff can read the pictures people attach, never add their own: only the streaming half is used.
+    use HandlesSupportAttachments;
+
     public function index(Request $request): Response
     {
         $term = trim((string) $request->input('q'));
@@ -96,6 +102,12 @@ class SupportController extends Controller
             ],
             'thread' => $ticket->threadFor($request->user()),
         ]);
+    }
+
+    /** One picture the requester attached. */
+    public function attachment(SupportTicket $ticket, SupportMessageAttachment $attachment): StreamedResponse
+    {
+        return $this->streamAttachment($ticket, $attachment);
     }
 
     public function reply(Request $request, SupportTicket $ticket): RedirectResponse

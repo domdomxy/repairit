@@ -1,4 +1,5 @@
 import InputError from '@/Components/InputError';
+import SupportImagePicker from '@/Components/SupportImagePicker';
 import SupportStatusBadge from '@/Components/SupportStatusBadge';
 
 /**
@@ -123,9 +124,14 @@ export function TicketDetails({ ticket, children }) {
     );
 }
 
-/** The reply form under a conversation. `form` is the useForm() object with a `body` field. */
-export function ReplyBox({ ticket, form, onSubmit, children }) {
+/**
+ * The reply form under a conversation. `form` is the useForm() object with a `body`
+ * field, and an `attachments` field (an array of files) when `attachmentLimits` is
+ * given: the person asking for help can attach pictures, with or without text.
+ */
+export function ReplyBox({ ticket, form, onSubmit, attachmentLimits = null, children }) {
     const { data, setData, processing, errors } = form;
+    const hasPictures = attachmentLimits && data.attachments?.length > 0;
 
     return (
         <form onSubmit={onSubmit} className={`${CARD} space-y-4 p-5 sm:p-6`}>
@@ -143,8 +149,16 @@ export function ReplyBox({ ticket, form, onSubmit, children }) {
                     className={FIELD}
                 />
             </Field>
+            {attachmentLimits && (
+                <SupportImagePicker
+                    files={data.attachments}
+                    onFilesChange={(files) => setData('attachments', files)}
+                    limits={attachmentLimits}
+                    errors={errors}
+                />
+            )}
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <button type="submit" disabled={processing || !data.body.trim()} className={BUTTON}>
+                <button type="submit" disabled={processing || (!data.body.trim() && !hasPictures)} className={BUTTON}>
                     Send reply
                 </button>
                 {children}

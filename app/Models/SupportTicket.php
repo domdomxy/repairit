@@ -18,6 +18,12 @@ class SupportTicket extends Model
     /** Statuses that count as "still needs handling", used for the per-user limit and the admin badge. */
     public const ACTIVE_STATUSES = ['open', 'in_progress'];
 
+    /** Moving into one of these sends the owner the admin-managed closure message. */
+    public const CLOSURE_STATUSES = ['resolved', 'closed'];
+
+    /** A ticket waiting on its owner with no activity for this long is closed automatically. */
+    public const INACTIVE_CLOSE_AFTER_HOURS = 24;
+
     /** A user can have this many active tickets at once, so the queue can't be flooded. */
     public const MAX_ACTIVE_PER_USER = 5;
 
@@ -84,13 +90,61 @@ class SupportTicket extends Model
         return self::CATEGORIES[$this->category] ?? 'Other';
     }
 
-    /** Move to a new status and keep closed_at and the activity time consistent. */
-    public function transitionTo(string $status): void
+    /**
+     * Move to a new status and keep closed_at and the activity time consistent.
+     * Actually changing to resolved or closed also posts the automatic closure
+     * message (unless an admin turned it off); staying put, like a reply on an
+     * already resolved ticket, never does.
+     */
+    public function transitionTo(string $status, ?string $closureKey = null): void
     {
+        $previous = $this->status;
+
         $this->status = $status;
         $this->closed_at = $status === 'closed' ? now() : null;
         $this->last_activity_at = now();
         $this->save();
+
+        if ($previous !== $status && in_array($status, self::CLOSURE_STATUSES, true)) {
+            $this->postClosureMessage($closureKey ?? $status);
+        }
+    }
+
+    /**
+     * Tickets that have gone quiet for a day and are not waiting on staff:
+     * resolved ones, and ones where staff answered last. An open ticket the
+     * owner wrote last is left alone, so a slow support team never closes
+     * someone's ticket on them.
+     */
+    public function scopeInactive($query)
+    {
+        return $query
+            ->whereIn('status', ['in_progress', 'resolved'])
+            ->where('last_activity_at', '<=', now()->subHours(self::INACTIVE_CLOSE_AFTER_HOURS))
+            ->where(fn ($query) => $query
+                ->where('status', 'resolved')
+                ->orWhereRaw('(select from_staff from support_messages where support_messages.support_ticket_id = support_tickets.id and is_automated = 0 order by id desc limit 1) = 1'));
+    }
+
+    /**
+     * The canned "this ticket is resolved/closed" note, written as the support
+     * team and flagged automated, so it shows up in the thread like the first
+     * automatic reply does and never counts as staff actually answering.
+     */
+    private function postClosureMessage(string $key): void
+    {
+        $body = AutoResponse::textFor(AutoResponse::TYPE_SUPPORT_CLOSURE, $key);
+
+        if ($body === null) {
+            return;
+        }
+
+        $this->messages()->create([
+            'user_id' => null,
+            'from_staff' => true,
+            'is_automated' => true,
+            'body' => $body,
+        ]);
     }
 
     /**
@@ -135,7 +189,7 @@ class SupportTicket extends Model
     public function threadFor(?User $viewer): Collection
     {
         return $this->messages()
-            ->with('author:id,name,avatar_path')
+            ->with('author:id,name,avatar_path', 'attachments')
             ->orderBy('id')
             ->get()
             ->map(function (SupportMessage $message) use ($viewer) {
@@ -146,6 +200,10 @@ class SupportTicket extends Model
                     'body' => $message->body,
                     'from_staff' => $message->from_staff,
                     'automated' => $message->is_automated,
+                    'attachments' => $message->attachments
+                        ->map(fn (SupportMessageAttachment $attachment) => $this->attachmentPayload($attachment, $viewer))
+                        ->values()
+                        ->all(),
                     // A guest's own messages have no user_id at all (there was never
                     // an account), so they fall back to their name, not "Deleted user".
                     'author' => $anonymous
@@ -156,6 +214,42 @@ class SupportTicket extends Model
                     'created_at' => $message->created_at->toIso8601String(),
                 ];
             });
+    }
+
+    /**
+     * A picture as the browser gets it: name, size and a URL through the route
+     * that fits who is looking (a guest's link carries the ticket's token).
+     * The flags match what the shared image viewer expects.
+     *
+     * @return array<string, mixed>
+     */
+    private function attachmentPayload(SupportMessageAttachment $attachment, ?User $viewer): array
+    {
+        $url = match (true) {
+            $viewer === null => route('support.guest.attachment', [
+                'ticket' => $this->id,
+                'token' => $this->guest_token,
+                'attachment' => $attachment->id,
+            ], absolute: false),
+            $viewer->isAdmin() => route('admin.support.attachment', [
+                'ticket' => $this->id,
+                'attachment' => $attachment->id,
+            ], absolute: false),
+            default => route('support.attachment', [
+                'ticket' => $this->id,
+                'attachment' => $attachment->id,
+            ], absolute: false),
+        };
+
+        return [
+            'id' => $attachment->id,
+            'name' => $attachment->name,
+            'size' => $attachment->size,
+            'url' => $url,
+            'is_image' => true,
+            'is_video' => false,
+            'is_pdf' => false,
+        ];
     }
 
     /** Opening a ticket is what "reads" its notifications, so the bell stays honest. */

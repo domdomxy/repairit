@@ -3,16 +3,16 @@ import SupportThread from '@/Components/SupportThread';
 import { ClosedNotice, ReplyBox, SideCard, TicketDetails, TicketHeader, WITH_SIDE } from '@/Components/SupportUI';
 import GuestLayout from '@/Layouts/GuestLayout';
 
-export default function GuestShow({ ticket, thread, token }) {
+export default function GuestShow({ ticket, thread, token, attachmentLimits }) {
     const { flash } = usePage().props;
-    const form = useForm({ body: '' });
+    const form = useForm({ body: '', attachments: [] });
     const closed = ticket.status === 'closed';
 
     function submit(e) {
         e.preventDefault();
         form.post(route('support.guest.reply', { ticket: ticket.id, token }), {
             preserveScroll: true,
-            onSuccess: () => form.reset('body'),
+            onSuccess: () => form.reset('body', 'attachments'),
         });
     }
 
@@ -53,7 +53,7 @@ export default function GuestShow({ ticket, thread, token }) {
                             This ticket is closed. Open a new one from the support page if you still need help.
                         </ClosedNotice>
                     ) : (
-                        <ReplyBox ticket={ticket} form={form} onSubmit={submit} />
+                        <ReplyBox ticket={ticket} form={form} onSubmit={submit} attachmentLimits={attachmentLimits} />
                     )}
                 </div>
 

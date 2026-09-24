@@ -3,15 +3,15 @@ import SupportThread from '@/Components/SupportThread';
 import { ClosedNotice, ReplyBox, TicketDetails, TicketHeader, WITH_SIDE } from '@/Components/SupportUI';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
-export default function Show({ ticket, thread }) {
-    const form = useForm({ body: '' });
+export default function Show({ ticket, thread, attachmentLimits }) {
+    const form = useForm({ body: '', attachments: [] });
     const closed = ticket.status === 'closed';
 
     function submit(e) {
         e.preventDefault();
         form.post(route('support.reply', ticket.id), {
             preserveScroll: true,
-            onSuccess: () => form.reset('body'),
+            onSuccess: () => form.reset('body', 'attachments'),
         });
     }
 
@@ -51,7 +51,7 @@ export default function Show({ ticket, thread }) {
                                 if you still need help.
                             </ClosedNotice>
                         ) : (
-                            <ReplyBox ticket={ticket} form={form} onSubmit={submit}>
+                            <ReplyBox ticket={ticket} form={form} onSubmit={submit} attachmentLimits={attachmentLimits}>
                                 <button
                                     type="button"
                                     onClick={close}

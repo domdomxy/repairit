@@ -62,6 +62,7 @@ Route::get('/support/guest/track', [GuestSupportController::class, 'track'])->na
 Route::post('/support/guest/track', [GuestSupportController::class, 'lookup'])->middleware('throttle:10,1')->name('support.guest.lookup');
 Route::get('/support/guest/{ticket}/{token}', [GuestSupportController::class, 'show'])->name('support.guest.show');
 Route::post('/support/guest/{ticket}/{token}/reply', [GuestSupportController::class, 'reply'])->middleware('throttle:20,1')->name('support.guest.reply');
+Route::get('/support/guest/{ticket}/{token}/attachments/{attachment}', [GuestSupportController::class, 'attachment'])->name('support.guest.attachment');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -110,6 +111,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/support/{ticket}', [SupportController::class, 'show'])->name('support.show');
     Route::post('/support/{ticket}/reply', [SupportController::class, 'reply'])->middleware('throttle:20,1')->name('support.reply');
     Route::post('/support/{ticket}/close', [SupportController::class, 'close'])->name('support.close');
+    Route::get('/support/{ticket}/attachments/{attachment}', [SupportController::class, 'attachment'])->name('support.attachment');
     // Search: technicians, offers and repair requests (never customers).
     Route::get('/search', [SearchController::class, 'index'])->name('search.index');
     // The header's search box: a handful of quick matches per kind as the person types.
@@ -223,6 +225,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/support/{ticket}', [AdminSupportController::class, 'show'])->name('support.show');
     Route::post('/support/{ticket}/reply', [AdminSupportController::class, 'reply'])->name('support.reply');
     Route::post('/support/{ticket}/status', [AdminSupportController::class, 'status'])->name('support.status');
+    Route::get('/support/{ticket}/attachments/{attachment}', [AdminSupportController::class, 'attachment'])->name('support.attachment');
 
     Route::get('/reports', [AdminReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/{report}', [AdminReportController::class, 'show'])->name('reports.show');

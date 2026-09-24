@@ -1,4 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import SupportImagePicker from '@/Components/SupportImagePicker';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { BUTTON, BUTTON_QUIET, CARD, FIELD, Field, SideCard, Steps, SupportHeader, WITH_SIDE, FILL } from '@/Components/SupportUI';
 
@@ -11,13 +12,14 @@ const STEPS = [
 // The support form for someone without an account. Since there's nowhere to
 // notify them, we ask for a name and email up front and hand back a link
 // (and a ticket ID) they have to hold onto themselves.
-export default function GuestCreate({ categories }) {
+export default function GuestCreate({ categories, attachmentLimits }) {
     const { data, setData, post, processing, errors } = useForm({
         name: '',
         email: '',
         category: '',
         subject: '',
         body: '',
+        attachments: [],
     });
 
     function submit(e) {
@@ -98,6 +100,13 @@ export default function GuestCreate({ categories }) {
                             className={`${FIELD} min-h-[12rem] flex-1`}
                         />
                     </Field>
+
+                    <SupportImagePicker
+                        files={data.attachments}
+                        onFilesChange={(files) => setData('attachments', files)}
+                        limits={attachmentLimits}
+                        errors={errors}
+                    />
 
                     <div className="flex flex-wrap items-center gap-4">
                         <button type="submit" disabled={processing} className={BUTTON}>

@@ -11,8 +11,9 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * The automatic first reply sent when a support ticket or a report is
- * created, one per category. Every category always has an entry here — most
+ * The automatic messages around support tickets and reports: the first reply
+ * sent when one is created (one per category) and the closure message sent
+ * when one is closed (one per outcome). Every entry always shows here — most
  * start out with no row in the database at all, shown with the built-in
  * default text, until an admin edits or disables one.
  */
@@ -43,6 +44,8 @@ class AutoResponseController extends Controller
         return Inertia::render('Admin/AutoResponses/Index', [
             'support' => $build(AutoResponse::TYPE_SUPPORT),
             'reports' => $build(AutoResponse::TYPE_REPORT),
+            'supportClosures' => $build(AutoResponse::TYPE_SUPPORT_CLOSURE),
+            'reportClosures' => $build(AutoResponse::TYPE_REPORT_CLOSURE),
         ]);
     }
 
@@ -65,11 +68,16 @@ class AutoResponseController extends Controller
         );
 
         $label = AutoResponse::categoriesFor($type)[$category];
+        $what = match ($type) {
+            AutoResponse::TYPE_SUPPORT_CLOSURE => 'support closure message',
+            AutoResponse::TYPE_REPORT_CLOSURE => 'report closure message',
+            default => "{$type} reply",
+        };
 
         AdminLog::record(
             $request->user(),
             'auto_response.updated',
-            "Updated the automatic {$type} reply for \"{$label}\"".($data['enabled'] ? '' : ' (now off)'),
+            "Updated the automatic {$what} for \"{$label}\"".($data['enabled'] ? '' : ' (now off)'),
         );
 
         return back()->with('success', 'Automatic reply saved.');

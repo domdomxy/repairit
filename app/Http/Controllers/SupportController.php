@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesSupportAttachments;
 use App\Models\AutoResponse;
+use App\Models\SupportMessageAttachment;
+use App\Models\SupportMessage;
 use App\Models\SupportTicket;
 use App\Models\User;
 use App\Notifications\NewSupportTicket;
@@ -15,10 +18,14 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 /** The support area as the person who asked for help sees it. */
 class SupportController extends Controller
 {
+    use HandlesSupportAttachments;
+
     public function index(Request $request): Response
     {
         $tickets = $request->user()
@@ -40,7 +47,10 @@ class SupportController extends Controller
 
     public function create(): Response
     {
-        return Inertia::render('Support/Create', ['categories' => SupportTicket::CATEGORIES]);
+        return Inertia::render('Support/Create', [
+            'categories' => SupportTicket::CATEGORIES,
+            'attachmentLimits' => SupportMessage::attachmentLimits(),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -51,7 +61,8 @@ class SupportController extends Controller
             'category' => ['required', Rule::in(array_keys(SupportTicket::CATEGORIES))],
             'subject' => ['required', 'string', 'max:150'],
             'body' => ['required', 'string', 'max:5000'],
-        ]);
+            ...$this->attachmentRules(),
+        ], $this->attachmentMessages());
 
         // Stops one account from filling the admins' queue.
         $active = $user->supportTickets()->whereIn('status', SupportTicket::ACTIVE_STATUSES)->count();
@@ -62,25 +73,37 @@ class SupportController extends Controller
             ]);
         }
 
-        $ticket = DB::transaction(function () use ($user, $data) {
-            $ticket = $user->supportTickets()->create([
-                'tracking_id' => SupportTicket::generateTrackingId(),
-                'category' => $data['category'],
-                'subject' => trim($data['subject']),
-                'status' => 'open',
-                'last_activity_at' => now(),
-            ]);
+        // Pictures are stored before their rows are written and removed again
+        // if anything fails, so a failed send never leaves files behind.
+        $stored = [];
 
-            $ticket->messages()->create([
-                'user_id' => $user->id,
-                'from_staff' => false,
-                'body' => trim($data['body']),
-            ]);
+        try {
+            $ticket = DB::transaction(function () use ($request, $user, $data, &$stored) {
+                $ticket = $user->supportTickets()->create([
+                    'tracking_id' => SupportTicket::generateTrackingId(),
+                    'category' => $data['category'],
+                    'subject' => trim($data['subject']),
+                    'status' => 'open',
+                    'last_activity_at' => now(),
+                ]);
 
-            $this->sendAutoResponse($ticket, $data['category']);
+                $message = $ticket->messages()->create([
+                    'user_id' => $user->id,
+                    'from_staff' => false,
+                    'body' => trim($data['body']),
+                ]);
 
-            return $ticket;
-        });
+                $this->storeAttachments($message, $request->file('attachments', []), $stored);
+
+                $this->sendAutoResponse($ticket, $data['category']);
+
+                return $ticket;
+            });
+        } catch (Throwable $e) {
+            $this->deleteStored($stored);
+
+            throw $e;
+        }
 
         Notification::send($this->admins($user), new NewSupportTicket($ticket));
 
@@ -98,14 +121,27 @@ class SupportController extends Controller
         return Inertia::render('Support/Show', [
             'ticket' => $this->summary($ticket),
             'thread' => $ticket->threadFor($request->user()),
+            'attachmentLimits' => SupportMessage::attachmentLimits(),
         ]);
+    }
+
+    /** One picture of the person's own ticket. Someone else's is a 404, like the ticket itself. */
+    public function attachment(Request $request, SupportTicket $ticket, SupportMessageAttachment $attachment): StreamedResponse
+    {
+        $this->ensureOwner($request, $ticket);
+
+        return $this->streamAttachment($ticket, $attachment);
     }
 
     public function reply(Request $request, SupportTicket $ticket): RedirectResponse
     {
         $this->ensureOwner($request, $ticket);
 
-        $data = $request->validate(['body' => ['required', 'string', 'max:5000']]);
+        // Text is optional when pictures are attached, and the other way round.
+        $data = $request->validate([
+            'body' => ['nullable', 'string', 'max:5000', 'required_without:attachments'],
+            ...$this->attachmentRules(),
+        ], $this->attachmentMessages());
 
         if ($ticket->isClosed()) {
             throw ValidationException::withMessages([
@@ -113,11 +149,25 @@ class SupportController extends Controller
             ]);
         }
 
-        $message = $ticket->messages()->create([
-            'user_id' => $request->user()->id,
-            'from_staff' => false,
-            'body' => trim($data['body']),
-        ]);
+        $stored = [];
+
+        try {
+            $message = DB::transaction(function () use ($request, $ticket, $data, &$stored) {
+                $message = $ticket->messages()->create([
+                    'user_id' => $request->user()->id,
+                    'from_staff' => false,
+                    'body' => trim((string) ($data['body'] ?? '')),
+                ]);
+
+                $this->storeAttachments($message, $request->file('attachments', []), $stored);
+
+                return $message;
+            });
+        } catch (Throwable $e) {
+            $this->deleteStored($stored);
+
+            throw $e;
+        }
 
         // A reply to a resolved ticket means it was not resolved after all.
         $ticket->transitionTo($ticket->status === 'resolved' ? 'open' : $ticket->status);

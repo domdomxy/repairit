@@ -8,6 +8,28 @@ const FIELD =
 
 const BODY_LIMIT = 2000;
 
+// When each kind of message goes out, as a line under the entry's name.
+function whenSent(type, entry) {
+    const outcome = entry.label.toLowerCase();
+
+    switch (type) {
+        case 'support':
+            return 'Sent as soon as a ticket in this category is opened.';
+        case 'report':
+            return 'Sent as soon as a report with this reason is filed.';
+        case 'support_closure':
+            if (entry.category === 'inactive') {
+                return 'Posted when a ticket waiting on the requester has had no activity for a day and is closed automatically.';
+            }
+
+            return `Posted on the ticket, as the support team, when it is marked ${outcome}.`;
+        case 'report_closure':
+            return `Sent to the person who filed the report when you mark it ${outcome}. Never includes your internal note.`;
+        default:
+            return '';
+    }
+}
+
 // One category: its own toggle, its own text, its own save — independent of
 // every other row on the page.
 function CategoryCard({ type, entry }) {
@@ -25,9 +47,7 @@ function CategoryCard({ type, entry }) {
             <form onSubmit={submit} className="space-y-4">
                 <div>
                     <h3 className="font-medium text-gray-900 dark:text-gray-100">{entry.label}</h3>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                        Sent as soon as a {type === 'support' ? 'ticket in this category is opened' : 'report with this reason is filed'}.
-                    </p>
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{whenSent(type, entry)}</p>
                 </div>
 
                 <ToggleRow
@@ -92,7 +112,19 @@ function CategoryList({ type, entries }) {
     );
 }
 
-export default function Index({ support, reports }) {
+function Section({ title, description, type, entries }) {
+    return (
+        <section className="space-y-3">
+            <div>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{title}</h2>
+                {description && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{description}</p>}
+            </div>
+            <CategoryList type={type} entries={entries} />
+        </section>
+    );
+}
+
+export default function Index({ support, reports, supportClosures, reportClosures }) {
     return (
         <AdminLayout>
             <Head title="Auto-responses" />
@@ -101,24 +133,28 @@ export default function Index({ support, reports }) {
                 <div>
                     <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Automatic replies</h1>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        One automatic message per category, sent the moment a ticket or report is created. Turn a
-                        category off, or write your own wording — changes apply to anything created from now on.
+                        Automatic messages for support tickets and reports: one when they are created, one when they
+                        are closed. Turn any of them off, or write your own wording — changes apply from now on.
                     </p>
                 </div>
 
-                <section className="space-y-3">
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                        Support tickets
-                    </h2>
-                    <CategoryList type="support" entries={support} />
-                </section>
+                <Section title="Support tickets: when opened" type="support" entries={support} />
 
-                <section className="space-y-3">
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                        Reports
-                    </h2>
-                    <CategoryList type="report" entries={reports} />
-                </section>
+                <Section
+                    title="Support tickets: when closed"
+                    description="Posted on the ticket when its status changes to resolved or closed, whoever changes it."
+                    type="support_closure"
+                    entries={supportClosures}
+                />
+
+                <Section title="Reports: when filed" type="report" entries={reports} />
+
+                <Section
+                    title="Reports: when closed"
+                    description="Sent to the person who filed a report when you resolve or dismiss it, once per report."
+                    type="report_closure"
+                    entries={reportClosures}
+                />
             </div>
         </AdminLayout>
     );

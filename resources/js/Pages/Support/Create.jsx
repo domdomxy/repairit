@@ -1,12 +1,14 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import SupportImagePicker from '@/Components/SupportImagePicker';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { BUTTON, BUTTON_QUIET, CARD, FIELD, Field, SideCard, SupportHeader, WITH_SIDE, FILL } from '@/Components/SupportUI';
 
-export default function Create({ categories }) {
+export default function Create({ categories, attachmentLimits }) {
     const { data, setData, post, processing, errors } = useForm({
         category: '',
         subject: '',
         body: '',
+        attachments: [],
     });
 
     function submit(e) {
@@ -64,6 +66,13 @@ export default function Create({ categories }) {
                                 className={FIELD}
                             />
                         </Field>
+
+                        <SupportImagePicker
+                            files={data.attachments}
+                            onFilesChange={(files) => setData('attachments', files)}
+                            limits={attachmentLimits}
+                            errors={errors}
+                        />
 
                         <div className="flex flex-wrap items-center gap-3">
                             <button type="submit" disabled={processing} className={BUTTON}>

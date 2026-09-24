@@ -119,7 +119,7 @@ test('opening a ticket stores it with its first message and a tracking id', func
     expect($ticket->only('user_id', 'category', 'subject', 'status'))
         ->toBe(['user_id' => $user->id, 'category' => 'bug', 'subject' => 'Cannot upload', 'status' => 'open']);
 
-    $message = $ticket->messages()->sole();
+    $message = $ticket->messages()->where('is_automated', false)->sole();
     expect($message->body)->toBe('The upload button does nothing.');
     expect($message->from_staff)->toBeFalse();
     expect($message->user_id)->toBe($user->id);
