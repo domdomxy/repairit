@@ -60,12 +60,19 @@ function TechnicianHeader({ technician, createdAt, menu, showKind }) {
 // `offer.technician` is the public card the server sends with each offer.
 // In the feed, `showKind` marks it as an offer among the requests, and
 // `onEdit` / `onDelete` let its technician manage it from the menu.
-export default function OfferListing({ offer, reportReasons, showKind = false, onEdit, onDelete }) {
+// On the offer's own page (`detail`) it is the same card, with the description in
+// full and no highlight when the mouse is over it.
+export default function OfferListing({ offer, reportReasons, showKind = false, detail = false, onEdit, onDelete }) {
     return (
-        <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-900/5 transition hover:ring-indigo-300 dark:bg-gray-800 dark:ring-white/10 dark:hover:ring-indigo-500">
+        <div
+            className={`rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10 ${
+                detail ? '' : 'transition hover:ring-indigo-300 dark:hover:ring-indigo-500'
+            }`}
+        >
             <OfferCard
                 offer={offer}
                 listing
+                fullText={detail}
                 className="space-y-3"
                 header={
                     <TechnicianHeader

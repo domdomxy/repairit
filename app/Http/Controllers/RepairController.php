@@ -22,6 +22,9 @@ class RepairController extends Controller
 {
     private const PER_PAGE = 15;
 
+    /** The tabs of the customer's list: everything, the repairs still going, and the ones that are over. */
+    private const FILTERS = ['all', 'active', 'closed'];
+
     public function index(Request $request): Response|RedirectResponse
     {
         $user = $request->user();
@@ -31,11 +34,18 @@ class RepairController extends Controller
             return redirect()->route('technician.repairs.index');
         }
 
+        // Everything by default: a customer has few repairs, and would otherwise
+        // open the page on an empty "active" tab when theirs are all done.
+        $filter = in_array($request->input('filter'), self::FILTERS, true) ? $request->input('filter') : 'all';
+
         $repairs = $user->customerRepairs()
             ->with('technician:id,name,avatar_path')
+            ->when($filter === 'active', fn ($query) => $query->whereNotIn('status', Repair::CLOSED_STATUSES))
+            ->when($filter === 'closed', fn ($query) => $query->whereIn('status', Repair::CLOSED_STATUSES))
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
             ->paginate(self::PER_PAGE)
+            ->withQueryString()
             ->through(fn (Repair $repair) => $repair->toListItem() + [
                 'technician' => [
                     'id' => $repair->technician->id,
@@ -44,7 +54,15 @@ class RepairController extends Controller
                 ],
             ]);
 
-        return Inertia::render('Repairs/Index', ['repairs' => $repairs]);
+        return Inertia::render('Repairs/Index', [
+            'repairs' => $repairs,
+            'filter' => $filter,
+            'counts' => [
+                'all' => $user->customerRepairs()->count(),
+                'active' => $user->customerRepairs()->whereNotIn('status', Repair::CLOSED_STATUSES)->count(),
+                'closed' => $user->customerRepairs()->whereIn('status', Repair::CLOSED_STATUSES)->count(),
+            ],
+        ]);
     }
 
     public function show(Request $request, Repair $repair): Response

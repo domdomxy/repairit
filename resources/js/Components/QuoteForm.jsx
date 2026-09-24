@@ -1,8 +1,9 @@
+import DurationInput from '@/Components/DurationInput';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
+import MoneyInput from '@/Components/MoneyInput';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
-import TextInput from '@/Components/TextInput';
 import { useForm } from '@inertiajs/react';
 
 // A technician's quote for a repair request: what they would charge, how long
@@ -24,32 +25,26 @@ export default function QuoteForm({ requestId, quote = null, limits, onDone, onC
     return (
         <form onSubmit={submit} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                    <InputLabel htmlFor="quote-price" value="Your price" />
-                    <TextInput
-                        id="quote-price"
-                        className="mt-1 block w-full"
-                        value={data.price}
-                        onChange={(e) => setData('price', e.target.value)}
-                        maxLength={limits.price_max}
-                        placeholder="e.g. 80 TND"
-                        required
-                    />
-                    <InputError message={errors.price} className="mt-2" />
-                </div>
+                <MoneyInput
+                    id="quote-price"
+                    label="Your price"
+                    value={data.price}
+                    onChange={(value) => setData('price', value)}
+                    maxLength={limits.price_max}
+                    placeholder="e.g. 80"
+                    error={errors.price}
+                    required
+                />
 
-                <div>
-                    <InputLabel htmlFor="quote-time" value="How long it takes (optional)" />
-                    <TextInput
-                        id="quote-time"
-                        className="mt-1 block w-full"
-                        value={data.estimated_time}
-                        onChange={(e) => setData('estimated_time', e.target.value)}
-                        maxLength={limits.time_max}
-                        placeholder="e.g. 2 days"
-                    />
-                    <InputError message={errors.estimated_time} className="mt-2" />
-                </div>
+                <DurationInput
+                    id="quote-time"
+                    label="How long it takes (optional)"
+                    value={data.estimated_time}
+                    onChange={(value) => setData('estimated_time', value)}
+                    maxLength={limits.time_max}
+                    placeholder="e.g. 2"
+                    error={errors.estimated_time}
+                />
             </div>
 
             <div>

@@ -41,12 +41,13 @@ class FeedController extends Controller
      * relevant" menu). "newest" is what an unset or unknown value means.
      *
      * - requests / offers: only that kind of post
+     * - favorites: both kinds, only from the people the viewer favorited
      * - rated: offers only, best rated technician first
      * - relevant: both kinds, the ones that fit the viewer first
      *
      * "rated" and "relevant" can also be narrowed to one category.
      */
-    private const FILTERS = ['newest', 'requests', 'offers', 'rated', 'relevant'];
+    private const FILTERS = ['newest', 'requests', 'offers', 'favorites', 'rated', 'relevant'];
 
     /** "images" and "videos" are matched on the content type checked at upload. */
     private const MEDIA_FILTERS = ['any', 'image', 'video'];
@@ -79,6 +80,25 @@ class FeedController extends Controller
             // array, where `filters.sort` is Array.prototype.sort, not "unset".
             'filters' => (object) $request->only(['filter', 'q', 'type', 'category', 'city', 'availability', 'media', 'sort', 'top_category']),
         ]);
+    }
+
+    /**
+     * The people this viewer favorited when the feed is on "favorites", null
+     * otherwise (no restriction). An empty list means nothing can match.
+     *
+     * @return list<int>|null
+     */
+    private function favoritesOnly(Request $request): ?array
+    {
+        if ($request->input('filter') !== 'favorites') {
+            return null;
+        }
+
+        return UserRelation::where('user_id', $request->user()->id)
+            ->where('type', UserRelation::FAVORITE)
+            ->pluck('target_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
     }
 
     /**
@@ -233,6 +253,7 @@ class FeedController extends Controller
     private function offerRows(Request $request): Builder
     {
         [$relevance, $relevanceBindings] = $this->relevanceSql($request, 'category_offer', 'offer_id', 'offers', 'technician_profiles.city');
+        $favorites = $this->favoritesOnly($request);
 
         $query = Offer::query()
             ->join('users', 'users.id', '=', 'offers.technician_id')
@@ -241,6 +262,8 @@ class FeedController extends Controller
             ->whereNull('users.suspended_at')
             // Nobody who blocked you, or that you blocked, posts in your feed.
             ->whereNotIn('users.id', UserRelation::blockedIdsFor($request->user()))
+            // "Favorites": only offers of technicians the viewer favorited.
+            ->when($favorites !== null, fn ($q) => $q->whereIn('users.id', $favorites))
             ->selectRaw("'offer' as feed_kind, offers.id as feed_id, offers.created_at as feed_created_at, technician_profiles.rating_avg as feed_rating_avg, technician_profiles.rating_count as feed_rating_count, ({$relevance}) as feed_relevance", $relevanceBindings);
 
         // Free text: matches the title, the description or the technician's name.
@@ -303,11 +326,14 @@ class FeedController extends Controller
     private function requestRows(Request $request): Builder
     {
         [$relevance, $relevanceBindings] = $this->relevanceSql($request, 'category_service_request', 'service_request_id', 'service_requests', 'service_requests.city');
+        $favorites = $this->favoritesOnly($request);
 
         $query = ServiceRequest::query()
             ->open()
             ->fromActiveCustomers()
             ->whereNotIn('service_requests.customer_id', UserRelation::blockedIdsFor($request->user()))
+            // "Favorites": only requests of customers the viewer favorited.
+            ->when($favorites !== null, fn ($q) => $q->whereIn('service_requests.customer_id', $favorites))
             ->selectRaw("'request' as feed_kind, service_requests.id as feed_id, service_requests.created_at as feed_created_at, null as feed_rating_avg, null as feed_rating_count, ({$relevance}) as feed_relevance", $relevanceBindings);
 
         // Free text: matches the description (a request has no title).

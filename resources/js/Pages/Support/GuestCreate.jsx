@@ -1,7 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import SupportImagePicker from '@/Components/SupportImagePicker';
 import GuestLayout from '@/Layouts/GuestLayout';
-import { BUTTON, BUTTON_QUIET, CARD, FIELD, Field, SideCard, Steps, SupportHeader, WITH_SIDE, FILL } from '@/Components/SupportUI';
+import { BUTTON, BUTTON_QUIET, CARD, FIELD, Field, SideCard, Steps, SupportHeader } from '@/Components/SupportUI';
 
 const STEPS = [
     { title: 'Send the form', text: 'You get a ticket ID straight away.' },
@@ -36,8 +36,13 @@ export default function GuestCreate({ categories, attachmentLimits }) {
                 check for a reply.
             </SupportHeader>
 
-            <div className={`${WITH_SIDE} ${FILL}`}>
-                <form onSubmit={submit} className={`${CARD} flex flex-col gap-6 p-5 sm:p-8`}>
+            {/* "What happens next" on the left, the form in the middle, the ticket lookup on the right.
+                Under xl the two cards stack in a column beside the form; on a phone the form comes first. */}
+            <div className="grid flex-1 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[19rem_minmax(0,1fr)_19rem]">
+                <form
+                    onSubmit={submit}
+                    className={`${CARD} order-1 flex flex-col gap-6 p-5 sm:p-8 lg:col-start-1 lg:row-span-2 lg:row-start-1 xl:col-start-2 xl:row-span-1`}
+                >
                     <div className="grid gap-6 md:grid-cols-2">
                         <Field id="name" label="Your name" error={errors.name}>
                             <input
@@ -115,16 +120,18 @@ export default function GuestCreate({ categories, attachmentLimits }) {
                     </div>
                 </form>
 
-                <aside className="space-y-6">
+                <div className="order-2 self-start lg:col-start-2 lg:row-start-1 xl:col-start-1">
                     <Steps title="What happens next" steps={STEPS} />
+                </div>
 
+                <div className="order-3 self-start lg:col-start-2 lg:row-start-2 xl:col-start-3 xl:row-start-1">
                     <SideCard title="Already have a ticket?">
                         <p>Look it up with your ticket ID and the email you used.</p>
                         <Link href={route('support.guest.track')} className={BUTTON_QUIET}>
                             Find your ticket
                         </Link>
                     </SideCard>
-                </aside>
+                </div>
             </div>
         </GuestLayout>
     );

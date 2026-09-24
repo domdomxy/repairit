@@ -9,9 +9,9 @@ const AVAILABILITY_DOT = {
 
 // Gold, silver and bronze for the podium; everyone after that just has a number.
 const PODIUM = [
-    'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
-    'bg-slate-200 text-slate-600 dark:bg-slate-500/30 dark:text-slate-200',
-    'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300',
+    'text-amber-700 dark:text-amber-300',
+    'text-slate-600 dark:text-slate-200',
+    'text-orange-700 dark:text-orange-300',
 ];
 
 // A short ranked list of the best rated technicians. `technicians` is already
@@ -28,7 +28,7 @@ export default function TopRatedTechnicians({
     return (
         <section className={`rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10 ${className}`}>
             <div className="flex items-center gap-2.5">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-500 dark:bg-amber-500/10">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg text-amber-500">
                     <StarIcon className="h-4 w-4" />
                 </span>
                 <h3 className="font-semibold text-gray-900 dark:text-gray-100">Top rated technicians</h3>

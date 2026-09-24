@@ -273,6 +273,29 @@ test('a customer sees only the repairs linked to their account', function () {
     $this->actingAs($technician)->get(route('repairs.index'))->assertRedirect(route('technician.repairs.index'));
 });
 
+test('a customer\'s list can be narrowed to the repairs still going or the ones that are over', function () {
+    $technician = repairTechnician();
+    $customer = repairCustomer();
+    repairFor($technician, ['customer_id' => $customer->id, 'title' => 'Active one']);
+    repairFor($technician, ['customer_id' => $customer->id, 'title' => 'Done one', 'status' => 'completed']);
+    repairFor($technician, ['customer_id' => $customer->id, 'title' => 'Dropped one', 'status' => 'cancelled']);
+
+    $this->actingAs($customer)
+        ->get(route('repairs.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('filter', 'all')
+            ->has('repairs.data', 3)
+            ->where('counts', ['all' => 3, 'active' => 1, 'closed' => 2]));
+
+    $this->actingAs($customer)
+        ->get(route('repairs.index', ['filter' => 'active']))
+        ->assertInertia(fn (Assert $page) => $page->has('repairs.data', 1)->where('repairs.data.0.title', 'Active one'));
+
+    $this->actingAs($customer)
+        ->get(route('repairs.index', ['filter' => 'closed']))
+        ->assertInertia(fn (Assert $page) => $page->has('repairs.data', 2));
+});
+
 test('the technician\'s list separates active repairs from closed ones', function () {
     $technician = repairTechnician();
     repairFor($technician, ['title' => 'Active one']);

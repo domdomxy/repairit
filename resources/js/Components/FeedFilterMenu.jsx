@@ -38,7 +38,7 @@ export default function FeedFilterMenu({ options, value, onChange, className = '
                 aria-haspopup="listbox"
                 aria-expanded={open}
                 onClick={() => setOpen((isOpen) => !isOpen)}
-                className="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-2.5 py-1 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-300 dark:hover:bg-indigo-500/20"
+                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-semibold text-indigo-700 transition hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200"
             >
                 {current.label}
                 <svg
@@ -58,7 +58,7 @@ export default function FeedFilterMenu({ options, value, onChange, className = '
             {open && (
                 <ul
                     role="listbox"
-                    className="absolute start-0 z-30 mt-2 w-80 max-w-[calc(100vw-3rem)] rounded-lg bg-white p-1.5 shadow-lg ring-1 ring-black/5 dark:bg-gray-700 dark:ring-white/10"
+                    className="absolute start-0 z-30 mt-2 w-80 max-w-[calc(100vw-3rem)] rounded-lg bg-white p-1.5 shadow-lg ring-1 ring-black/5 dark:bg-gray-800 dark:ring-gray-700"
                 >
                     {options.map((option) => {
                         const selected = option.value === current.value;
@@ -71,13 +71,13 @@ export default function FeedFilterMenu({ options, value, onChange, className = '
                                         onChange(option.value);
                                         setOpen(false);
                                     }}
-                                    className="flex w-full items-start justify-between gap-3 rounded-md px-3 py-2 text-start hover:bg-gray-100 dark:hover:bg-gray-600"
+                                    className="flex w-full items-start justify-between gap-3 rounded-md px-3 py-2 text-start hover:bg-gray-100 dark:hover:bg-gray-700"
                                 >
                                     <span className="min-w-0">
                                         <span className="block text-sm font-semibold text-gray-900 dark:text-gray-100">
                                             {option.label}
                                         </span>
-                                        <span className="block text-xs text-gray-500 dark:text-gray-300">
+                                        <span className="block text-xs text-gray-500 dark:text-gray-400">
                                             {option.description}
                                         </span>
                                     </span>

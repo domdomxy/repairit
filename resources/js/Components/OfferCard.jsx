@@ -37,12 +37,14 @@ function OfferCategories({ categories, className = '' }) {
 //
 // `listing` is the layout of the feed: the category tags sit beside the
 // title, and the price is left out (the caller puts it in its row of actions).
+// `fullText` shows the description whole instead of clamped, for the offer's own page.
 export default function OfferCard({
     offer,
     header,
     menu,
     listing = false,
     links = true,
+    fullText = false,
     className = 'rounded-md border p-4 dark:border-gray-700',
     children,
 }) {
@@ -62,11 +64,17 @@ export default function OfferCard({
                 )}
             </div>
 
-            {offer.description && (
-                <ClampedText className="whitespace-pre-line break-words text-sm text-gray-600 dark:text-gray-300">
-                    {links ? linkify(offer.description, { linkClassName: POST_LINK_CLASS }) : offer.description}
-                </ClampedText>
-            )}
+            {offer.description &&
+                (() => {
+                    const text = links ? linkify(offer.description, { linkClassName: POST_LINK_CLASS }) : offer.description;
+                    const textClass = 'whitespace-pre-line break-words text-sm text-gray-600 dark:text-gray-300';
+
+                    return fullText ? (
+                        <p className={textClass}>{text}</p>
+                    ) : (
+                        <ClampedText className={textClass}>{text}</ClampedText>
+                    );
+                })()}
 
             {!listing && <OfferCategories categories={offer.categories} />}
 

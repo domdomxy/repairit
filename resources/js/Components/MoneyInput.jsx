@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 // An amount with the currency it is in, for a request's budget and an offer's
 // price. The form holds one text ("100 TND"); the person types the amount and
 // chooses the currency. `maxLength` is the limit of the whole text.
-export default function MoneyInput({ id, label, value, onChange, maxLength = 60, placeholder, error }) {
+export default function MoneyInput({ id, label, value, onChange, maxLength = 60, placeholder, error, required = false }) {
     const [amount, setAmount] = useState(() => parseMoney(value).amount);
     const [currency, setCurrency] = useState(() => parseMoney(value).currency);
 
@@ -39,6 +39,7 @@ export default function MoneyInput({ id, label, value, onChange, maxLength = 60,
                     onChange={(e) => change(e.target.value, currency)}
                     maxLength={Math.max(maxLength - 4, 1)}
                     placeholder={placeholder}
+                    required={required}
                 />
 
                 <select

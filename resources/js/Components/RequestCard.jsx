@@ -3,7 +3,7 @@ import ClampedText from '@/Components/ClampedText';
 import FeedKindBadge from '@/Components/FeedKindBadge';
 import PostMedia from '@/Components/PostMedia';
 import { formatDateTime, formatMessageTime, relativeTime } from '@/lib/dates';
-import { linkify, POST_CARD_LINK_CLASS } from '@/lib/linkify';
+import { linkify, POST_CARD_LINK_CLASS, POST_LINK_CLASS } from '@/lib/linkify';
 import { Link } from '@inertiajs/react';
 
 // A repair request as a card in a list: who is asking, what for, roughly how
@@ -21,6 +21,10 @@ import { Link } from '@inertiajs/react';
 // when it was posted underneath. At the bottom left, `footer` holds what a
 // technician can do about the request (the button to send a quote), before the
 // categories.
+// On the request's own page (`detail`), the same card is used: the text is shown in
+// full instead of clamped, it is not a link to the page you are already on, and
+// `authorHref` makes the asker's name a link to their profile. `actions` is a row
+// of buttons under the card's content (what the owner can do with the request).
 // The card of a post in the feed, for requests and offers alike: every page that lists
 // them (the feed, profiles, search) uses it, so a post looks the same wherever it is.
 export const FEED_CARD =
@@ -33,8 +37,13 @@ export default function RequestCard({
     showAuthor = true,
     menu = null,
     footer = null,
+    detail = false,
+    authorHref = null,
+    actions = null,
     className = FEED_CARD,
 }) {
+    const authorName = scope === 'mine' ? 'You' : request.customer.name;
+
     return (
         <div className={`relative space-y-3 ${className}`}>
             <div className="flex items-start justify-between gap-3">
@@ -43,11 +52,19 @@ export default function RequestCard({
                     <div className="min-w-0">
                         {(showAuthor || request.city) && (
                             <p className="flex min-w-0 items-baseline gap-1.5 text-sm">
-                                {showAuthor && (
-                                    <span className="truncate font-semibold text-gray-800 dark:text-gray-200">
-                                        {scope === 'mine' ? 'You' : request.customer.name}
-                                    </span>
-                                )}
+                                {showAuthor &&
+                                    (authorHref ? (
+                                        <Link
+                                            href={authorHref}
+                                            className="truncate font-semibold text-gray-800 hover:underline dark:text-gray-200"
+                                        >
+                                            {authorName}
+                                        </Link>
+                                    ) : (
+                                        <span className="truncate font-semibold text-gray-800 dark:text-gray-200">
+                                            {authorName}
+                                        </span>
+                                    ))}
                                 {request.city && (
                                     <span className="truncate text-gray-500 dark:text-gray-400">
                                         {showAuthor && '· '}
@@ -82,18 +99,24 @@ export default function RequestCard({
             </div>
 
             {/* A request has no title: what the customer wrote is the post. */}
-            <ClampedText className="whitespace-pre-line break-words text-gray-900 dark:text-gray-100">
-                {/* The text around a link opens the request; the link itself opens the URL.
-                    They are siblings, never nested, since a link cannot sit inside a link. */}
-                {linkify(request.description, {
-                    linkClassName: POST_CARD_LINK_CLASS,
-                    renderText: (value) => (
-                        <Link href={route('requests.show', request.id)} className="after:absolute after:inset-0">
-                            {value}
-                        </Link>
-                    ),
-                })}
-            </ClampedText>
+            {detail ? (
+                <p className="whitespace-pre-line break-words text-gray-900 dark:text-gray-100">
+                    {linkify(request.description, { linkClassName: POST_LINK_CLASS })}
+                </p>
+            ) : (
+                <ClampedText className="whitespace-pre-line break-words text-gray-900 dark:text-gray-100">
+                    {/* The text around a link opens the request; the link itself opens the URL.
+                        They are siblings, never nested, since a link cannot sit inside a link. */}
+                    {linkify(request.description, {
+                        linkClassName: POST_CARD_LINK_CLASS,
+                        renderText: (value) => (
+                            <Link href={route('requests.show', request.id)} className="after:absolute after:inset-0">
+                                {value}
+                            </Link>
+                        ),
+                    })}
+                </ClampedText>
+            )}
 
             {/* Above the stretched link: a click on a picture opens the viewer, not the request. */}
             {request.media?.length > 0 && (
@@ -129,6 +152,12 @@ export default function RequestCard({
                     </span>
                 </div>
             </div>
+
+            {actions && (
+                <div className="relative z-10 flex flex-wrap gap-2 border-t border-gray-100 pt-4 dark:border-gray-700">
+                    {actions}
+                </div>
+            )}
         </div>
     );
 }

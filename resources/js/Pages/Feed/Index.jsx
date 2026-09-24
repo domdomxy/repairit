@@ -22,6 +22,7 @@ const FILTER_OPTIONS = [
     { value: 'newest', label: 'Newest posts', description: 'Show recent posts first' },
     { value: 'requests', label: 'Requests', description: "Only customers' repair requests" },
     { value: 'offers', label: 'Offers', description: "Only technicians' offers" },
+    { value: 'favorites', label: 'Favorites', description: 'Posts from people you added to your favorites' },
     { value: 'rated', label: 'Most rated', description: 'Offers from the best rated technicians first' },
     { value: 'relevant', label: 'Most relevant', description: 'Posts in your categories and your city first' },
 ];

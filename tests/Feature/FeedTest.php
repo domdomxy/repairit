@@ -5,6 +5,7 @@ use App\Models\Offer;
 use App\Models\ServiceRequest;
 use App\Models\TechnicianProfile;
 use App\Models\User;
+use App\Models\UserRelation;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(fn () => $this->withoutVite());
@@ -252,6 +253,33 @@ test('the filter menu picks requests only, offers only, or the newest of both', 
         ->and(feedPosts($this, ['filter' => 'nonsense']))->toHaveCount(2)
         // The menu wins over the older parameters.
         ->and(feedPosts($this, ['filter' => 'offers', 'type' => 'requests']))->toBe(['offer: Boiler service']);
+});
+
+test('"favorites" shows the posts of the people the viewer favorited, offers and requests alike', function () {
+    $viewer = feedCustomer();
+    $favoriteTechnician = feedTechnician();
+    $favoriteCustomer = feedCustomer();
+
+    feedOffer($favoriteTechnician, 'Favorite boilers');
+    $otherTechnician = feedTechnician();
+    feedOffer($otherTechnician, 'Other boilers');
+    feedRequest($favoriteCustomer, 'Favorite screen');
+    feedRequest(feedCustomer(), 'Other screen');
+
+    $this->actingAs($viewer);
+
+    // Nobody favorited yet: nothing matches.
+    expect(feedPosts($this, ['filter' => 'favorites']))->toBe([]);
+
+    foreach ([$favoriteTechnician, $favoriteCustomer] as $person) {
+        UserRelation::create(['user_id' => $viewer->id, 'target_id' => $person->id, 'type' => UserRelation::FAVORITE]);
+    }
+
+    // Someone else's favorites are not the viewer's.
+    UserRelation::create(['user_id' => feedCustomer()->id, 'target_id' => $otherTechnician->id, 'type' => UserRelation::FAVORITE]);
+
+    expect(feedPosts($this, ['filter' => 'favorites']))->toEqualCanonicalizing(['offer: Favorite boilers', 'request: Favorite screen'])
+        ->and(feedPosts($this, ['filter' => 'newest']))->toHaveCount(4);
 });
 
 test('"most rated" lists offers only, best rated technician first, and can be narrowed to a category', function () {

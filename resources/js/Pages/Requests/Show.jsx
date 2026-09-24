@@ -1,16 +1,14 @@
 import Avatar from '@/Components/Avatar';
-import { PinIcon, WrenchIcon } from '@/Components/Icons';
 import InputError from '@/Components/InputError';
-import PostMedia from '@/Components/PostMedia';
-import { Banner } from '@/Components/ProfileParts';
 import QuoteForm from '@/Components/QuoteForm';
+import RequestCard from '@/Components/RequestCard';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { formatDate, relativeTime } from '@/lib/dates';
-import { linkify, POST_LINK_CLASS } from '@/lib/linkify';
+import { relativeTime } from '@/lib/dates';
+import { parseDuration } from '@/lib/durations';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
-const CARD = 'rounded-xl bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10';
+const CARD = 'rounded-2xl bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10';
 const PANEL = `${CARD} p-6`;
 
 const BUTTON =
@@ -118,7 +116,10 @@ function MyQuote({ serviceRequest, quote, canQuote, limits }) {
 
     return (
         <section aria-label="Your quote" className={PANEL}>
-            <h4 className="mb-3 font-semibold">{quote ? 'Your quote' : 'Send a quote'}</h4>
+            <h4 className="font-semibold">{quote ? 'Your quote' : 'Send a quote'}</h4>
+            <p className="mb-3 mt-0.5 text-xs text-gray-500">
+                Quotes are private to the customer and the technician who wrote them.
+            </p>
 
             {quote && !editing ? (
                 <div className="space-y-3">
@@ -147,26 +148,137 @@ function MyQuote({ serviceRequest, quote, canQuote, limits }) {
     );
 }
 
-// A small label over a value: one fact of the request.
-function Detail({ label, children }) {
+// The ways the customer can order the quotes they got. Price and time are kept
+// as the text the technician wrote ("80 TND", "2 days"), so they are compared by
+// the number in them; a quote without one goes last.
+const QUOTE_SORTS = [
+    { value: 'newest', label: 'Newest first' },
+    { value: 'price', label: 'Lowest price' },
+    { value: 'time', label: 'Fastest' },
+    { value: 'rating', label: 'Best rated' },
+];
+
+const HOURS_PER_UNIT = { hours: 1, days: 24, weeks: 24 * 7, months: 24 * 30 };
+
+function firstNumber(text) {
+    const match = String(text ?? '').match(/\d+(?:[.,]\d+)?/);
+
+    return match ? parseFloat(match[0].replace(',', '.')) : Infinity;
+}
+
+function hoursOf(text) {
+    if (!text) return Infinity;
+
+    const { amount, unit } = parseDuration(text);
+
+    return firstNumber(amount) * (HOURS_PER_UNIT[unit] ?? 1);
+}
+
+const QUOTE_ORDER = {
+    newest: (a, b) => new Date(b.created_at) - new Date(a.created_at),
+    price: (a, b) => firstNumber(a.price) - firstNumber(b.price),
+    time: (a, b) => hoursOf(a.estimated_time) - hoursOf(b.estimated_time),
+    rating: (a, b) =>
+        (b.technician.rating_avg ?? -1) - (a.technician.rating_avg ?? -1) ||
+        (b.technician.rating_count ?? 0) - (a.technician.rating_count ?? 0),
+};
+
+// The customer's list of quotes, with a search over the technician's name and
+// what they wrote, and a choice of order. Nothing to sift through with no quotes yet.
+function QuotesPanel({ quotes, isOpen }) {
+    const [search, setSearch] = useState('');
+    const [sort, setSort] = useState('newest');
+
+    const term = search.trim().toLowerCase();
+    const shown = quotes
+        .filter(
+            (quote) =>
+                term === '' ||
+                `${quote.technician.name} ${quote.message ?? ''} ${quote.price} ${quote.estimated_time ?? ''}`
+                    .toLowerCase()
+                    .includes(term),
+        )
+        // Array.sort is stable, so quotes that tie (or are all "Infinity") keep their newest-first order.
+        .sort((a, b) => QUOTE_ORDER.newest(a, b))
+        .sort(QUOTE_ORDER[sort]);
+
     return (
-        <div className="min-w-0">
-            <dt className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{label}</dt>
-            <dd className="mt-0.5 break-words text-sm font-medium text-gray-800 dark:text-gray-100">{children}</dd>
-        </div>
+        <section aria-label="Quotes" className={PANEL}>
+            <div className="mb-4 flex items-center gap-2">
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">Quotes</h2>
+                <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200">
+                    {quotes.length}
+                </span>
+            </div>
+
+            {quotes.length > 0 && (
+                <div className="mb-4 flex flex-wrap gap-2">
+                    <div className="relative min-w-0 flex-1 basis-40">
+                        <svg
+                            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            strokeWidth="2"
+                            stroke="currentColor"
+                            aria-hidden="true"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                        </svg>
+                        <input
+                            type="search"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search quotes"
+                            aria-label="Search quotes"
+                            className="w-full rounded-md border-gray-300 py-1.5 pl-9 pr-3 text-sm shadow-sm placeholder:text-gray-400 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                        />
+                    </div>
+                    <select
+                        value={sort}
+                        onChange={(e) => setSort(e.target.value)}
+                        aria-label="Order quotes by"
+                        className="shrink-0 rounded-md border-gray-300 py-1.5 pe-8 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                    >
+                        {QUOTE_SORTS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            )}
+
+            {quotes.length === 0 && (
+                <p className="text-sm text-gray-500">
+                    {isOpen
+                        ? 'No quotes yet. Technicians can see your request and will send you their price.'
+                        : 'Nobody sent a quote.'}
+                </p>
+            )}
+
+            {quotes.length > 0 && shown.length === 0 && (
+                <p className="text-sm text-gray-500">No quotes match your search.</p>
+            )}
+
+            <ul className="space-y-3">
+                {shown.map((quote) => (
+                    <QuoteItem key={quote.id} quote={quote} open={isOpen} />
+                ))}
+            </ul>
+        </section>
     );
 }
 
-// One repair request on its own page: where a shared link lands. The request
-// and its quotes are on the left; on the right, who posted it (below it on a
-// small screen).
+// One repair request on its own page: where a shared link lands. The request is
+// the same card as in the feed (in full, not clamped) on the left, and its quotes
+// on the right (below it on a small screen). Someone with nothing to do with the
+// quotes gets the request alone, centred.
 export default function Show({ serviceRequest, isOwner, quotes, myQuote, canQuote, limits }) {
     const { auth, errors } = usePage().props;
     const isOpen = serviceRequest.status === 'open';
     const poster = serviceRequest.customer;
     const isTechnician = auth.user.role === 'technician' && !isOwner;
-    const posterName = isOwner ? 'You' : poster.name;
-    const quoteCount = `${serviceRequest.quotes_count} quote${serviceRequest.quotes_count === 1 ? '' : 's'}`;
+    const hasQuotesColumn = isOwner || isTechnician;
 
     function setStatus(action) {
         router.post(route(action, serviceRequest.id), {}, { preserveScroll: true });
@@ -182,83 +294,25 @@ export default function Show({ serviceRequest, isOwner, quotes, myQuote, canQuot
         <AuthenticatedLayout>
             <Head title="Repair request" />
 
-            <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+            <div className={`mx-auto w-full px-4 py-8 sm:px-6 ${hasQuotesColumn ? 'max-w-6xl' : 'max-w-3xl'}`}>
                 <Link href={route('feed.index')} className="text-sm text-indigo-600 hover:underline dark:text-indigo-400">
                     ← Back to the feed
                 </Link>
 
-                <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-                    <div className="min-w-0 space-y-6">
-                        <section className={`${CARD} space-y-6 p-6 sm:p-8`}>
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="flex min-w-0 items-center gap-3">
-                                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300">
-                                        <WrenchIcon className="h-5 w-5" />
-                                    </span>
-                                    <div className="min-w-0">
-                                        <h1 className="break-words text-xl font-semibold text-gray-900 dark:text-gray-100">
-                                            Repair request
-                                        </h1>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                                            Posted {formatDate(serviceRequest.created_at)}
-                                            <span className="lg:hidden">
-                                                {' '}
-                                                by <bdi>{posterName}</bdi>
-                                            </span>
-                                        </p>
-                                    </div>
-                                </div>
-                                <span
-                                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
-                                        isOpen
-                                            ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
-                                            : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-                                    }`}
-                                >
-                                    {isOpen ? 'Open' : 'Closed'}
-                                </span>
-                            </div>
-
-                            {/* A request has no title: what the customer wrote is the post. */}
-                            <p className="whitespace-pre-line break-words text-base leading-relaxed text-gray-800 dark:text-gray-200">
-                                {linkify(serviceRequest.description, { linkClassName: POST_LINK_CLASS })}
-                            </p>
-
-                            {serviceRequest.categories.length > 0 && (
-                                <div className="flex flex-wrap gap-2">
-                                    {serviceRequest.categories.map((category) => (
-                                        <span
-                                            key={category.id}
-                                            className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200"
-                                        >
-                                            {category.name}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-
-                            <PostMedia media={serviceRequest.media} />
-
-                            {(serviceRequest.budget || serviceRequest.city) && (
-                                <dl className="flex flex-wrap gap-x-10 gap-y-4 rounded-xl bg-gray-50 px-5 py-4 dark:bg-gray-900/40">
-                                    {serviceRequest.budget && (
-                                        <Detail label="Budget">
-                                            <span className="text-indigo-700 dark:text-indigo-200">{serviceRequest.budget}</span>
-                                        </Detail>
-                                    )}
-                                    {serviceRequest.city && (
-                                        <Detail label="City">
-                                            <span className="inline-flex items-center gap-1">
-                                                <PinIcon className="h-4 w-4 text-gray-400" />
-                                                <bdi>{serviceRequest.city}</bdi>
-                                            </span>
-                                        </Detail>
-                                    )}
-                                </dl>
-                            )}
-
-                            {isOwner && (
-                                <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-5 dark:border-gray-700">
+                <div
+                    className={`mt-4 grid gap-6 ${
+                        hasQuotesColumn ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:items-start' : ''
+                    }`}
+                >
+                    <RequestCard
+                        request={serviceRequest}
+                        scope={isOwner ? 'mine' : 'all'}
+                        detail
+                        authorHref={poster.role === 'customer' ? route('customers.show', poster.id) : null}
+                        className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10"
+                        actions={
+                            isOwner ? (
+                                <>
                                     <Link href={route('requests.edit', serviceRequest.id)} className={BUTTON}>
                                         Edit
                                     </Link>
@@ -279,90 +333,20 @@ export default function Show({ serviceRequest, isOwner, quotes, myQuote, canQuot
                                         Delete
                                     </button>
                                     <InputError message={errors?.status} className="w-full" />
-                                </div>
+                                </>
+                            ) : null
+                        }
+                    />
+
+                    {hasQuotesColumn && (
+                        <div className="min-w-0 space-y-6 lg:sticky lg:top-[5.0625rem] lg:max-h-[calc(100vh-6.0625rem)] lg:overflow-y-auto">
+                            {isOwner && <QuotesPanel quotes={quotes} isOpen={isOpen} />}
+
+                            {isTechnician && (
+                                <MyQuote serviceRequest={serviceRequest} quote={myQuote} canQuote={canQuote} limits={limits} />
                             )}
-                        </section>
-
-                        {isOwner && (
-                            <section aria-label="Quotes" className={PANEL}>
-                                <div className="mb-4 flex items-center gap-2">
-                                    <h2 className="font-semibold text-gray-900 dark:text-gray-100">Quotes</h2>
-                                    <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200">
-                                        {quotes.length}
-                                    </span>
-                                </div>
-
-                                {quotes.length === 0 && (
-                                    <p className="text-sm text-gray-500">
-                                        {isOpen
-                                            ? 'No quotes yet. Technicians can see your request and will send you their price.'
-                                            : 'Nobody sent a quote.'}
-                                    </p>
-                                )}
-
-                                <ul className="space-y-3">
-                                    {quotes.map((quote) => (
-                                        <QuoteItem key={quote.id} quote={quote} open={isOpen} />
-                                    ))}
-                                </ul>
-                            </section>
-                        )}
-
-                        {isTechnician && (
-                            <MyQuote serviceRequest={serviceRequest} quote={myQuote} canQuote={canQuote} limits={limits} />
-                        )}
-                    </div>
-
-                    <aside aria-label="Posted by" className={`${CARD} overflow-hidden lg:sticky lg:top-[5.5rem]`}>
-                        <Banner />
-
-                        <div className="px-6 pb-6">
-                            <div className="relative -mt-10 w-fit">
-                                <div className="rounded-full ring-4 ring-white dark:ring-gray-800">
-                                    <Avatar user={poster} size="lg" />
-                                </div>
-                            </div>
-
-                            <div className="mt-3">
-                                {poster.role === 'customer' ? (
-                                    <Link
-                                        href={route('customers.show', poster.id)}
-                                        className="break-words text-lg font-semibold text-gray-900 hover:underline dark:text-gray-100"
-                                    >
-                                        {posterName}
-                                    </Link>
-                                ) : (
-                                    <span className="break-words text-lg font-semibold text-gray-900 dark:text-gray-100">
-                                        {posterName}
-                                    </span>
-                                )}
-                            </div>
-
-                            <span className="mt-2 inline-block rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium capitalize text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200">
-                                {poster.role}
-                            </span>
-
-                            {poster.role === 'customer' && (
-                                <Link
-                                    href={route('customers.show', poster.id)}
-                                    className="mt-5 block rounded-md border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                                >
-                                    View profile
-                                </Link>
-                            )}
-
-                            <p className="mt-5 border-t border-gray-100 pt-4 text-sm text-gray-500 dark:border-gray-700">
-                                {isOwner ? (
-                                    <>{quoteCount} so far.</>
-                                ) : (
-                                    <>
-                                        {quoteCount} sent so far. Quotes are private to the customer and the technician who wrote
-                                        them.
-                                    </>
-                                )}
-                            </p>
                         </div>
-                    </aside>
+                    )}
                 </div>
             </div>
         </AuthenticatedLayout>
