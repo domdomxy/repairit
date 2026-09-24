@@ -1,7 +1,7 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
-import SupportThread from '@/Components/SupportThread';
 import TicketAttachments from '@/Components/TicketAttachments';
-import { ClosedNotice, ReplyBox, SideCard, TicketDetails, TicketHeader, WITH_SIDE } from '@/Components/SupportUI';
+import TicketConversation from '@/Components/TicketConversation';
+import { SideCard, TicketDetails, WITH_SIDE } from '@/Components/SupportUI';
 import GuestLayout from '@/Layouts/GuestLayout';
 
 export default function GuestShow({ ticket, thread, first_unread_id, token, attachmentLimits }) {
@@ -43,20 +43,19 @@ export default function GuestShow({ ticket, thread, first_unread_id, token, atta
                 </div>
             </div>
 
-            <TicketHeader ticket={ticket} />
-
             <div className={WITH_SIDE}>
-                <div className="min-w-0 space-y-6">
-                    <SupportThread thread={thread} viewerIsStaff={false} firstUnreadId={first_unread_id} />
-
-                    {closed ? (
-                        <ClosedNotice>
-                            This ticket is closed. Open a new one from the support page if you still need help.
-                        </ClosedNotice>
-                    ) : (
-                        <ReplyBox ticket={ticket} form={form} onSubmit={submit} attachmentLimits={attachmentLimits} />
-                    )}
-                </div>
+                <TicketConversation
+                    ticket={ticket}
+                    thread={thread}
+                    viewerIsStaff={false}
+                    firstUnreadId={first_unread_id}
+                    notice={closed ? 'This ticket is closed. Open a new one from the support page if you still need help.' : null}
+                    form={form}
+                    onSubmit={submit}
+                    attachmentLimits={attachmentLimits}
+                    placeholder={ticket.status === 'resolved' ? 'Not solved? Reply to reopen it...' : 'Type a message...'}
+                    className="h-[min(44rem,80dvh)] min-h-[28rem] shadow-sm ring-1 ring-gray-900/5 dark:ring-white/10"
+                />
 
                 <aside className="space-y-6">
                     <TicketDetails ticket={ticket} />

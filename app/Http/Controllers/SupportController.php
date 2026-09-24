@@ -28,11 +28,25 @@ class SupportController extends Controller
 
     public function index(Request $request): Response
     {
+        // The search box: matches the ticket ID, the subject and the topic's name
+        // (topics are stored as keys, so the words people see are matched to them).
+        $term = $request->string('q')->trim()->toString();
+        $topics = $term === ''
+            ? []
+            : array_keys(array_filter(SupportTicket::CATEGORIES, fn (string $label) => stripos($label, $term) !== false));
+
         $tickets = $request->user()
             ->supportTickets()
+            ->when($term !== '', fn ($query) => $query->where(
+                fn ($query) => $query
+                    ->where('tracking_id', 'like', "%{$term}%")
+                    ->orWhere('subject', 'like', "%{$term}%")
+                    ->orWhereIn('category', $topics)
+            ))
             ->orderByDesc('last_activity_at')
             ->orderByDesc('id')
             ->paginate(10)
+            ->withQueryString()
             ->through(fn (SupportTicket $ticket) => [
                 'id' => $ticket->id,
                 'tracking_id' => $ticket->tracking_id,
@@ -42,7 +56,7 @@ class SupportController extends Controller
                 'last_activity_at' => $ticket->last_activity_at->toIso8601String(),
             ]);
 
-        return Inertia::render('Support/Index', ['tickets' => $tickets]);
+        return Inertia::render('Support/Index', ['tickets' => $tickets, 'filters' => ['q' => $term]]);
     }
 
     public function create(): Response

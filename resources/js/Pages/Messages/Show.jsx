@@ -15,6 +15,7 @@ import PinnedMessagesModal from '@/Components/PinnedMessagesModal';
 import TypingIndicator from '@/Components/TypingIndicator';
 import { formatChatSeparator, needsChatSeparator } from '@/lib/dates';
 import { formatSize } from '@/lib/files';
+import useAutoGrow from '@/lib/useAutoGrow';
 
 // Same lists the server shows inline; anything else is a plain file chip.
 const PREVIEWABLE_IMAGE = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -99,6 +100,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
     const [otherTyping, setOtherTyping] = useState(false);
     const bottomRef = useRef(null);
     const fileInput = useRef(null);
+    const composerField = useRef(null);
     const typingTimeout = useRef(null);
     const lastTypingWhisper = useRef(0);
 
@@ -290,6 +292,9 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
         attachments: [],
         reply_to_id: '',
     });
+
+    // The message field grows with what is written, up to a few lines.
+    useAutoGrow(composerField, data.body);
 
     // What the composer shows above the input while replying: just enough to
     // build the quoted line, taken from the message actually on screen.
@@ -839,7 +844,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                     </div>
                 )}
 
-                <div className="flex gap-2">
+                <div className="flex items-end gap-2">
                     <input
                         ref={fileInput}
                         type="file"
@@ -853,7 +858,7 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                             title="Attach"
                             aria-label="Attach a file or a location"
                             disabled={sendingLocation || !!editingMessage}
-                            className="h-full rounded-md bg-gray-100 px-3 py-2 text-lg leading-none text-gray-700 hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                            className="h-[42px] rounded-md bg-gray-100 px-3 text-lg leading-none text-gray-700 hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
                         >
                             {sendingLocation ? '…' : '+'}
                         </MenuButton>
@@ -884,23 +889,31 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                             </MenuItem>
                         </MenuItems>
                     </Menu>
-                    <input
-                        type="text"
+                    <textarea
+                        ref={composerField}
+                        rows={1}
                         value={data.body}
+                        aria-label="Message"
                         onChange={(e) => {
                             setData('body', e.target.value);
                             notifyTyping();
                         }}
                         onKeyDown={(e) => {
                             if (e.key === 'Escape' && editingMessage) cancelEdit();
+
+                            // Enter sends, Shift+Enter starts a new line.
+                            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                                e.preventDefault();
+                                if (!processing) e.currentTarget.form?.requestSubmit();
+                            }
                         }}
                         placeholder={editingMessage ? 'Edit your message...' : 'Type a message...'}
-                        className="flex-1 rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900"
+                        className="min-w-0 flex-1 resize-none overflow-y-hidden rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900"
                     />
                     <button
                         type="submit"
                         disabled={processing || (editingMessage && !data.body.trim())}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-md disabled:opacity-50"
+                        className="h-[42px] shrink-0 px-4 bg-indigo-600 text-white rounded-md disabled:opacity-50"
                     >
                         {editingMessage
                             ? 'Save'

@@ -4,7 +4,7 @@ import MediaStackThumb, { stackFan } from '@/Components/MediaStackThumb';
 import TypingIndicator from '@/Components/TypingIndicator';
 import { formatChatSeparator, formatDateTime, needsChatSeparator } from '@/lib/dates';
 import { linkify } from '@/lib/linkify';
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 // The conversation on a ticket. Messages from the viewer's own side sit on the
 // right, like the chat page, so it is clear at a glance who said what.
@@ -22,58 +22,98 @@ function continuesStack(message, previous) {
     );
 }
 
-// The thread is part of the page, not a box that scrolls. The end of it counts
-// as "just below the screen" when it has slipped a little past the bottom edge
-// (a new message or the typing bubble pushed it there): that is the one case
-// worth scrolling for. Anywhere else the reader is left exactly where they are.
-const JUST_BELOW_PX = 240;
-
-function isJustBelowView(element) {
-    const top = element.getBoundingClientRect().top;
-
-    return top > window.innerHeight && top - window.innerHeight < JUST_BELOW_PX;
-}
+// The thread scrolls inside the conversation card (`scrollRef`), and stays glued
+// to the newest message while the reader is at (or near) the bottom of it: a
+// message arriving, the typing bubble or a picture finishing loading all push the
+// end down, and the view follows. A reader who scrolled up to look at something
+// older is left exactly where they are.
+const STICK_WITHIN_PX = 120;
 
 /**
  * `firstUnreadId` is the oldest message the viewer had not read when the page
  * opened (a "New messages" line goes above it). `typing`, with `typingAuthor`
  * (anything with a name and an avatar_url), shows the other side's typing bubble.
+ * `scrollRef` is the element that scrolls (the card's message area).
  */
-export default function SupportThread({ thread, viewerIsStaff, firstUnreadId = null, typing = false, typingAuthor = null }) {
+export default function SupportThread({
+    thread,
+    viewerIsStaff,
+    firstUnreadId = null,
+    typing = false,
+    typingAuthor = null,
+    scrollRef,
+}) {
     // The pictures of one message being looked at full size: { items, index }.
     const [viewing, setViewing] = useState(null);
     const unreadDivider = useRef(null);
-    const end = useRef(null);
+    const content = useRef(null);
+    const stuck = useRef(true);
     const seenLength = useRef(thread.length);
 
-    // Opening a ticket with something new in it lands on the "New messages"
-    // line. Deferred a frame so it runs after the page has settled in place.
-    useEffect(() => {
-        if (firstUnreadId == null) return undefined;
+    function scrollToEnd() {
+        const scroller = scrollRef.current;
 
-        const frame = requestAnimationFrame(() => unreadDivider.current?.scrollIntoView({ block: 'center' }));
+        if (scroller) scroller.scrollTop = scroller.scrollHeight;
+    }
 
-        return () => cancelAnimationFrame(frame);
+    // Opening a ticket lands on the "New messages" line when there is something
+    // unread, on the newest message otherwise. Runs before the first paint so
+    // the page never shows the top of the thread first.
+    useLayoutEffect(() => {
+        const scroller = scrollRef.current;
+        const divider = unreadDivider.current;
+
+        if (!scroller) return;
+
+        if (firstUnreadId != null && divider) {
+            const box = scroller.getBoundingClientRect();
+            const line = divider.getBoundingClientRect();
+
+            stuck.current = false;
+            scroller.scrollTop += line.top - box.top - (box.height / 2 - line.height / 2);
+        } else {
+            scrollToEnd();
+        }
         // Only when the page opens: the line doesn't chase messages that arrive later.
     }, []);
 
-    // A message arriving (or being sent) or the other side starting to type
-    // brings the end into view when it landed just below the screen, so the
-    // newest thing is never cut off. Someone reading further up, or typing a
-    // reply, isn't moved.
+    // Follow the end of the thread while the reader is at the bottom of it.
     useEffect(() => {
-        const grew = thread.length !== seenLength.current;
+        const scroller = scrollRef.current;
+
+        if (!scroller || !content.current) return undefined;
+
+        const onScroll = () => {
+            stuck.current = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < STICK_WITHIN_PX;
+        };
+        const observer = new ResizeObserver(() => {
+            if (stuck.current) scrollToEnd();
+        });
+
+        scroller.addEventListener('scroll', onScroll, { passive: true });
+        observer.observe(content.current);
+
+        return () => {
+            scroller.removeEventListener('scroll', onScroll);
+            observer.disconnect();
+        };
+    }, []);
+
+    // Sending a message always brings it into view, wherever the reader was.
+    useEffect(() => {
+        const grew = thread.length > seenLength.current;
         seenLength.current = thread.length;
 
-        if ((grew || typing) && end.current && isJustBelowView(end.current)) {
-            end.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        if (grew && thread[thread.length - 1]?.from_staff === viewerIsStaff) {
+            stuck.current = true;
+            scrollToEnd();
         }
-    }, [thread.length, typing]);
+    }, [thread.length]);
 
     return (
         <>
             {/* One block, so the page's own spacing between sections doesn't open gaps inside the thread. */}
-            <div>
+            <div ref={content}>
                 <ul>
                     {thread.map((message, position) => {
                         const mine = message.from_staff === viewerIsStaff;
@@ -137,7 +177,7 @@ export default function SupportThread({ thread, viewerIsStaff, firstUnreadId = n
                                                 className={`max-w-full rounded-2xl px-4 py-3 ${
                                                     mine
                                                         ? 'bg-indigo-600 text-white'
-                                                        : 'bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10'
+                                                        : 'bg-gray-100 dark:bg-gray-700'
                                                 }`}
                                             >
                                                 {/* whitespace-pre-line keeps the writer's line breaks; React escapes the text itself. */}
@@ -206,11 +246,10 @@ export default function SupportThread({ thread, viewerIsStaff, firstUnreadId = n
                     <div className={thread.length > 0 ? 'mt-4' : ''}>
                         <TypingIndicator
                             author={typingAuthor}
-                            bubbleClassName="rounded-2xl bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10"
+                            bubbleClassName="rounded-2xl bg-gray-100 dark:bg-gray-700"
                         />
                     </div>
                 )}
-                <div ref={end} />
             </div>
 
             {viewing && (

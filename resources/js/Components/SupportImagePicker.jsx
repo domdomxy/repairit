@@ -1,5 +1,6 @@
 import { ImageIcon, XIcon } from '@/Components/Icons';
 import { formatSize } from '@/lib/files';
+import { addPictures, serverPictureProblems } from '@/lib/support';
 import { useEffect, useRef, useState } from 'react';
 
 // One picture waiting to be sent, as a thumbnail with a remove button. The
@@ -58,41 +59,12 @@ export default function SupportImagePicker({
     const [dragging, setDragging] = useState(false);
 
     const full = files.length >= limits.max_files;
-    const extensionOf = (file) => file.name.split('.').pop()?.toLowerCase();
 
     function addFiles(picked) {
-        const complaints = [];
-        const next = [...files];
-        let total = next.reduce((sum, file) => sum + file.size, 0);
+        const result = addPictures(files, picked, limits);
 
-        for (const file of picked) {
-            const duplicate = next.some(
-                (existing) =>
-                    existing.name === file.name &&
-                    existing.size === file.size &&
-                    existing.lastModified === file.lastModified,
-            );
-
-            if (duplicate) continue;
-
-            if (!limits.extensions.includes(extensionOf(file))) {
-                complaints.push(`${file.name}: use a JPG, PNG, GIF or WebP picture.`);
-            } else if (file.size > limits.max_kb * 1024) {
-                complaints.push(`${file.name}: pictures may not be larger than ${limits.max_kb / 1024} MB.`);
-            } else if (next.length >= limits.max_files) {
-                complaints.push(`You can attach up to ${limits.max_files} pictures to one message.`);
-            } else if (total + file.size > limits.max_total_kb * 1024) {
-                complaints.push(
-                    `${file.name}: the pictures together may not be larger than ${limits.max_total_kb / 1024} MB.`,
-                );
-            } else {
-                next.push(file);
-                total += file.size;
-            }
-        }
-
-        setProblems([...new Set(complaints)]);
-        onFilesChange(next);
+        setProblems(result.complaints);
+        onFilesChange(result.files);
     }
 
     function pick(e) {
@@ -111,18 +83,7 @@ export default function SupportImagePicker({
     }
 
     // Server complaints: name the picture when it is about one, so it is clear which to remove.
-    const rejected = new Set();
-    const serverProblems = Object.entries(errors).flatMap(([key, message]) => {
-        const match = key.match(/^attachments\.(\d+)$/);
-
-        if (match) {
-            rejected.add(Number(match[1]));
-
-            return [`${files[Number(match[1])]?.name ?? 'A picture'}: ${message}`];
-        }
-
-        return key === 'attachments' ? [message] : [];
-    });
+    const { rejected, messages: serverProblems } = serverPictureProblems(errors, files);
     const shown = [...new Set([...problems, ...serverProblems])];
 
     return (

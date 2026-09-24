@@ -1,5 +1,4 @@
 import InputError from '@/Components/InputError';
-import SupportImagePicker from '@/Components/SupportImagePicker';
 import SupportStatusBadge from '@/Components/SupportStatusBadge';
 
 /**
@@ -84,21 +83,6 @@ export function Steps({ title, steps }) {
     );
 }
 
-/** The subject with its status beside it, and what the ticket is underneath. */
-export function TicketHeader({ ticket }) {
-    return (
-        <header className="mb-8 min-w-0">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                <h1 className="font-display text-3xl font-semibold tracking-tight [overflow-wrap:anywhere]">{ticket.subject}</h1>
-                <SupportStatusBadge status={ticket.status} />
-            </div>
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                <span className="font-mono">{ticket.tracking_id}</span> in {ticket.category_label}
-            </p>
-        </header>
-    );
-}
-
 /** Ticket ID, topic and status, for the side column of a ticket. */
 export function TicketDetails({ ticket, children }) {
     return (
@@ -122,56 +106,4 @@ export function TicketDetails({ ticket, children }) {
             {children}
         </SideCard>
     );
-}
-
-/**
- * The reply form under a conversation. `form` is the useForm() object with a `body`
- * field, and an `attachments` field (an array of files) when `attachmentLimits` is
- * given: the person asking for help can attach pictures, with or without text.
- * `onTyping`, when given, is called as they type (it tells the other side, live).
- */
-export function ReplyBox({ ticket, form, onSubmit, attachmentLimits = null, onTyping = null, children }) {
-    const { data, setData, processing, errors } = form;
-    const hasPictures = attachmentLimits && data.attachments?.length > 0;
-
-    return (
-        <form onSubmit={onSubmit} className={`${CARD} space-y-4 p-5 sm:p-6`}>
-            <Field
-                id="reply"
-                label={ticket.status === 'resolved' ? 'Not solved? Reply to reopen it' : 'Reply'}
-                error={errors.body}
-            >
-                <textarea
-                    id="reply"
-                    rows={5}
-                    maxLength={5000}
-                    value={data.body}
-                    onChange={(e) => {
-                        setData('body', e.target.value);
-                        onTyping?.();
-                    }}
-                    className={FIELD}
-                />
-            </Field>
-            {attachmentLimits && (
-                <SupportImagePicker
-                    files={data.attachments}
-                    onFilesChange={(files) => setData('attachments', files)}
-                    limits={attachmentLimits}
-                    errors={errors}
-                />
-            )}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <button type="submit" disabled={processing || (!data.body.trim() && !hasPictures)} className={BUTTON}>
-                    Send reply
-                </button>
-                {children}
-            </div>
-        </form>
-    );
-}
-
-/** Shown in place of the reply form once a ticket is closed. */
-export function ClosedNotice({ children }) {
-    return <p className={`${CARD} p-5 text-center text-sm text-gray-500 dark:text-gray-400`}>{children}</p>;
 }

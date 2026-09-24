@@ -1,7 +1,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import SupportThread from '@/Components/SupportThread';
 import TicketAttachments from '@/Components/TicketAttachments';
-import { ClosedNotice, ReplyBox, TicketDetails, TicketHeader, WITH_SIDE } from '@/Components/SupportUI';
+import TicketConversation from '@/Components/TicketConversation';
+import { TicketDetails } from '@/Components/SupportUI';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { SUPPORT_TEAM } from '@/lib/support';
 import useSupportTicketLive from '@/lib/useSupportTicketLive';
@@ -29,45 +29,19 @@ export default function Show({ ticket, thread, first_unread_id, attachmentLimits
         <AuthenticatedLayout>
             <Head title={`Ticket ${ticket.tracking_id}`} />
 
-            <div className="mx-auto max-w-[96rem] px-4 py-8 sm:px-6 lg:px-8">
-                <Link
-                    href={route('support.index')}
-                    className="mb-4 inline-block text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
-                >
-                    All tickets
-                </Link>
-
-                <TicketHeader ticket={ticket} />
-
-                <div className={WITH_SIDE}>
-                    <div className="min-w-0 space-y-6">
-                        <SupportThread
-                            thread={thread}
-                            viewerIsStaff={false}
-                            firstUnreadId={first_unread_id}
-                            typing={otherTyping}
-                            typingAuthor={SUPPORT_TEAM}
-                        />
-
-                        {closed ? (
-                            <ClosedNotice>
-                                This ticket is closed.{' '}
-                                <Link
-                                    href={route('support.create')}
-                                    className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
-                                >
-                                    Open a new ticket
-                                </Link>{' '}
-                                if you still need help.
-                            </ClosedNotice>
-                        ) : (
-                            <ReplyBox
-                                ticket={ticket}
-                                form={form}
-                                onSubmit={submit}
-                                attachmentLimits={attachmentLimits}
-                                onTyping={notifyTyping}
-                            >
+            {/* From lg up the page fills the screen below the top bar and doesn't scroll: the messages do, inside the card. */}
+            <div className="mx-auto w-full max-w-[96rem] p-4 sm:px-6 lg:h-[calc(100dvh-4rem)] lg:px-8">
+                <div className="grid gap-4 lg:h-full lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_24rem]">
+                    <TicketConversation
+                        ticket={ticket}
+                        thread={thread}
+                        viewerIsStaff={false}
+                        firstUnreadId={first_unread_id}
+                        typing={otherTyping}
+                        typingAuthor={SUPPORT_TEAM}
+                        backHref={route('support.index')}
+                        headerActions={
+                            closed ? null : (
                                 <button
                                     type="button"
                                     onClick={close}
@@ -75,11 +49,30 @@ export default function Show({ ticket, thread, first_unread_id, attachmentLimits
                                 >
                                     Close ticket
                                 </button>
-                            </ReplyBox>
-                        )}
-                    </div>
+                            )
+                        }
+                        notice={
+                            closed ? (
+                                <>
+                                    This ticket is closed.{' '}
+                                    <Link
+                                        href={route('support.create')}
+                                        className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+                                    >
+                                        Open a new ticket
+                                    </Link>{' '}
+                                    if you still need help.
+                                </>
+                            ) : null
+                        }
+                        form={form}
+                        onSubmit={submit}
+                        onTyping={notifyTyping}
+                        attachmentLimits={attachmentLimits}
+                        placeholder={ticket.status === 'resolved' ? 'Not solved? Reply to reopen it...' : 'Type a message...'}
+                    />
 
-                    <aside className="space-y-6">
+                    <aside className="min-h-0 space-y-6 lg:overflow-y-auto">
                         <TicketDetails ticket={ticket} />
                         <TicketAttachments thread={thread} />
                     </aside>
