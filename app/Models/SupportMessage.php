@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Events\SupportMessagePosted;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -41,11 +42,18 @@ class SupportMessage extends Model
         'from_staff',
         'body',
         'is_automated',
+        'read_at',
     ];
 
     protected $casts = [
         'from_staff' => 'boolean',
         'is_automated' => 'boolean',
+        'read_at' => 'datetime',
+    ];
+
+    /** Tells whoever has the ticket open, live, that there is something new to fetch. */
+    protected $dispatchesEvents = [
+        'created' => SupportMessagePosted::class,
     ];
 
     public function ticket(): BelongsTo

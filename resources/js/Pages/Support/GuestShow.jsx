@@ -3,7 +3,7 @@ import SupportThread from '@/Components/SupportThread';
 import { ClosedNotice, ReplyBox, SideCard, TicketDetails, TicketHeader, WITH_SIDE } from '@/Components/SupportUI';
 import GuestLayout from '@/Layouts/GuestLayout';
 
-export default function GuestShow({ ticket, thread, token, attachmentLimits }) {
+export default function GuestShow({ ticket, thread, first_unread_id, token, attachmentLimits }) {
     const { flash } = usePage().props;
     const form = useForm({ body: '', attachments: [] });
     const closed = ticket.status === 'closed';
@@ -46,7 +46,7 @@ export default function GuestShow({ ticket, thread, token, attachmentLimits }) {
 
             <div className={WITH_SIDE}>
                 <div className="min-w-0 space-y-6">
-                    <SupportThread thread={thread} viewerIsStaff={false} />
+                    <SupportThread thread={thread} viewerIsStaff={false} firstUnreadId={first_unread_id} />
 
                     {closed ? (
                         <ClosedNotice>

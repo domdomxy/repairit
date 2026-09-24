@@ -134,9 +134,13 @@ class GuestSupportController extends Controller
     {
         $this->ensureToken($ticket, $token);
 
+        $firstUnreadId = $ticket->markReadBy(staff: false);
+
         return Inertia::render('Support/GuestShow', [
             'ticket' => $this->summary($ticket),
             'thread' => $ticket->threadFor(null),
+            // The oldest message from support the guest had not read yet, or null.
+            'first_unread_id' => $firstUnreadId,
             'token' => $token,
             'attachmentLimits' => SupportMessage::attachmentLimits(),
         ]);
@@ -212,6 +216,8 @@ class GuestSupportController extends Controller
             'from_staff' => true,
             'is_automated' => true,
             'body' => $body,
+            // They are looking at the ticket as it is sent, so this is not "new".
+            'read_at' => now(),
         ]);
 
         $ticket->update(['last_activity_at' => now()]);

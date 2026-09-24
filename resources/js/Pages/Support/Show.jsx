@@ -2,8 +2,11 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import SupportThread from '@/Components/SupportThread';
 import { ClosedNotice, ReplyBox, TicketDetails, TicketHeader, WITH_SIDE } from '@/Components/SupportUI';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { SUPPORT_TEAM } from '@/lib/support';
+import useSupportTicketLive from '@/lib/useSupportTicketLive';
 
-export default function Show({ ticket, thread, attachmentLimits }) {
+export default function Show({ ticket, thread, first_unread_id, attachmentLimits }) {
+    const { otherTyping, notifyTyping } = useSupportTicketLive({ ticketId: ticket.id, viewerIsStaff: false });
     const form = useForm({ body: '', attachments: [] });
     const closed = ticket.status === 'closed';
 
@@ -37,7 +40,13 @@ export default function Show({ ticket, thread, attachmentLimits }) {
 
                 <div className={WITH_SIDE}>
                     <div className="min-w-0 space-y-6">
-                        <SupportThread thread={thread} viewerIsStaff={false} />
+                        <SupportThread
+                            thread={thread}
+                            viewerIsStaff={false}
+                            firstUnreadId={first_unread_id}
+                            typing={otherTyping}
+                            typingAuthor={SUPPORT_TEAM}
+                        />
 
                         {closed ? (
                             <ClosedNotice>
@@ -51,7 +60,13 @@ export default function Show({ ticket, thread, attachmentLimits }) {
                                 if you still need help.
                             </ClosedNotice>
                         ) : (
-                            <ReplyBox ticket={ticket} form={form} onSubmit={submit} attachmentLimits={attachmentLimits}>
+                            <ReplyBox
+                                ticket={ticket}
+                                form={form}
+                                onSubmit={submit}
+                                attachmentLimits={attachmentLimits}
+                                onTyping={notifyTyping}
+                            >
                                 <button
                                     type="button"
                                     onClick={close}

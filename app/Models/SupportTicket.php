@@ -252,6 +252,28 @@ class SupportTicket extends Model
         ];
     }
 
+    /**
+     * Mark what the other side wrote as read, for whoever has just opened the
+     * ticket: staff read what the person asking for help wrote, and that
+     * person (signed in or a guest) reads what staff wrote. Returns the id of
+     * the oldest message that was still unread, which is where the page puts
+     * its "New messages" line, or null when nothing was.
+     */
+    public function markReadBy(bool $staff): ?int
+    {
+        $unread = $this->messages()
+            ->where('from_staff', ! $staff)
+            ->whereNull('read_at')
+            ->orderBy('id')
+            ->pluck('id');
+
+        if ($unread->isNotEmpty()) {
+            $this->messages()->whereIn('id', $unread)->update(['read_at' => now()]);
+        }
+
+        return $unread->first();
+    }
+
     /** Opening a ticket is what "reads" its notifications, so the bell stays honest. */
     public function markNotificationsReadFor(User $user): void
     {

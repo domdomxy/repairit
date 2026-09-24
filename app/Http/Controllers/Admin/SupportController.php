@@ -82,6 +82,10 @@ class SupportController extends Controller
         $ticket->load('user:id,name,email,role,suspended_at,avatar_path');
         $ticket->markNotificationsReadFor($request->user());
 
+        // As for the person who opened the ticket: read on every load, sent to
+        // the page only on the first one (see SupportController::show).
+        $firstUnreadId = $ticket->markReadBy(staff: true);
+
         return Inertia::render('Admin/Support/Show', [
             'ticket' => [
                 'id' => $ticket->id,
@@ -101,6 +105,8 @@ class SupportController extends Controller
                 ],
             ],
             'thread' => $ticket->threadFor($request->user()),
+            // The oldest message from the requester that no one on staff had read yet, or null.
+            'first_unread_id' => $firstUnreadId,
         ]);
     }
 

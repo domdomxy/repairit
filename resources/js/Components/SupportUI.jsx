@@ -128,8 +128,9 @@ export function TicketDetails({ ticket, children }) {
  * The reply form under a conversation. `form` is the useForm() object with a `body`
  * field, and an `attachments` field (an array of files) when `attachmentLimits` is
  * given: the person asking for help can attach pictures, with or without text.
+ * `onTyping`, when given, is called as they type (it tells the other side, live).
  */
-export function ReplyBox({ ticket, form, onSubmit, attachmentLimits = null, children }) {
+export function ReplyBox({ ticket, form, onSubmit, attachmentLimits = null, onTyping = null, children }) {
     const { data, setData, processing, errors } = form;
     const hasPictures = attachmentLimits && data.attachments?.length > 0;
 
@@ -145,7 +146,10 @@ export function ReplyBox({ ticket, form, onSubmit, attachmentLimits = null, chil
                     rows={5}
                     maxLength={5000}
                     value={data.body}
-                    onChange={(e) => setData('body', e.target.value)}
+                    onChange={(e) => {
+                        setData('body', e.target.value);
+                        onTyping?.();
+                    }}
                     className={FIELD}
                 />
             </Field>

@@ -11,3 +11,6 @@ export const statusStyles = {
     resolved: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
     closed: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
 };
+
+/** How the support team looks to the person who asked for help: a name, never an admin's. */
+export const SUPPORT_TEAM = { name: 'Support team', avatar_url: null };

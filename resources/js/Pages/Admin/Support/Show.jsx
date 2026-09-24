@@ -6,8 +6,10 @@ import SupportThread from '@/Components/SupportThread';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { formatDateTime } from '@/lib/dates';
 import { statusLabels } from '@/lib/support';
+import useSupportTicketLive from '@/lib/useSupportTicketLive';
 
-export default function Show({ ticket, thread }) {
+export default function Show({ ticket, thread, first_unread_id }) {
+    const { otherTyping, notifyTyping } = useSupportTicketLive({ ticketId: ticket.id, viewerIsStaff: true });
     // '' means "leave the status to the server" (an untouched ticket becomes in progress).
     const { data, setData, post, processing, errors, reset } = useForm({ body: '', status: '' });
     const closed = ticket.status === 'closed';
@@ -44,7 +46,13 @@ export default function Show({ ticket, thread }) {
                         <SupportStatusBadge status={ticket.status} />
                     </div>
 
-                    <SupportThread thread={thread} viewerIsStaff />
+                    <SupportThread
+                        thread={thread}
+                        viewerIsStaff
+                        firstUnreadId={first_unread_id}
+                        typing={otherTyping}
+                        typingAuthor={ticket.user}
+                    />
 
                     {closed ? (
                         <p className="rounded-lg bg-white p-4 text-center text-sm text-gray-500 shadow dark:bg-gray-800">
@@ -60,7 +68,10 @@ export default function Show({ ticket, thread }) {
                                 rows={5}
                                 maxLength={5000}
                                 value={data.body}
-                                onChange={(e) => setData('body', e.target.value)}
+                                onChange={(e) => {
+                                    setData('body', e.target.value);
+                                    notifyTyping();
+                                }}
                                 className="block w-full rounded-md border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-900"
                             />
                             <InputError message={errors.body} />

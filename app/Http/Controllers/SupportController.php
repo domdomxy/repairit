@@ -118,9 +118,17 @@ class SupportController extends Controller
 
         $ticket->markNotificationsReadFor($request->user());
 
+        // Marked read on every load, including the reload that brings in a
+        // message live, but only the first load sends this on to the page (a
+        // reload of just the thread leaves it alone), so the "New messages"
+        // line stays where this visit found it.
+        $firstUnreadId = $ticket->markReadBy(staff: false);
+
         return Inertia::render('Support/Show', [
             'ticket' => $this->summary($ticket),
             'thread' => $ticket->threadFor($request->user()),
+            // The oldest message from support this person had not read yet, or null.
+            'first_unread_id' => $firstUnreadId,
             'attachmentLimits' => SupportMessage::attachmentLimits(),
         ]);
     }
@@ -206,6 +214,8 @@ class SupportController extends Controller
             'from_staff' => true,
             'is_automated' => true,
             'body' => $body,
+            // They are looking at the ticket as it is sent, so this is not "new".
+            'read_at' => now(),
         ]);
 
         $ticket->update(['last_activity_at' => now()]);
