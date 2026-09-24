@@ -79,7 +79,7 @@ export default function Admin({ stats, trends, charts, recentUsers, recentLogs }
                             { label: 'Technicians', value: stats.technicians, href: route('admin.users.index', { role: 'technician' }) },
                             { label: 'Categories', value: stats.categories, href: route('admin.categories.index') },
                             { label: 'Conversations', value: stats.conversations },
-                            { label: 'Reviews', value: stats.reviews, href: route('admin.reviews.index') },
+                            { label: 'Reviews', value: stats.reviews },
                         ]}
                     />
 
