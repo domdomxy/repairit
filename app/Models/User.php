@@ -111,6 +111,32 @@ class User extends Authenticatable
         return $this->suspended_at !== null;
     }
 
+    /** Every warning an admin has ever issued this account, newest first. */
+    public function warnings(): HasMany
+    {
+        return $this->hasMany(UserWarning::class)->latest('id');
+    }
+
+    /** Warnings still counted toward the account's health status. */
+    public function activeWarnings(): HasMany
+    {
+        return $this->warnings()->active();
+    }
+
+    /**
+     * 'suspended' if the account is suspended, 'warned' while at least one
+     * warning is still active (within 90 days of being issued), otherwise
+     * 'good'. Suspension always takes priority: it is the more serious state.
+     */
+    public function healthStatus(): string
+    {
+        if ($this->isSuspended()) {
+            return 'suspended';
+        }
+
+        return $this->activeWarnings()->exists() ? 'warned' : 'good';
+    }
+
     /** What this person did about other people (blocked, muted, favorited, restricted them). */
     public function relationsGiven(): HasMany
     {

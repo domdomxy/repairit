@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('support:close-inactive')->hourly();
+Schedule::command('accounts:refresh-health')->daily();

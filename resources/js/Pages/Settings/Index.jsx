@@ -1,10 +1,44 @@
 import Avatar from '@/Components/Avatar';
 import ProfileSidebar from '@/Components/ProfileSidebar';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { formatDate } from '@/lib/dates';
 import { PlatformIcon, platformOf } from '@/lib/platforms';
 import { getTrustedHosts, revokeAllTrustedHosts, revokeTrustedHost, subscribeTrustedHosts } from '@/lib/trustedHosts';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+
+// The account health tab lives outside TABS below: unlike the relation lists
+// it isn't a list of people to undo, so it gets its own nav entry and panel.
+const HEALTH_TAB = {
+    key: 'health',
+    label: 'Account health',
+    icon: 'M4.5 12.75l6 6 9-13.5',
+};
+
+// What the health badge says and looks like for each status the server sends.
+const HEALTH_STATUS = {
+    good: {
+        label: 'Good standing',
+        icon: 'M4.5 12.75l6 6 9-13.5',
+        badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+        iconOn: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300',
+        dot: 'bg-emerald-500',
+    },
+    warned: {
+        label: 'Warned',
+        icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z',
+        badge: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+        iconOn: 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300',
+        dot: 'bg-amber-500',
+    },
+    suspended: {
+        label: 'Suspended',
+        icon: 'M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z',
+        badge: 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+        iconOn: 'bg-rose-100 text-rose-600 dark:bg-rose-900/40 dark:text-rose-300',
+        dot: 'bg-rose-500',
+    },
+};
 
 // A single-path outline icon, so each tab and empty state stays lightweight.
 function Icon({ path, className = 'h-5 w-5' }) {
@@ -144,15 +178,86 @@ function TrustedSiteRow({ host, tone, undo, disabled, onRevoke }) {
     );
 }
 
+// The signed-in person's own standing: whether an admin has warned or
+// suspended their account, and the history behind that. A warning counts
+// toward the status for 90 days from when it was issued, then clears on its
+// own — `expires_at` on each row is when that happens.
+function AccountHealthPanel({ health }) {
+    const style = HEALTH_STATUS[health.status] ?? HEALTH_STATUS.good;
+    const active = health.warnings.filter((warning) => warning.active);
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center gap-3 px-4 py-5">
+                <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${style.iconOn}`}>
+                    <Icon path={style.icon} className="h-6 w-6" />
+                </span>
+                <div>
+                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${style.badge}`}>
+                        {style.label}
+                    </span>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {health.status === 'good' &&
+                            'No active warnings. Nothing to do — this is where new warnings would show up.'}
+                        {health.status === 'warned' &&
+                            `${active.length} active warning${active.length === 1 ? '' : 's'}. Each one clears on its own 90 days after it was issued.`}
+                        {health.status === 'suspended' &&
+                            `Your account has been suspended${health.suspended_at ? ` on ${formatDate(health.suspended_at)}` : ''}.`}
+                    </p>
+                </div>
+            </div>
+
+            {health.warnings.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 border-t border-gray-100 px-6 py-14 text-center dark:border-gray-700">
+                    <span className={`flex h-12 w-12 items-center justify-center rounded-full ${HEALTH_STATUS.good.iconOn}`}>
+                        <Icon path={HEALTH_STATUS.good.icon} className="h-6 w-6" />
+                    </span>
+                    <p className="max-w-sm text-sm text-gray-500 dark:text-gray-400">
+                        No warnings have ever been issued to your account.
+                    </p>
+                </div>
+            ) : (
+                <ul className="divide-y divide-gray-100 border-t border-gray-100 dark:divide-gray-700 dark:border-gray-700">
+                    {health.warnings.map((warning) => (
+                        <li key={warning.id} className="flex items-start gap-3 px-4 py-3">
+                            <span
+                                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                                    warning.active ? HEALTH_STATUS.warned.dot : 'bg-gray-300 dark:bg-gray-600'
+                                }`}
+                                aria-hidden="true"
+                            />
+                            <div className="min-w-0 flex-1">
+                                <p className="break-words text-sm text-gray-800 dark:text-gray-200">{warning.reason}</p>
+                                <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+                                    Issued {formatDate(warning.issued_at)} ·{' '}
+                                    {warning.active
+                                        ? `clears ${formatDate(warning.expires_at)}`
+                                        : `cleared ${formatDate(warning.expires_at)}`}
+                                </p>
+                            </div>
+                            {warning.active && (
+                                <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                    Active
+                                </span>
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+}
+
 // Everyone the signed-in person favorited, muted, restricted or blocked, so they
 // can be undone even when there is no conversation or profile to do it from
 // (a blocked person can't be found in the search).
-export default function Index({ lists }) {
+export default function Index({ lists, health }) {
     const { auth } = usePage().props;
     const [tab, setTab] = useState('favorite');
     const [processing, setProcessing] = useState(false);
+    const isHealth = tab === 'health';
     const current = TABS.find(({ key }) => key === tab);
-    const tone = TONES[current.tone];
+    const tone = current ? TONES[current.tone] : null;
 
     // The trusted sites are not part of `lists`: they come from the same shared
     // copy the "Leaving Repairit" prompt uses, so ticking "Trust" in the prompt
@@ -222,6 +327,27 @@ export default function Index({ lists }) {
                                 aria-orientation="vertical"
                                 className="space-y-1 border-t border-gray-100 px-2 pb-2 pt-2 dark:border-gray-700"
                             >
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={isHealth}
+                                    onClick={() => setTab('health')}
+                                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                                        isHealth
+                                            ? (HEALTH_STATUS[health.status] ?? HEALTH_STATUS.good).badge
+                                            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                                    }`}
+                                >
+                                    <Icon path={HEALTH_TAB.icon} className="h-5 w-5 shrink-0" />
+                                    <span className="flex-1 truncate text-start">{HEALTH_TAB.label}</span>
+                                    <span
+                                        className={`h-2 w-2 shrink-0 rounded-full ${(HEALTH_STATUS[health.status] ?? HEALTH_STATUS.good).dot}`}
+                                        aria-hidden="true"
+                                    />
+                                </button>
+
+                                <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+
                                 {TABS.map(({ key, label, icon, tone: t }) => {
                                     const selected = tab === key;
                                     const count = key === 'trusted' ? hosts.length : (lists[key]?.length ?? 0);
@@ -265,7 +391,9 @@ export default function Index({ lists }) {
                         </div>
 
                         <div className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800">
-                            {(trusted ? hosts.length === 0 : people.length === 0) && (
+                            {isHealth && <AccountHealthPanel health={health} />}
+
+                            {!isHealth && (trusted ? hosts.length === 0 : people.length === 0) && (
                                 <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
                                     <span className={`flex h-12 w-12 items-center justify-center rounded-full ${tone.iconOn}`}>
                                         <Icon path={current.icon} className="h-6 w-6" />
@@ -274,6 +402,7 @@ export default function Index({ lists }) {
                                 </div>
                             )}
 
+                            {!isHealth && (
                             <ul className="divide-y divide-gray-100 dark:divide-gray-700">
                                 {people.map((person) => {
                                     const href = profileHref(person);
@@ -317,8 +446,9 @@ export default function Index({ lists }) {
                                     );
                                 })}
                             </ul>
+                            )}
 
-                            {trusted && hosts.length > 0 && (
+                            {!isHealth && trusted && hosts.length > 0 && (
                                 <>
                                     <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-700">
                                         <p className="text-sm text-gray-500 dark:text-gray-400">

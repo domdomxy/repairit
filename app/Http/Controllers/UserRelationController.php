@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\UserRelation;
+use App\Models\UserWarning;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -44,7 +45,30 @@ class UserRelationController extends Controller
                 ->all();
         }
 
-        return Inertia::render('Settings/Index', ['lists' => $lists]);
+        return Inertia::render('Settings/Index', [
+            'lists' => $lists,
+            'health' => $this->health($request->user()),
+        ]);
+    }
+
+    /** The signed-in person's own account health status, for the Settings page. */
+    private function health(User $user): array
+    {
+        return [
+            'status' => $user->healthStatus(),
+            'suspended_at' => $user->suspended_at?->toIso8601String(),
+            'warnings' => $user->warnings()
+                ->get()
+                ->map(fn (UserWarning $warning) => [
+                    'id' => $warning->id,
+                    'reason' => $warning->reason,
+                    'issued_at' => $warning->created_at->toIso8601String(),
+                    'expires_at' => $warning->expires_at->toIso8601String(),
+                    'active' => $warning->isActive(),
+                ])
+                ->values()
+                ->all(),
+        ];
     }
 
     public function store(Request $request, User $user, string $relation): RedirectResponse

@@ -228,6 +228,7 @@ Route::middleware(['auth', 'role:technician'])->group(function () {
 
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+    Route::post('/users/{user}/warn', [AdminUserController::class, 'warn'])->name('users.warn');
     Route::post('/users/{user}/suspend', [AdminUserController::class, 'suspend'])->name('users.suspend');
     Route::post('/users/{user}/unsuspend', [AdminUserController::class, 'unsuspend'])->name('users.unsuspend');
     Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');

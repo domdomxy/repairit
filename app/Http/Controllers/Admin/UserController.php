@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\AdminLog;
 use App\Models\Review;
 use App\Models\User;
+use App\Models\UserWarning;
 use App\Notifications\AccountRestored;
 use App\Notifications\AccountSuspended;
+use App\Notifications\AccountWarned;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +25,7 @@ class UserController extends Controller
         $status = $request->input('status');
 
         $users = User::query()
+            ->withCount('activeWarnings')
             ->when($term !== '', fn ($query) => $query->where(
                 fn ($query) => $query
                     ->where('name', 'like', "%{$term}%")
@@ -44,6 +47,8 @@ class UserController extends Controller
                 'role' => $user->role,
                 'suspended_at' => $user->suspended_at?->toIso8601String(),
                 'created_at' => $user->created_at->toIso8601String(),
+                'health_status' => $user->isSuspended() ? 'suspended' : ($user->active_warnings_count > 0 ? 'warned' : 'good'),
+                'active_warnings' => $user->active_warnings_count,
             ]);
 
         return Inertia::render('Admin/Users/Index', [
@@ -77,6 +82,38 @@ class UserController extends Controller
         }
 
         return back()->with('success', "{$user->name} has been suspended.");
+    }
+
+    /**
+     * Issue a warning, short of suspending the account outright. Counts
+     * toward the account's health status for 90 days (UserWarning::LIFESPAN_DAYS),
+     * then ages out on its own.
+     */
+    public function warn(Request $request, User $user): RedirectResponse
+    {
+        abort_if($user->isAdmin(), 403, 'Admin accounts cannot be warned.');
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $warning = UserWarning::create([
+            'user_id' => $user->id,
+            'admin_id' => $request->user()->id,
+            'reason' => $data['reason'],
+            'expires_at' => now()->addDays(UserWarning::LIFESPAN_DAYS),
+        ]);
+
+        AdminLog::record(
+            $request->user(),
+            'user.warned',
+            "Warned {$user->name} ({$user->email}, {$user->role}): {$data['reason']}",
+            $user,
+        );
+
+        $user->notify(new AccountWarned($warning));
+
+        return back()->with('success', "{$user->name} has been warned.");
     }
 
     public function unsuspend(Request $request, User $user): RedirectResponse

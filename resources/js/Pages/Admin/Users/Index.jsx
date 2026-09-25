@@ -11,10 +11,76 @@ const roleStyles = {
     customer: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
 };
 
+const healthStyles = {
+    good: 'text-green-600',
+    warned: 'text-amber-600',
+    suspended: 'text-red-600',
+};
+
+// The reason an admin gives before warning someone: it's what the user is
+// told, and what the admin log records, so it's collected in its own dialog
+// instead of a plain window.confirm().
+function WarnDialog({ user, onClose, onSubmit }) {
+    const [reason, setReason] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+
+    if (!user) return null;
+
+    function submit(e) {
+        e.preventDefault();
+        if (!reason.trim()) return;
+
+        setSubmitting(true);
+        onSubmit(reason.trim(), () => setSubmitting(false));
+    }
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+            <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl dark:bg-gray-800">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Warn {user.name}</h2>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    They'll be notified immediately. This stays on their account health status for 90 days.
+                </p>
+
+                <form onSubmit={submit} className="mt-4 space-y-3">
+                    <textarea
+                        autoFocus
+                        rows={4}
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        maxLength={1000}
+                        placeholder="Explain what they did wrong and what needs to change..."
+                        className="w-full rounded-md border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-900"
+                    />
+
+                    <div className="flex justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={submitting}
+                            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={submitting || !reason.trim()}
+                            className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-60"
+                        >
+                            Send warning
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 export default function Index({ users, filters }) {
     const [q, setQ] = useState(filters.q ?? '');
     const [role, setRole] = useState(filters.role ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
+    const [warnTarget, setWarnTarget] = useState(null);
 
     function apply(next = {}) {
         const values = { q, role, status, ...next };
@@ -31,6 +97,20 @@ export default function Index({ users, filters }) {
         }
 
         router[method](route(routeName, user.id), {}, { preserveScroll: true });
+    }
+
+    function submitWarn(reason, done) {
+        router.post(
+            route('admin.users.warn', warnTarget.id),
+            { reason },
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    done();
+                    setWarnTarget(null);
+                },
+            },
+        );
     }
 
     return (
@@ -149,7 +229,11 @@ export default function Index({ users, filters }) {
                                                 Suspended {formatDate(user.suspended_at)}
                                             </span>
                                         ) : (
-                                            <span className="text-green-600">Active</span>
+                                            <span className={healthStyles[user.health_status] ?? 'text-green-600'}>
+                                                {user.health_status === 'warned'
+                                                    ? `Warned (${user.active_warnings})`
+                                                    : 'Active'}
+                                            </span>
                                         )}
                                     </td>
                                     <td className="px-4 py-3 text-gray-500">{formatDate(user.created_at)}</td>
@@ -158,6 +242,14 @@ export default function Index({ users, filters }) {
                                             <span className="text-xs text-gray-400">Protected</span>
                                         ) : (
                                             <div className="flex justify-end gap-3">
+                                                {!user.suspended_at && (
+                                                    <button
+                                                        onClick={() => setWarnTarget(user)}
+                                                        className="text-orange-600 hover:underline"
+                                                    >
+                                                        Warn
+                                                    </button>
+                                                )}
                                                 {user.suspended_at ? (
                                                     <button
                                                         onClick={() => act('post', 'admin.users.unsuspend', user)}
@@ -204,6 +296,8 @@ export default function Index({ users, filters }) {
 
                 <Pagination links={users.links} />
             </div>
+
+            <WarnDialog user={warnTarget} onClose={() => setWarnTarget(null)} onSubmit={submitWarn} />
         </AdminLayout>
     );
 }
