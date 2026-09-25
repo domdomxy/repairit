@@ -77,6 +77,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'suspended_at' => 'datetime',
+            'deactivated_at' => 'datetime',
             'email_notifications' => 'boolean',
             'show_phone_publicly' => 'boolean',
             'show_email_publicly' => 'boolean',
@@ -109,6 +110,26 @@ class User extends Authenticatable
     public function isSuspended(): bool
     {
         return $this->suspended_at !== null;
+    }
+
+    /**
+     * Self-deactivated, as opposed to admin-suspended. Lifted automatically
+     * the next time this person logs back in — see LoginRequest::authenticate().
+     */
+    public function isDeactivated(): bool
+    {
+        return $this->deactivated_at !== null;
+    }
+
+    /**
+     * True while this account shouldn't be reachable or visible to anyone
+     * else, whether that's an admin suspension or the owner's own pause.
+     * Use this (not isSuspended()) for gates that decide what other people
+     * can see or do with this account.
+     */
+    public function isHidden(): bool
+    {
+        return $this->isSuspended() || $this->isDeactivated();
     }
 
     /** Every warning an admin has ever issued this account, newest first. */

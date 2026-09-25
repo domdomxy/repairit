@@ -13,7 +13,7 @@ class TechnicianController extends Controller
 {
     public function show(Request $request, User $technician)
     {
-        abort_unless($technician->role === 'technician' && ! $technician->isSuspended(), 404);
+        abort_unless($technician->role === 'technician' && ! $technician->isHidden(), 404);
         // Someone who blocked you does not exist as far as you are concerned.
         abort_if($technician->hasBlocked($request->user()), 404);
 

@@ -86,10 +86,10 @@ class ServiceRequest extends Model
         return $query->where('service_requests.status', self::STATUS_OPEN);
     }
 
-    /** Requests of people who can still sign in: a suspended person's requests are not shown. */
+    /** Requests of people who can still sign in: a suspended or deactivated person's requests are not shown. */
     public function scopeFromActiveCustomers(Builder $query): Builder
     {
-        return $query->whereHas('customer', fn (Builder $customer) => $customer->whereNull('suspended_at'));
+        return $query->whereHas('customer', fn (Builder $customer) => $customer->whereNull('suspended_at')->whereNull('deactivated_at'));
     }
 
     /**

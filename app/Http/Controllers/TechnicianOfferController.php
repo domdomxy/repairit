@@ -148,7 +148,7 @@ class TechnicianOfferController extends Controller
      */
     public function media(OfferMedia $media): BinaryFileResponse
     {
-        abort_if($media->offer->technician->isSuspended(), 404);
+        abort_if($media->offer->technician->isHidden(), 404);
 
         $disk = Storage::disk(Offer::MEDIA_DISK);
         abort_unless($disk->exists($media->path), 404);

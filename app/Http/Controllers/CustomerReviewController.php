@@ -14,7 +14,7 @@ class CustomerReviewController extends Controller
     // Create the technician's rating of a customer, or update it if they already left one.
     public function store(Request $request, User $customer): RedirectResponse
     {
-        abort_unless($customer->role === 'customer' && ! $customer->isSuspended(), 404);
+        abort_unless($customer->role === 'customer' && ! $customer->isHidden(), 404);
 
         $technician = $request->user();
 

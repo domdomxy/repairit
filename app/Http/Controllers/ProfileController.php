@@ -47,6 +47,28 @@ class ProfileController extends Controller
     }
 
     /**
+     * Deactivate the user's account: signs them out and hides them from
+     * everyone else, but keeps their data. Logging back in lifts it
+     * automatically — see LoginRequest::authenticate().
+     */
+    public function deactivate(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'password' => ['required', 'current_password'],
+        ]);
+
+        $user = $request->user();
+        $user->forceFill(['deactivated_at' => now()])->save();
+
+        Auth::logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return Redirect::to('/')->with('success', 'Your account has been deactivated. Log back in any time to reactivate it.');
+    }
+
+    /**
      * Delete the user's account.
      */
     public function destroy(Request $request): RedirectResponse

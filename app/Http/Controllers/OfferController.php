@@ -25,7 +25,7 @@ class OfferController extends Controller
         $technician = $offer->technician;
 
         abort_unless(
-            $technician->role === 'technician' && ! $technician->isSuspended() && $technician->technicianProfile,
+            $technician->role === 'technician' && ! $technician->isHidden() && $technician->technicianProfile,
             404,
         );
         abort_if($technician->hasBlocked($request->user()), 404);

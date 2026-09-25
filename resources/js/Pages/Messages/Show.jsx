@@ -780,7 +780,13 @@ function Chat({ conversation, messages: initialMessages, attachments: limits, mo
                 </p>
             )}
 
-            {contact.can_message === false ? (
+            {contact.unavailable ? (
+                // Suspended or deactivated: the history stays readable but nobody can write,
+                // and the server would 403 a send anyway — don't let the form get that far.
+                <p className="border-t border-gray-200 bg-gray-50 px-4 py-4 text-center text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
+                    This account isn't available right now, so you can't send new messages.
+                </p>
+            ) : contact.can_message === false ? (
                 // Blocked, by either of them: the history stays readable but nobody can write.
                 <p className="border-t border-gray-200 bg-gray-50 px-4 py-4 text-center text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
                     {contact.relations?.blocked

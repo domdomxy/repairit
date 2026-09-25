@@ -54,7 +54,7 @@ class ReportController extends Controller
 
         abort_if($serviceRequest->customer_id === $user->id, 403, 'You cannot report your own request.');
         // Only what this person could see: a suspended customer's requests are not shown.
-        abort_if($serviceRequest->customer->isSuspended(), 404);
+        abort_if($serviceRequest->customer->isHidden(), 404);
 
         return $this->file($request, null, $serviceRequest->customer_id, null, serviceRequest: $serviceRequest);
     }
@@ -66,7 +66,7 @@ class ReportController extends Controller
 
         abort_if($review->customer_id === $user->id, 403, 'You cannot report your own review.');
         // Only what this person could see: a suspended technician's page is not shown.
-        abort_if($review->technician?->isSuspended(), 404);
+        abort_if($review->technician?->isHidden(), 404);
 
         return $this->file($request, null, $review->customer_id, null, null, [
             'review_id' => $review->id,
@@ -83,7 +83,7 @@ class ReportController extends Controller
         $user = $request->user();
 
         abort_if($customerReview->technician_id === $user->id, 403, 'You cannot report your own review.');
-        abort_if($customerReview->customer?->isSuspended(), 404);
+        abort_if($customerReview->customer?->isHidden(), 404);
 
         return $this->file($request, null, $customerReview->technician_id, null, null, [
             'customer_review_id' => $customerReview->id,
@@ -172,6 +172,7 @@ class ReportController extends Controller
         // Everyone who can review it, except the people it is about.
         $admins = User::where('role', 'admin')
             ->whereNull('suspended_at')
+            ->whereNull('deactivated_at')
             ->whereNotIn('id', [$user->id, $reportedUserId])
             ->get();
 

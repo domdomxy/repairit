@@ -260,6 +260,7 @@ class FeedController extends Controller
             ->join('technician_profiles', 'technician_profiles.user_id', '=', 'users.id')
             ->where('users.role', 'technician')
             ->whereNull('users.suspended_at')
+            ->whereNull('users.deactivated_at')
             // Nobody who blocked you, or that you blocked, posts in your feed.
             ->whereNotIn('users.id', UserRelation::blockedIdsFor($request->user()))
             // "Favorites": only offers of technicians the viewer favorited.
@@ -437,6 +438,7 @@ class FeedController extends Controller
             ->join('technician_profiles', 'technician_profiles.user_id', '=', 'users.id')
             ->where('users.role', 'technician')
             ->whereNull('users.suspended_at')
+            ->whereNull('users.deactivated_at')
             ->where('technician_profiles.rating_count', '>', 0)
             ->whereNotIn('users.id', $hiddenIds)
             ->select('users.*')

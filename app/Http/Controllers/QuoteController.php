@@ -131,7 +131,7 @@ class QuoteController extends Controller
 
         $serviceRequest->load('customer');
 
-        abort_if($serviceRequest->customer->isSuspended(), 404);
+        abort_if($serviceRequest->customer->isHidden(), 404);
         abort_if($technician->isBlockedWith($serviceRequest->customer), 403, 'You can no longer send quotes to or from this person.');
         abort_unless($serviceRequest->isOpen(), 403, 'This request is closed.');
 
@@ -254,7 +254,7 @@ class QuoteController extends Controller
 
         abort_unless($serviceRequest->customer_id === $request->user()->id, 403);
         abort_unless($serviceRequest->isOpen(), 403, 'This request is closed.');
-        abort_if($quote->technician->isSuspended(), 404);
+        abort_if($quote->technician->isHidden(), 404);
         abort_if($request->user()->isBlockedWith($quote->technician), 403, 'You can no longer choose a quote from this person.');
 
         DB::transaction(function () use ($quote, $serviceRequest) {

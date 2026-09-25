@@ -3,6 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { formatDate } from '@/lib/dates';
 import { Head, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+import DeactivateUserForm from './Partials/DeactivateUserForm';
 import DeleteUserForm from './Partials/DeleteUserForm';
 import ManagePeopleForm from './Partials/ManagePeopleForm';
 import UpdateAvatarForm from './Partials/UpdateAvatarForm';
@@ -32,6 +33,7 @@ const ICONS = {
     profile: 'M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a7.5 7.5 0 0 1 15 0',
     people: 'M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19m17 0v-1.5a3.5 3.5 0 0 0-2.5-3.35M15 4.2a3.5 3.5 0 0 1 0 6.6M10 10.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z',
     password: 'M16.5 10.5V7.5a4.5 4.5 0 1 0-9 0v3M6 10.5h12a1 1 0 0 1 1 1V19a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-7.5a1 1 0 0 1 1-1Z',
+    deactivate: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm-3-9h6',
     delete: 'M14.7 3.5 21 15.5a2 2 0 0 1-1.8 3H4.8a2 2 0 0 1-1.8-3L9.3 3.5a2 2 0 0 1 3.4 0ZM12 9v4m0 3h.01',
 };
 
@@ -58,6 +60,7 @@ export default function Edit({ mustVerifyEmail, status, avatar, people }) {
         { id: 'profile', label: 'Profile information', hint: 'Name, email and emails from us' },
         ...(people ? [{ id: 'people', label: 'People', hint: 'Favorites, muted, restricted, blocked' }] : []),
         { id: 'password', label: 'Password', hint: 'Keep your account safe' },
+        { id: 'deactivate', label: 'Deactivate account', hint: 'Pause and hide it' },
         { id: 'delete', label: 'Delete account', hint: 'Remove everything', danger: true },
     ];
 
@@ -175,6 +178,10 @@ export default function Edit({ mustVerifyEmail, status, avatar, people }) {
 
                         <SettingsCard id="password">
                             <UpdatePasswordForm className="max-w-xl" />
+                        </SettingsCard>
+
+                        <SettingsCard id="deactivate">
+                            <DeactivateUserForm className="max-w-xl" />
                         </SettingsCard>
 
                         <SettingsCard id="delete" danger>

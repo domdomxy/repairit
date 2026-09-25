@@ -58,6 +58,13 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Logging back in is how a self-deactivated account comes back.
+        if (Auth::user()->isDeactivated()) {
+            Auth::user()->forceFill(['deactivated_at' => null])->save();
+
+            session()->flash('success', 'Welcome back! Your account has been reactivated.');
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

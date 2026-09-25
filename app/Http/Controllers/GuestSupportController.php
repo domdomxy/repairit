@@ -231,7 +231,7 @@ class GuestSupportController extends Controller
 
     private function admins()
     {
-        return User::where('role', 'admin')->whereNull('suspended_at')->get();
+        return User::where('role', 'admin')->whereNull('suspended_at')->whereNull('deactivated_at')->get();
     }
 
     /** @return array<string, mixed> */

@@ -93,7 +93,7 @@ class CustomerProfileController extends Controller
 
     public function show(Request $request, User $customer): Response
     {
-        abort_unless($customer->role === 'customer' && ! $customer->isSuspended(), 404);
+        abort_unless($customer->role === 'customer' && ! $customer->isHidden(), 404);
 
         $viewer = $request->user();
 

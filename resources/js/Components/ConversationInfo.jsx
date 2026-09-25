@@ -158,7 +158,7 @@ export default function ConversationInfo({ contact, open, onClose, reasons }) {
                         )}
                     </div>
 
-                    {!contact.suspended && (rating || profile?.city) && (
+                    {!contact.unavailable && (rating || profile?.city) && (
                         <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
                             {rating && <Rating average={rating.average} count={rating.count} />}
                             {profile?.city && (
@@ -170,7 +170,7 @@ export default function ConversationInfo({ contact, open, onClose, reasons }) {
                         </div>
                     )}
 
-                    {!contact.suspended && profileHref && (
+                    {!contact.unavailable && profileHref && (
                         <Link
                             href={profileHref}
                             className="mt-4 block rounded-lg bg-indigo-600 px-4 py-2 text-center text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700"
@@ -180,9 +180,9 @@ export default function ConversationInfo({ contact, open, onClose, reasons }) {
                     )}
                 </div>
 
-                {contact.suspended ? (
+                {contact.unavailable ? (
                     <p className="px-5 pb-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                        This account is suspended.
+                        This account isn't available right now.
                     </p>
                 ) : (
                     <div className="divide-y divide-gray-100 border-t border-gray-100 dark:divide-gray-700 dark:border-gray-700">

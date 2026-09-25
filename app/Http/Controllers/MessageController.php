@@ -38,7 +38,7 @@ class MessageController extends Controller
 
         // A suspended account can't be written to (they can't read it either),
         // and the sender shouldn't get a silent success.
-        abort_if($conversation->participantFor($user)->isSuspended(), 403, 'This account has been suspended.');
+        abort_if($conversation->participantFor($user)->isHidden(), 403, 'This account is not available.');
         abort_if($user->isBlockedWith($conversation->participantFor($user)), 403, 'You can no longer send messages to or from this person.');
 
         $validated = $request->validate([
@@ -182,7 +182,7 @@ class MessageController extends Controller
             403
         );
 
-        abort_if($conversation->participantFor($user)->isSuspended(), 403, 'This account has been suspended.');
+        abort_if($conversation->participantFor($user)->isHidden(), 403, 'This account is not available.');
         abort_if($user->isBlockedWith($conversation->participantFor($user)), 403, 'You can no longer send messages to or from this person.');
 
         $validated = $request->validate([
@@ -219,7 +219,7 @@ class MessageController extends Controller
 
         $technician = $offer->technician;
 
-        abort_unless($technician->role === 'technician' && ! $technician->isSuspended(), 404);
+        abort_unless($technician->role === 'technician' && ! $technician->isHidden(), 404);
 
         $customer = Auth::user();
         abort_if($customer->id === $technician->id, 403, 'You cannot send your own offer to yourself.');
@@ -268,7 +268,7 @@ class MessageController extends Controller
 
         $customer = $serviceRequest->customer;
 
-        abort_if($customer->isSuspended(), 404);
+        abort_if($customer->isHidden(), 404);
         abort_if($customer->id === $technician->id, 403, 'You cannot send your own request to yourself.');
         abort_if($customer->isBlockedWith($technician), 403, 'You can no longer send messages to or from this person.');
 

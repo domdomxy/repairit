@@ -246,6 +246,7 @@ class SupportController extends Controller
     {
         return User::where('role', 'admin')
             ->whereNull('suspended_at')
+            ->whereNull('deactivated_at')
             ->whereKeyNot($except->id)
             ->get();
     }

@@ -243,6 +243,7 @@ class SearchController extends Controller
             ->join('technician_profiles', 'technician_profiles.user_id', '=', 'users.id')
             ->where('users.role', 'technician')
             ->whereNull('users.suspended_at')
+            ->whereNull('users.deactivated_at')
             ->whereNotIn('users.id', $blockedIds)
             ->select('users.*')
             ->with(['technicianProfile.categories']);
@@ -307,6 +308,7 @@ class SearchController extends Controller
             ->join('technician_profiles', 'technician_profiles.user_id', '=', 'users.id')
             ->where('users.role', 'technician')
             ->whereNull('users.suspended_at')
+            ->whereNull('users.deactivated_at')
             ->whereNotIn('users.id', $blockedIds)
             ->select('offers.*')
             ->with(['media', 'categories', 'technician.technicianProfile']);

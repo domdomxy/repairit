@@ -82,7 +82,7 @@ class ServiceRequestController extends Controller
 
         $serviceRequest->load(['customer:id,name,avatar_path,role,suspended_at', 'categories', 'media'])->loadCount('quotes');
 
-        abort_if(! $isOwner && $serviceRequest->customer->isSuspended(), 404);
+        abort_if(! $isOwner && $serviceRequest->customer->isHidden(), 404);
         abort_if($serviceRequest->customer->hasBlocked($viewer), 404);
 
         $isTechnician = $viewer->role === 'technician' && ! $isOwner;
@@ -221,7 +221,7 @@ class ServiceRequestController extends Controller
     {
         $customer = $media->serviceRequest->customer;
 
-        abort_if($customer->isSuspended() && $customer->id !== $request->user()->id, 404);
+        abort_if($customer->isHidden() && $customer->id !== $request->user()->id, 404);
 
         $disk = Storage::disk(Offer::MEDIA_DISK);
         abort_unless($disk->exists($media->path), 404);

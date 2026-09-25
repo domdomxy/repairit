@@ -31,7 +31,7 @@ class ConversationController extends Controller
     // Start (or reopen) a conversation with a technician, then redirect into it
     public function startWith(User $technician)
     {
-        abort_unless($technician->role === 'technician' && ! $technician->isSuspended(), 404);
+        abort_unless($technician->role === 'technician' && ! $technician->isHidden(), 404);
 
         $customer = Auth::user();
         abort_if($customer->id === $technician->id, 403);
@@ -157,7 +157,7 @@ class ConversationController extends Controller
             'name' => $other->name,
             'avatar_url' => $other->avatar_url,
             'role' => $isTechnician ? 'technician' : 'customer',
-            'suspended' => $other->isSuspended(),
+            'unavailable' => $other->isHidden(),
             // What the viewer did about this person (null for admins, who can't be blocked or muted).
             'relations' => $other->isAdmin() ? null : $viewer->relationFlagsFor($other),
             // False once either of them blocked the other: the chat stays readable but nobody can write.
@@ -169,13 +169,13 @@ class ConversationController extends Controller
             'links' => [],
         ];
 
-        if (! $other->isSuspended()) {
+        if (! $other->isHidden()) {
             $contact['links'] = ProfileLinks::list($other->links);
         }
 
         $profile = $other->technicianProfile;
 
-        if ($isTechnician && $profile && ! $other->isSuspended()) {
+        if ($isTechnician && $profile && ! $other->isHidden()) {
             $contact['profile'] = [
                 'city' => $profile->city,
                 'availability_status' => $profile->availability_status,
@@ -189,7 +189,7 @@ class ConversationController extends Controller
         }
 
         // A customer's rating comes from what technicians wrote about them.
-        if (! $isTechnician && ! $other->isSuspended()) {
+        if (! $isTechnician && ! $other->isHidden()) {
             // A customer's phone and email are there only if they chose to show them.
             $contact['phone'] = $other->show_phone_publicly && filled($other->phone) ? $other->phone : null;
             $contact['email'] = $other->show_email_publicly ? $other->email : null;
