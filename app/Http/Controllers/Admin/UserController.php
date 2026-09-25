@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminLog;
+use App\Models\Report;
 use App\Models\Review;
 use App\Models\User;
 use App\Models\UserWarning;
@@ -49,6 +50,8 @@ class UserController extends Controller
                 'created_at' => $user->created_at->toIso8601String(),
                 'health_status' => $user->isSuspended() ? 'suspended' : ($user->active_warnings_count > 0 ? 'warned' : 'good'),
                 'active_warnings' => $user->active_warnings_count,
+                // 0-3, only meaningful while health_status is 'warned' — see User::healthLevel().
+                'health_level' => min($user->active_warnings_count, count(User::HEALTH_LEVEL_LABELS) - 1),
             ]);
 
         return Inertia::render('Admin/Users/Index', [
@@ -87,7 +90,9 @@ class UserController extends Controller
     /**
      * Issue a warning, short of suspending the account outright. Counts
      * toward the account's health status for 90 days (UserWarning::LIFESPAN_DAYS),
-     * then ages out on its own.
+     * then ages out on its own. When issued from a report (report_id), the
+     * warning is linked back to it so the account holder sees what was
+     * reported alongside it on their account health page.
      */
     public function warn(Request $request, User $user): RedirectResponse
     {
@@ -95,11 +100,19 @@ class UserController extends Controller
 
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:1000'],
+            'report_id' => ['nullable', 'integer', 'exists:reports,id'],
         ]);
+
+        // Only link a report that is actually about this user — never let the
+        // client point a warning at someone else's report.
+        $report = isset($data['report_id'])
+            ? Report::where('id', $data['report_id'])->where('reported_user_id', $user->id)->first()
+            : null;
 
         $warning = UserWarning::create([
             'user_id' => $user->id,
             'admin_id' => $request->user()->id,
+            'report_id' => $report?->id,
             'reason' => $data['reason'],
             'expires_at' => now()->addDays(UserWarning::LIFESPAN_DAYS),
         ]);
@@ -107,7 +120,8 @@ class UserController extends Controller
         AdminLog::record(
             $request->user(),
             'user.warned',
-            "Warned {$user->name} ({$user->email}, {$user->role}): {$data['reason']}",
+            "Warned {$user->name} ({$user->email}, {$user->role}): {$data['reason']}"
+                .($report ? " (report #{$report->id})" : ''),
             $user,
         );
 

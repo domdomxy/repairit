@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class UserWarning extends Model
 {
-    protected $fillable = ['user_id', 'admin_id', 'reason', 'expires_at'];
+    protected $fillable = ['user_id', 'admin_id', 'report_id', 'reason', 'expires_at'];
 
     /** How long a warning counts toward the account's health status. */
     public const LIFESPAN_DAYS = 90;
@@ -34,6 +34,12 @@ class UserWarning extends Model
     public function admin(): BelongsTo
     {
         return $this->belongsTo(User::class, 'admin_id');
+    }
+
+    /** The report this warning was issued for, if any — null for one issued directly from the users list. */
+    public function report(): BelongsTo
+    {
+        return $this->belongsTo(Report::class);
     }
 
     /** Warnings still counted toward the account's health status. */

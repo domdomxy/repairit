@@ -290,10 +290,72 @@ function PersonRow({ label, accent, person }) {
     );
 }
 
+// The reason an admin gives before warning someone, collected here instead of
+// a plain window.confirm() so it's clear what's being told to the user and
+// recorded on the admin log. Linked to this report (report_id) so it shows up
+// alongside the reported item on the user's own account health page.
+function WarnDialog({ user, onClose, onSubmit }) {
+    const [reason, setReason] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+
+    if (!user) return null;
+
+    function submit(e) {
+        e.preventDefault();
+        if (!reason.trim()) return;
+
+        setSubmitting(true);
+        onSubmit(reason.trim(), () => setSubmitting(false));
+    }
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+            <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl dark:bg-gray-800">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Warn {user.name}</h2>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    They'll be notified immediately, and this report will show on their account health page. Counts
+                    toward their health status for 90 days.
+                </p>
+
+                <form onSubmit={submit} className="mt-4 space-y-3">
+                    <textarea
+                        autoFocus
+                        rows={4}
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        maxLength={1000}
+                        placeholder="Explain what they did wrong and what needs to change..."
+                        className="w-full rounded-md border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-900"
+                    />
+
+                    <div className="flex justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={submitting}
+                            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={submitting || !reason.trim()}
+                            className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-60"
+                        >
+                            Send warning
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 export default function Show({ report, messages, offer, serviceRequest, review, related }) {
     const [note, setNote] = useState('');
     const [errors, setErrors] = useState({});
     const [processing, setProcessing] = useState(false);
+    const [warning, setWarning] = useState(false);
 
     // Lands on the reported message; a conversation report starts at the end.
     useEffect(() => {
@@ -325,7 +387,22 @@ export default function Show({ report, messages, offer, serviceRequest, review, 
         }
     }
 
+    function submitWarn(reason, done) {
+        router.post(
+            route('admin.users.warn', report.reported.id),
+            { reason, report_id: report.id },
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    done();
+                    setWarning(false);
+                },
+            },
+        );
+    }
+
     const canSuspend = report.reported.role !== 'admin' && !report.reported.suspended;
+    const canWarn = report.reported.role !== 'admin';
     const type = TYPE_META[report.type] ?? TYPE_META.conversation;
     const relatedLabel =
         report.type === 'user' ? 'person' : report.type === 'review' ? 'review' : serviceRequest ? 'request' : offer ? 'offer' : 'conversation';
@@ -500,15 +577,26 @@ export default function Show({ report, messages, offer, serviceRequest, review, 
                                 )}
                             </div>
 
-                            {canSuspend && (
-                                <div className="mt-4 border-t border-gray-100 pt-4 dark:border-gray-700">
-                                    <button
-                                        type="button"
-                                        onClick={suspend}
-                                        className="w-full rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500"
-                                    >
-                                        Suspend {report.reported.name}
-                                    </button>
+                            {(canWarn || canSuspend) && (
+                                <div className="mt-4 space-y-2 border-t border-gray-100 pt-4 dark:border-gray-700">
+                                    {canWarn && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setWarning(true)}
+                                            className="w-full rounded-md bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-500"
+                                        >
+                                            Warn {report.reported.name}
+                                        </button>
+                                    )}
+                                    {canSuspend && (
+                                        <button
+                                            type="button"
+                                            onClick={suspend}
+                                            className="w-full rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500"
+                                        >
+                                            Suspend {report.reported.name}
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </section>
@@ -539,6 +627,8 @@ export default function Show({ report, messages, offer, serviceRequest, review, 
                     </aside>
                 </div>
             </div>
+
+            {warning && <WarnDialog user={report.reported} onClose={() => setWarning(false)} onSubmit={submitWarn} />}
         </AdminLayout>
     );
 }

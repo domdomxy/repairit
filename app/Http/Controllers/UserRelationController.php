@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Report;
 use App\Models\User;
 use App\Models\UserRelation;
 use App\Models\UserWarning;
@@ -56,8 +57,17 @@ class UserRelationController extends Controller
     {
         return [
             'status' => $user->healthStatus(),
+            // 0-3, only meaningful while status is 'warned' — see User::healthLevel().
+            'level' => $user->healthLevel(),
             'suspended_at' => $user->suspended_at?->toIso8601String(),
             'warnings' => $user->warnings()
+                ->with([
+                    'report.message',
+                    'report.offer',
+                    'report.serviceRequest',
+                    'report.reviewSubject:id,name',
+                    'report.conversation',
+                ])
                 ->get()
                 ->map(fn (UserWarning $warning) => [
                     'id' => $warning->id,
@@ -65,9 +75,41 @@ class UserRelationController extends Controller
                     'issued_at' => $warning->created_at->toIso8601String(),
                     'expires_at' => $warning->expires_at->toIso8601String(),
                     'active' => $warning->isActive(),
+                    'report' => $warning->report ? $this->reportedItem($warning->report, $user) : null,
                 ])
                 ->values()
                 ->all(),
+        ];
+    }
+
+    /**
+     * The reported item behind a warning, as shown to the account holder
+     * themselves: what kind of thing it was and what it said, so they can see
+     * exactly what the warning was about — not who reported it or the admin's
+     * notes, which stay admin-only.
+     *
+     * @return array<string, mixed>
+     */
+    private function reportedItem(Report $report, User $user): array
+    {
+        $content = match ($report->type()) {
+            'message' => $report->message === null
+                ? 'This message has since been deleted.'
+                : ($report->message->isDeletedForEveryone() ? 'This message has since been deleted.' : $report->message->body),
+            'conversation' => $report->conversation
+                ? 'Your conversation with '.($report->conversation->participantFor($user)?->name ?? 'a deleted user').'.'
+                : 'This conversation no longer exists.',
+            'offer' => $report->offer?->title ?? $report->offer_title ?? 'This offer no longer exists.',
+            'request' => $report->serviceRequest?->excerpt(160) ?? $report->request_excerpt ?? 'This request no longer exists.',
+            'review' => trim(str_repeat('★', (int) $report->review_rating).' '.$report->review_comment),
+            default => 'Your account was reported as a whole.',
+        };
+
+        return [
+            'type' => $report->type(),
+            'reason_label' => $report->reasonLabel(),
+            'content' => $content,
+            'subject' => $report->isReviewReport() ? $report->reviewSubject?->name : null,
         ];
     }
 

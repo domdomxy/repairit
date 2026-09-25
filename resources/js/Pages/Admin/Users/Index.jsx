@@ -17,6 +17,14 @@ const healthStyles = {
     suspended: 'text-red-600',
 };
 
+// The three tiers within "warned" (1-3 active warnings), deepening in colour
+// as they pile up — the closest one gets to "Suspended" without being it.
+const HEALTH_LEVELS = {
+    1: { label: 'Warned', style: 'text-amber-600' },
+    2: { label: 'At risk', style: 'text-orange-600' },
+    3: { label: 'Critical', style: 'text-red-600' },
+};
+
 // The reason an admin gives before warning someone: it's what the user is
 // told, and what the admin log records, so it's collected in its own dialog
 // instead of a plain window.confirm().
@@ -228,12 +236,12 @@ export default function Index({ users, filters }) {
                                             <span className="text-red-600">
                                                 Suspended {formatDate(user.suspended_at)}
                                             </span>
-                                        ) : (
-                                            <span className={healthStyles[user.health_status] ?? 'text-green-600'}>
-                                                {user.health_status === 'warned'
-                                                    ? `Warned (${user.active_warnings})`
-                                                    : 'Active'}
+                                        ) : user.health_status === 'warned' ? (
+                                            <span className={HEALTH_LEVELS[user.health_level]?.style ?? healthStyles.warned}>
+                                                {HEALTH_LEVELS[user.health_level]?.label ?? 'Warned'} ({user.active_warnings})
                                             </span>
+                                        ) : (
+                                            <span className={healthStyles.good}>Active</span>
                                         )}
                                     </td>
                                     <td className="px-4 py-3 text-gray-500">{formatDate(user.created_at)}</td>

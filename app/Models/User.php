@@ -137,6 +137,26 @@ class User extends Authenticatable
         return $this->activeWarnings()->exists() ? 'warned' : 'good';
     }
 
+    /** Every level healthLevel() can return, and the label shown for it. Index 0 is "good". */
+    public const HEALTH_LEVEL_LABELS = ['Good standing', 'Warned', 'At risk', 'Critical'];
+
+    /**
+     * How far into "warned" the account is, from its count of active warnings:
+     * 0 with none, up to 3 ("Critical") for three or more. Warnings pile up
+     * rather than replacing one another, so this is the account's health
+     * *within* the warned status — meaningless once healthStatus() is
+     * 'suspended', which callers should check first.
+     */
+    public function healthLevel(): int
+    {
+        return min($this->activeWarnings()->count(), count(self::HEALTH_LEVEL_LABELS) - 1);
+    }
+
+    public function healthLevelLabel(): string
+    {
+        return self::HEALTH_LEVEL_LABELS[$this->healthLevel()];
+    }
+
     /** What this person did about other people (blocked, muted, favorited, restricted them). */
     public function relationsGiven(): HasMany
     {

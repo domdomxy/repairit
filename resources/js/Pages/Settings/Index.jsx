@@ -40,6 +40,40 @@ const HEALTH_STATUS = {
     },
 };
 
+// The three tiers within "warned" (1-3 active warnings), from the mildest to
+// the one right before a suspension would be next. Same icon as HEALTH_STATUS.warned
+// throughout — only the colour deepens as the account's active warnings pile up.
+const HEALTH_LEVELS = {
+    1: {
+        label: 'Warned',
+        badge: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+        iconOn: 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300',
+        dot: 'bg-amber-500',
+    },
+    2: {
+        label: 'At risk',
+        badge: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+        iconOn: 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300',
+        dot: 'bg-orange-500',
+    },
+    3: {
+        label: 'Critical',
+        badge: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+        iconOn: 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300',
+        dot: 'bg-red-500',
+    },
+};
+
+// What each kind of reported item is called, for the label next to its expanded content.
+const REPORT_TYPE_LABELS = {
+    message: 'Reported message',
+    conversation: 'Reported conversation',
+    offer: 'Reported offer',
+    request: 'Reported request',
+    review: 'Reported review',
+    user: 'Your account',
+};
+
 // A single-path outline icon, so each tab and empty state stays lightweight.
 function Icon({ path, className = 'h-5 w-5' }) {
     return (
@@ -178,19 +212,88 @@ function TrustedSiteRow({ host, tone, undo, disabled, onRevoke }) {
     );
 }
 
+// One warning, with the reported item it came from (if any) tucked behind an
+// expand toggle — collapsed by default so the list stays scannable.
+function WarningRow({ warning }) {
+    const [open, setOpen] = useState(false);
+    const report = warning.report;
+
+    return (
+        <li className="px-4 py-3">
+            <div className="flex items-start gap-3">
+                <span
+                    className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                        warning.active ? HEALTH_STATUS.warned.dot : 'bg-gray-300 dark:bg-gray-600'
+                    }`}
+                    aria-hidden="true"
+                />
+                <div className="min-w-0 flex-1">
+                    <p className="break-words text-sm text-gray-800 dark:text-gray-200">{warning.reason}</p>
+                    <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+                        Issued {formatDate(warning.issued_at)} ·{' '}
+                        {warning.active
+                            ? `clears ${formatDate(warning.expires_at)}`
+                            : `cleared ${formatDate(warning.expires_at)}`}
+                    </p>
+
+                    {report && (
+                        <button
+                            type="button"
+                            onClick={() => setOpen((value) => !value)}
+                            className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+                        >
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-90' : ''}`}
+                                aria-hidden="true"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                            </svg>
+                            {open ? 'Hide' : 'Show'} what was reported
+                        </button>
+                    )}
+
+                    {report && open && (
+                        <div className="mt-2 rounded-md border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                                {REPORT_TYPE_LABELS[report.type] ?? 'Reported item'} · {report.reason_label}
+                            </p>
+                            <p className="mt-1 whitespace-pre-wrap break-words text-sm text-gray-700 dark:text-gray-300">
+                                {report.subject ? `About ${report.subject}: ` : ''}
+                                {report.content}
+                            </p>
+                        </div>
+                    )}
+                </div>
+                {warning.active && (
+                    <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                        Active
+                    </span>
+                )}
+            </div>
+        </li>
+    );
+}
+
 // The signed-in person's own standing: whether an admin has warned or
 // suspended their account, and the history behind that. A warning counts
 // toward the status for 90 days from when it was issued, then clears on its
-// own — `expires_at` on each row is when that happens.
+// own — `expires_at` on each row is when that happens. While warned, the
+// account also sits at a level (1-3) from how many warnings are still active,
+// each one shown in a deeper colour than the last.
 function AccountHealthPanel({ health }) {
-    const style = HEALTH_STATUS[health.status] ?? HEALTH_STATUS.good;
+    const level = HEALTH_LEVELS[health.level];
+    const style = health.status === 'warned' && level ? level : HEALTH_STATUS[health.status] ?? HEALTH_STATUS.good;
     const active = health.warnings.filter((warning) => warning.active);
 
     return (
         <div className="space-y-4">
             <div className="flex items-center gap-3 px-4 py-5">
-                <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${style.iconOn}`}>
-                    <Icon path={style.icon} className="h-6 w-6" />
+                <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${style.iconOn ?? HEALTH_STATUS.warned.iconOn}`}>
+                    <Icon path={HEALTH_STATUS[health.status]?.icon ?? HEALTH_STATUS.good.icon} className="h-6 w-6" />
                 </span>
                 <div>
                     <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${style.badge}`}>
@@ -200,7 +303,7 @@ function AccountHealthPanel({ health }) {
                         {health.status === 'good' &&
                             'No active warnings. Nothing to do — this is where new warnings would show up.'}
                         {health.status === 'warned' &&
-                            `${active.length} active warning${active.length === 1 ? '' : 's'}. Each one clears on its own 90 days after it was issued.`}
+                            `${active.length} active warning${active.length === 1 ? '' : 's'} (level ${health.level} of 3). Each one clears on its own 90 days after it was issued.`}
                         {health.status === 'suspended' &&
                             `Your account has been suspended${health.suspended_at ? ` on ${formatDate(health.suspended_at)}` : ''}.`}
                     </p>
@@ -219,28 +322,7 @@ function AccountHealthPanel({ health }) {
             ) : (
                 <ul className="divide-y divide-gray-100 border-t border-gray-100 dark:divide-gray-700 dark:border-gray-700">
                     {health.warnings.map((warning) => (
-                        <li key={warning.id} className="flex items-start gap-3 px-4 py-3">
-                            <span
-                                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
-                                    warning.active ? HEALTH_STATUS.warned.dot : 'bg-gray-300 dark:bg-gray-600'
-                                }`}
-                                aria-hidden="true"
-                            />
-                            <div className="min-w-0 flex-1">
-                                <p className="break-words text-sm text-gray-800 dark:text-gray-200">{warning.reason}</p>
-                                <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-                                    Issued {formatDate(warning.issued_at)} ·{' '}
-                                    {warning.active
-                                        ? `clears ${formatDate(warning.expires_at)}`
-                                        : `cleared ${formatDate(warning.expires_at)}`}
-                                </p>
-                            </div>
-                            {warning.active && (
-                                <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                                    Active
-                                </span>
-                            )}
-                        </li>
+                        <WarningRow key={warning.id} warning={warning} />
                     ))}
                 </ul>
             )}
